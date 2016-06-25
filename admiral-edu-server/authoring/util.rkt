@@ -1,19 +1,19 @@
-#lang typed/racket
+#lang typed/racket/base
+
+(require racket/match)
 
 (provide (all-defined-out))
 
 (: ors ((Listof Boolean) -> Boolean))
-(define (ors els) 
-  (match els
-    ['() #f]
-    [(cons head tail) (if head #t (ors tail))]))
+(define (ors els)
+  (ormap (λ ([x : Boolean]) x) els))
 
 
 (: ands ((Listof Boolean) -> Boolean))
-(define (ands els) 
-  (foldr (lambda: ([x : Boolean] [y : Boolean]) (and x y)) #t els))
+(define (ands els)
+  (andmap (λ ([x : Boolean]) x) els))
 
 
 (: hash-has-keys? (All (A B) ((HashTable A B) A * -> Boolean)))
 (define (hash-has-keys? hash . els)
-  (ands (map (lambda (x) (hash-has-key? hash x)) els)))
+  (ands (map (λ (x) (hash-has-key? hash x)) els)))

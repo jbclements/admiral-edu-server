@@ -1,9 +1,12 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require/typed web-server/http/bindings
                [extract-binding/single (Symbol (Listof (Pairof Symbol (U String Bytes))) -> (U String Bytes))])
 
-(require "../storage/storage.rkt"
+(require racket/bool
+         racket/list
+         racket/string
+         "../storage/storage.rkt"
          "../database/mysql/typed-db.rkt"
          "../base.rkt"
          "../email/email.rkt"

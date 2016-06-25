@@ -1,4 +1,4 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require/typed yaml
                [string->yaml (String -> Assignment-YAML)])
@@ -6,7 +6,8 @@
 (require/typed json
                [jsexpr->string (Any -> String)])
 
-(require "../storage/storage.rkt"
+(require racket/string
+         "../storage/storage.rkt"
          "assignment-structs.rkt"
          "assignment-parser.rkt"
          "../base.rkt")

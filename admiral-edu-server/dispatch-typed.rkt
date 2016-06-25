@@ -1,4 +1,4 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require/typed web-server/servlet
                ;              (number? bytes? number? (or false bytes?) (listof header?) (listof bytes) -> response?
@@ -23,7 +23,10 @@
 (require/typed "untyped-dispatch.rkt"
                [get-response (String String -> (Listof Bytes))])
 
-(require "pages/typed-xml.rkt"
+(require racket/match
+         racket/string
+         racket/list
+         "pages/typed-xml.rkt"
          "base.rkt"
          "ct-session.rkt")
 

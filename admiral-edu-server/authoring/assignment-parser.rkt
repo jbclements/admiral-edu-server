@@ -1,9 +1,11 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require/typed yaml
                [yaml->string (Any -> String)])
 
-(require "assignment-structs.rkt"
+(require racket/string
+         racket/list
+         "assignment-structs.rkt"
          "three-condition-study.rkt"
          (prefix-in hold: "hold-for-review-handler.rkt")
          "util.rkt"

@@ -114,9 +114,9 @@
 (define (zip l0 l1)
   (letrec ((helper (lambda (acc l0 l1)
                      (cond [(or (null? l1) (null? l0)) (reverse acc)]
-                           [else (let ((left (first l0))
-                                       (right (first l1)))
-                                   (helper (cons (cons left right) acc) (rest l0) (rest l1)))]))))
+                           [else (let ((left (car l0))
+                                       (right (car l1)))
+                                   (helper (cons (cons left right) acc) (cdr l0) (cdr l1)))]))))
     (helper '() l0 l1)))
 
 (define (check-feedback-viewed-equal pair)

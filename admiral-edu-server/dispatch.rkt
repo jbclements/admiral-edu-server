@@ -1,7 +1,11 @@
-#lang racket
+#lang racket/base
+
 (require web-server/servlet
          web-server/dispatch
-         racket/date)
+         racket/date
+         racket/string
+         racket/match
+         racket/list)
 
 (require 
   "auth/google-openidc.rkt"
@@ -24,7 +28,7 @@
 (define (any? x)
   #t)
 
-;; Defines how to process incomming requests are handled
+;; Defines how to process incoming requests
 (provide ct-rules)
 (define-values (ct-rules mk-url)
   (dispatch-rules
@@ -32,7 +36,8 @@
    [((string-arg) ...) #:method "post" (handler #t)]
    [else error:four-oh-four]))
 
-(define (handler post)
+;; given whether this is a POST, handles an incoming request
+(define (handler post?)
   (lambda (req path)
     (let* ((raw-bindings (request-bindings/raw req))
            (bindings (request-bindings req))
@@ -40,7 +45,7 @@
            (clean-path (filter (lambda (x) (not (equal? "" x))) path))
            (start-rel-url (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/"))))
            (session (get-session req (make-table start-rel-url bindings)))
-           (result (with-handlers ([any? error:exception-occurred]) (handlerPrime post post-data session bindings raw-bindings clean-path))))
+           (result (with-handlers ([any? error:exception-occurred]) (handlerPrime post? post-data session bindings raw-bindings clean-path))))
       result)))
 
 

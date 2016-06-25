@@ -1,4 +1,4 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require/typed web-server/http/bindings
                [extract-binding/single (Symbol (Listof (Pairof Symbol (U String Bytes))) -> (U String Bytes))])
@@ -6,7 +6,9 @@
 (require/typed web-server/http/request-structs
                [binding:file-filename (Any -> Bytes)])
 
-(require "../email/email.rkt"
+(require racket/list
+         racket/string
+         "../email/email.rkt"
          "../database/mysql/typed-db.rkt"
          "../storage/storage.rkt"
          "assignment-structs.rkt"

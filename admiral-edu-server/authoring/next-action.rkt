@@ -1,4 +1,4 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require/typed web-server/http/bindings
                [extract-binding/single (Symbol (Listof (Pairof Symbol (U String Bytes))) -> (U String Bytes))])

@@ -1,4 +1,6 @@
-#lang racket
+#lang racket/base
+
+(module+ main
 (require web-server/servlet-dispatch
          web-server/web-server
          "dispatch.rkt"
@@ -26,4 +28,4 @@
   (let ((input (read)))
     (if (equal? 'stop input) (stop) (block))))
 
-(block)
+(block))

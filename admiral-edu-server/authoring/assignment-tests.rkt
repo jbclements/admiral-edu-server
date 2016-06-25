@@ -1,5 +1,6 @@
-#lang racket
+#lang racket/base
 
+(module+ test
 (require "assignment-parser.rkt"
          "assignment-structs.rkt"
          "next-action.rkt"
@@ -258,4 +259,4 @@
 
 
 (let ((l (likert "test-id" "Test instructions" "Disagree" "Agree" 9)))
-  (check-equal? l (yaml->likert (likert->yaml l))))
+  (check-equal? l (yaml->likert (likert->yaml l)))))
