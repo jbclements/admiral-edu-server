@@ -1,9 +1,7 @@
-#lang typed/racket
+#lang typed/racket/base
 
-(require "util/config-file-reader.rkt")
-
-(provide (all-defined-out))
-
+;; all other provides generated automatically by macro...
+(provide current-configuration)
 
 ;; a configuration is a hash table with the required fields
 ;; (specified below)
@@ -21,6 +19,7 @@
     [(_ checker [field ty] ...)
      (begin
        (begin
+         (provide field)
          (: field (-> ty))
          (define (field)
            (maybe-convert
@@ -81,12 +80,6 @@
            racket/runtime-path)
 
   
-  
-  ;; a simple regression test: make sure we can parse
-  ;; the given example configuration. If this test gets
-  ;; out of sync, just paste the new value in.
-  (define-runtime-path example-conf "../conf/")
-
   (define test-conf
     '#hash(("ct-port" . "8080")
            ("mail-port" . "2525")
@@ -107,5 +100,13 @@
            ("master-user" . "youremail@domain.com")
            ("db-address" . "localhost")))
   
-  (check-equal? (check-conf-hash test-conf) test-conf))
+  (check-equal? (check-conf-hash test-conf) test-conf)
+
+  (check-exn #px"missing required field"
+             (λ () (check-conf-hash
+                    (hash-remove test-conf "db-name"))))
+
+  (check-exn #px"convertible to Natural, got:"
+             (λ () (check-conf-hash
+                    (hash-set test-conf "mail-port" "22342a")))))
 

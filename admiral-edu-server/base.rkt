@@ -1,4 +1,4 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require "database/mysql.rkt"
          "configuration.rkt"

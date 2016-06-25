@@ -1,4 +1,4 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require "mysql/typed-db.rkt"
          (prefix-in class: "mysql/class.rkt") 

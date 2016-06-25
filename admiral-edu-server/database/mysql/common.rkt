@@ -1,11 +1,13 @@
-#lang racket
+#lang racket/base
 
-(require db)
+(require db
+         racket/string
+         racket/match)
+
 (require "../../configuration.rkt"
          "../../ct-session.rkt")
 
 ;; Helper functions
-
 
 (provide merge)
 ;(: merge (String * -> String))

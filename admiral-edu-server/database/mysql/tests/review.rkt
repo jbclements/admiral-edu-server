@@ -1,13 +1,14 @@
-#lang racket
+#lang racket/base
+
+(module+ test
 
 (require "../review.rkt"
          "../typed-db.rkt"
          "../../../base.rkt"
+         "../../../testing/test-configuration.rkt"
          rackunit)
 
-;; FIXME: set good testing configuration
-(/ 1 0)
-(set-db-address! "localhost")
+  (current-configuration test-conf)
 
 (define test-class "test-class")
 (define test-assignment "test-assignment")
@@ -39,7 +40,7 @@
 
 
 (define (init-tests)
-  (init-db)
+  (db-init-tables)
   (class:create test-class)
   
   (roles:create instructor-role "Instructor" 1)
@@ -112,7 +113,7 @@
 
 (define (zip l0 l1)
   (letrec ((helper (lambda (acc l0 l1)
-                     (cond [(or (empty? l1) (empty? l0)) (reverse acc)]
+                     (cond [(or (null? l1) (null? l0)) (reverse acc)]
                            [else (let ((left (first l0))
                                        (right (first l1)))
                                    (helper (cons (cons left right) acc) (rest l0) (rest l1)))]))))
@@ -121,5 +122,5 @@
 (define (check-feedback-viewed-equal pair)
   (let ((first (car pair))
         (second (cdr pair)))
-    (check-equal? (review:Record-feedback-viewed-time-stamp first) (review:Record-feedback-viewed-time-stamp second))))
+    (check-equal? (review:Record-feedback-viewed-time-stamp first) (review:Record-feedback-viewed-time-stamp second)))))
                

@@ -1,11 +1,11 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require "../../util/basic-types.rkt"
          (prefix-in system: "system.rkt"))
 
 (require/typed (prefix-in v1: "migrate-0-1.rkt")
                [v1:check-migrated (-> (Result String))]
-               [v1:migrate (-> (Result String))])
+               [v1:migrate (-> (Result Void))])
 
 (require/typed (prefix-in v2: "migrate-1-2.rkt")
                [v2:check-migrated (-> (Result String))]

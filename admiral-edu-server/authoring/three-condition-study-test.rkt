@@ -1,12 +1,19 @@
-#lang racket
+#lang racket/base
+
+;; what is this file testing?
+
+(module+ test
 
 (require "../base.rkt"
+         "../testing/test-configuration.rkt"
          "../database/mysql/common.rkt"
          "../storage/storage.rkt"
          "assignment.rkt"
          "assignment-structs.rkt"
          "assignment-parser.rkt"
          "three-condition-study.rkt"
+         racket/file
+         racket/set
          yaml
          db
          rackunit)
@@ -39,10 +46,13 @@
 
 (define all-students (list ACE AMY ART ALF JOE JAN JIM JON SAL SAM STU SUE SID))
 
-(set-db-address! "localhost")
+(current-configuration test-conf)
 
+;; UNGHHH! When are these supposed to be run?
+
+;; refresh, create assignment 1
 (define (init-tests)
-  (init-db)
+  (db-init-tables)
   (class:create (class-name))
   
   (roles:create instructor-role "Instructor" 1)
@@ -54,8 +64,9 @@
   (write-file (dependency-file-name "test-assignment") (file->string "sample-yaml/test-assignment.yaml"))
   (save-assignment-description (class-name) "test-assignment" (file->string "sample-yaml/test-assignment-description.yaml")))
 
+  ;; refresh, create assignment 2
 (define (init-tests2)
-  (init-db)
+  (db-init-tables)
   (class:create (class-name))
   
   (roles:create instructor-role "Instructor" 1)
@@ -71,19 +82,19 @@
 (define three-test-assignment-tests-step
   (let* ((steps (Assignment-steps three-test-assignment))
          (step (filter (lambda (step) (string=? (Step-id step) "tests")) steps)))
-    (first step)))
+    (car step)))
 
 (define three-test-assignment-implementation-step
   (let* ((steps (Assignment-steps three-test-assignment))
          (step (filter (lambda (step) (string=? (Step-id step) "implementation")) steps)))
-    (first step)))
+    (car step)))
 
 
 (define three-test-assignment2 (yaml->assignment (string->yaml (file->string "sample-yaml/test-assignment-description2.yaml"))))
 (define three-test-assignment2-tests-step
   (let* ((steps (Assignment-steps three-test-assignment2))
          (step (filter (lambda (step) (string=? (Step-id step) "tests")) steps)))
-    (first step)))
+    (car step)))
 
 (define (run-tests)
   (initialize)
@@ -412,7 +423,7 @@
            (reviews (map review:select-by-hash hashes))
            (assigned-expected 1))
       (check-equal? (list user review-id-expected (length reviews)) (list user review-id-expected assigned-expected))
-      (check-equal? (review:Record-review-id (first reviews)) review-id-expected))))
+      (check-equal? (review:Record-review-id (car reviews)) review-id-expected))))
 
 (define (test-reflection-assigned-submit-reviews step-id)
   (lambda (user)
@@ -427,5 +438,11 @@
   (sleep 1)
   (printf "Submitting implementation for: ~a\n" user)
   (three-do-submit-step three-test-assignment three-test-assignment-implementation-step user "useless.tar" useless-tar-file (Assignment-steps three-test-assignment)))
+
+
+  (init-tests)
+  (run-tests)
+
+  (run-all-reviewing-tests))
 
 

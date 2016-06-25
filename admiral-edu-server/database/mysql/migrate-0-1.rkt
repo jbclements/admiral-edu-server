@@ -1,6 +1,7 @@
-#lang racket
+#lang racket/base
 
 (require db
+         racket/match
          "common.rkt"
          "../../util/basic-types.rkt"
          (prefix-in system: "system.rkt")
@@ -19,7 +20,8 @@
 ; -> (Result String)
 (provide check-migrated)
 (define (check-migrated)
-  (cond [(and (system-table-exists?) (>= (system:select-version) 1)) (Success (format "Database is on version ~a." (system:select-version)))]
+  (cond [(and (system-table-exists?) (>= (system:select-version) 1))
+         (Success (format "Database is on version ~a." (system:select-version)))]
         [else (Failure "The system has not migrated to version 1.")]))
 
 (define (do-migrate)
