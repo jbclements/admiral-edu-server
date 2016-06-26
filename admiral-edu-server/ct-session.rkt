@@ -5,13 +5,20 @@
 
 ;; Captain Teach Session information
 (provide (struct-out ct-session))
-(struct: ct-session ((class : String) (uid : String) (table : (HashTable Symbol String))) #:transparent)
+(struct: ct-session ((class : String)
+                     (uid : String)
+                     (table : (HashTable Session-Var String)))
+  #:transparent)
+
+(define-type Session-Var
+  (U 'start-url 'sort-by 'order 'review-hash 'action 'user-id))
+(define-predicate session-var? Session-Var)
 
 
 (provide Order)
 (define-type Order (U 'asc 'desc))
 
-; ct-session -> Order
+;; describes the ordering of elements in displayed sorted lists (ascending or descending)
 ; If the session has dir specified and it is 'asc or 'desc returns that dir
 ; otherwise returns 'asc.
 ;(provide get-dir)
@@ -34,35 +41,30 @@
     ['desc 'asc]))
 
 (: clean-bindings ((Listof Any) -> (Listof (Pairof Symbol String))))
+;; discard elements of the list that are not of the desired form
 (define (clean-bindings ls)
   (match ls
     ['() '()]
-    [(cons `(,symbol . ,string) tail) (cond [(and (symbol? symbol) (string? string)) (cons `(,symbol . ,string) (clean-bindings tail))]
-                                            [else (clean-bindings tail)])]))
-
-(: okay-binding? ((Pairof Symbol Any) -> Boolean))
-(define (okay-binding? pair)
-  (let ((symbol (car pair)))
-    (cond [(eq? symbol 'sort-by) #t]
-          [(eq? symbol 'order) #t]
-          [(eq? symbol 'review-hash) #t]
-          [(eq? symbol 'action) #t]
-          [(eq? symbol 'user-id) #t]
-          [else #f])))
+    [(cons `(,symbol . ,string) tail)
+     (cond [(and (symbol? symbol) (string? string)) (cons `(,symbol . ,string) (clean-bindings tail))]
+           [else (clean-bindings tail)])]))
 
 (provide get-binding)
-(: get-binding (Symbol ct-session -> (Result String)))
+(: get-binding (Session-Var ct-session -> (Result String)))
 (define (get-binding binding session)
   (let ((table (ct-session-table session)))
     (cond [(not (hash-has-key? table binding)) (Failure (format "No binding found: ~a" binding))]
           [else (Success (hash-ref table binding))])))
 
-;(: make-table (String (Listof (Pairof Symbol String)) -> (HashTable Symbol String)))
 (provide make-table)
-(: make-table (String (Listof Any) -> (HashTable Symbol String)))
+(: make-table (String (Listof Any) -> (HashTable Session-Var String)))
 (define (make-table start-rel-url bindings)
-  (let ((pairs (cons `(start-url . ,start-rel-url) (filter okay-binding? (clean-bindings bindings)))))
-    (make-hash pairs)))
+  (: pairs (Listof (Pairof Session-Var String)))
+  (define pairs ((inst cons (Pairof Session-Var String) Nothing)
+                 `(start-url . ,start-rel-url)
+                 (filter (make-predicate (Pairof Session-Var String))
+                         (clean-bindings bindings))))
+  (make-hash pairs))
           
 ;  (let ((args (append (list 'start-url start-rel-url) (filter (compose not reserved?) (flatten bindings)))))
 ;    (apply hash args)))

@@ -45,7 +45,8 @@
            (clean-path (filter (lambda (x) (not (equal? "" x))) path))
            (start-rel-url (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/"))))
            (session (get-session req (make-table start-rel-url bindings)))
-           (result (with-handlers ([any? error:exception-occurred]) (handlerPrime post? post-data session bindings raw-bindings clean-path))))
+           (result (with-handlers ([any? error:exception-occurred])
+                     (handlerPrime post? post-data session bindings raw-bindings clean-path))))
       result)))
 
 
