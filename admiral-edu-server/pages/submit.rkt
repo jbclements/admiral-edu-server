@@ -1,12 +1,10 @@
-#lang racket
+#lang racket/base
 
-(require web-server/http/bindings
+(require racket/list
+         web-server/http/bindings
          web-server/http/request-structs
-         web-server/templates
          web-server/http/response-structs
-         xml
-         json
-         yaml)
+         xml)
 
 (require "../base.rkt"
          "errors.rkt"

@@ -1,6 +1,7 @@
-#lang racket
+#lang racket/base
 
-(require web-server/templates
+(require racket/string
+         web-server/templates
          web-server/http/bindings)
 
 (require "../base.rkt"

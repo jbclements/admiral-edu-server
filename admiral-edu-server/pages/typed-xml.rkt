@@ -1,4 +1,6 @@
-#lang typed/racket
+#lang typed/racket/base
+
+(require racket/list)
 
 (require/typed xml
                [xexpr->string (XExpr -> String)])

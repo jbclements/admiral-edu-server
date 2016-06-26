@@ -1,6 +1,9 @@
-#lang racket
+#lang racket/base
 
-(require web-server/templates
+(require racket/string
+         racket/list
+         racket/match
+         web-server/templates
          web-server/http/response-structs
          xml
          json)
