@@ -3,6 +3,10 @@
 (require racket/match
          "util/basic-types.rkt")
 
+;; I'm starting to think that the word "session" is entirely misleading
+;; here, as it appears that this session is not actually preserved
+;; across requests.
+
 ;; Captain Teach Session information
 (provide (struct-out ct-session))
 (struct: ct-session ((class : String)
@@ -10,10 +14,19 @@
                      (table : (HashTable Session-Var String)))
   #:transparent)
 
+;; a session contains the name of a class, a uid, and
+;; a table mapping variables to values:
 (define-type Session-Var
   (U 'start-url 'sort-by 'order 'review-hash 'action 'user-id))
 (define-predicate session-var? Session-Var)
+;; start-url : ?
+;; sort-by : the column on which to sort certain table displays
+;; order : the ordering within that column
+;; review-hash : ?
+;; action : ?
+;; user-id : ?
 
+;; actually, it seems like these should just be fields of the session.
 
 (provide Order)
 (define-type Order (U 'asc 'desc))
@@ -53,10 +66,13 @@
 (: get-binding (Session-Var ct-session -> (Result String)))
 (define (get-binding binding session)
   (let ((table (ct-session-table session)))
-    (cond [(not (hash-has-key? table binding)) (Failure (format "No binding found: ~a" binding))]
+    (cond [(not (hash-has-key? table binding))
+           (Failure (format "No binding found: ~a" binding))]
           [else (Success (hash-ref table binding))])))
 
 (provide make-table)
+;; constructs a session table from a starting URL and a list of
+;; bindings
 (: make-table (String (Listof Any) -> (HashTable Session-Var String)))
 (define (make-table start-rel-url bindings)
   (: pairs (Listof (Pairof Session-Var String)))

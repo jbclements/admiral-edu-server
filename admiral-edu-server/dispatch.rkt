@@ -123,8 +123,8 @@
 
 ;; Defines how a session is created
 ;; request -> ct-session
-(define (get-session req trailing-slash)
-  (ct-session (class-name) (req->uid req) trailing-slash))
+(define (get-session req table)
+  (ct-session (class-name) (req->uid req) table))
 
 ;; Returns #f if the session is not valid
 ;; otherwise returns a role-record
