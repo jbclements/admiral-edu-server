@@ -23,7 +23,13 @@
 ;; sort-by : the column on which to sort certain table displays
 ;; order : the ordering within that column
 ;; review-hash : ?
-;; action : ?
+;; action : action (on the status page only?), one of
+;;  - "mark-incomplete"
+;;  - "mark-complete"
+;;  - "publish"
+;;  - "unpublish"
+;;  - "unpublish-all"
+;;  - "publish-all"
 ;; user-id : ?
 
 ;; actually, it seems like these should just be fields of the session.

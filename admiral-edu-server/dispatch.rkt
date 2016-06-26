@@ -44,7 +44,7 @@
            (post-data (request-post-data/raw req))
            (clean-path (filter (lambda (x) (not (equal? "" x))) path))
            (start-rel-url (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/"))))
-           (session (get-session req (make-table start-rel-url bindings)))
+           (session (ct-session (class-name) (req->uid req) (make-table start-rel-url bindings)))
            (result (with-handlers ([any? error:exception-occurred])
                      (handlerPrime post? post-data session bindings raw-bindings clean-path))))
       result)))
@@ -121,10 +121,6 @@
   `(html
       (p "The service has been initialized to a fresh state.")))
 
-;; Defines how a session is created
-;; request -> ct-session
-(define (get-session req table)
-  (ct-session (class-name) (req->uid req) table))
 
 ;; Returns #f if the session is not valid
 ;; otherwise returns a role-record
