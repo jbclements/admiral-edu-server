@@ -5,61 +5,36 @@
          "assignment-structs.rkt"
          "next-action.rkt"
          yaml
-         (planet cce/fasttest:4:2/random)
-         (planet cce/fasttest:4:2/rackunit)
+         quickcheck
          rackunit
-         rackunit/text-ui)
+         rackunit/text-ui
+         rackunit/quickcheck)
 
-(random-seed 1)
-(run-tests 
- (test-random
-  ([text (random-string)])
-  (check-pred rubric-element? (instruction text))))
+  ;; fundamentally I think these are all just indirect tests of the YAML packge....
 
-(random-seed 1)
-(run-tests 
- (test-random
-  ([text (random-string)])
-  (let ((i (instruction text)))
-    (check-equal? i (yaml->instruction (instruction->yaml i))))))
+  (check-property
+   (property
+    ([str arbitrary-string])
+    (let ((i (instruction str)))
+      (equal? i (yaml->instruction (instruction->yaml i))))))
 
-(random-seed 1)
-(run-tests
- (test-random
-  ([id (random-string)]
-   [text (random-string)])
-  (check-pred rubric-element? (free-form id text))))
+  (check-property
+   (property
+    ([id arbitrary-string]
+     [text arbitrary-string])
+    (let ((form (free-form id text)))
+      (equal? form (yaml->free-form (free-form->yaml form))))))
 
-(random-seed 1)
-(run-tests
- (test-random
-  ([id (random-string)]
-   [text (random-string)])
-  (let ((form (free-form id text)))
-    (check-equal? form (yaml->free-form (free-form->yaml form))))))
-
-(random-seed 1)
-(run-tests
- (test-random
-  ([id (random-string)]
-   [text (random-string)]
-   [min (random-string)]
-   [max (random-string)]
-   [granularity (+ 1 (random-natural))])
-  (check-pred rubric-element? (likert id text min max granularity))))
-
-(random-seed 1)
-(run-tests
- (test-random
-  ([id (random-string)]
-   [text (random-string)]
-   [min (random-string)]
-   [max (random-string)]
-   [granularity (+ 1 (random-natural))])
-  (let ((l (likert id text min max granularity)))
-    (check-equal? l (yaml->likert (likert->yaml l))))))
-
-
+  
+  (check-property
+   (property
+    ([id arbitrary-string]
+     [text arbitrary-string]
+     [min arbitrary-string]
+     [max arbitrary-string]
+     [granularity arbitrary-natural])
+    (let ((l (likert id text min max (add1 granularity))))
+      (equal? l (yaml->likert (likert->yaml l))))))
 
 
 (check-true (rubric-element? (instruction "Some test instructions")))
