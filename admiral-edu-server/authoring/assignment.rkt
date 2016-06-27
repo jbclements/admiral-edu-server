@@ -7,6 +7,8 @@
                [jsexpr->string (Any -> String)])
 
 (require racket/string
+         racket/match
+         racket/list
          "../storage/storage.rkt"
          "assignment-structs.rkt"
          "assignment-parser.rkt"
@@ -14,8 +16,7 @@
 
 (provide (all-from-out "assignment-structs.rkt")
          delete-assignment
-         yaml-bytes->create-assignment
-         yaml-bytes->save-assignment
+         yaml-bytes->create-or-save-assignment
          next-step
          submit-step
          assignment-id->assignment-dependencies
@@ -25,8 +26,25 @@
          assignment-id->assignment
          create-or-save-assignment)
 
+;; really need the exception monad here...
+(define-syntax sdo
+  (syntax-rules (<-)
+    [(_ [name <- rhs]) rhs]
+    [(_ rhs) rhs]
+    [(_ [name <- rhs] rest ...)
+     (let ([temp rhs])
+       (cond [(Success? temp)
+              (let ([name (Success-result temp)])
+                (sdo rest ...))]
+             [else temp]))]
+    [(_ rhs rest ...)
+     (let ([temp rhs])
+       (cond [(Success? temp)
+              (sdo rest ...)]
+             [else temp]))]))
 
-
+;; represents success for functions that don't return a useful value
+(define success (Success (void)))
 
 ;; assignment-id -> void
 ;; Completely remove all trace of an assignment
@@ -36,106 +54,102 @@
   (delete-path (string-append (class-name) "/" assignment-id)))
 
 
-(: repeat-id? (All (A B) ((A -> B) -> ((Listof A) -> (U B #f)))))
+;; return the (alphabetically) first duplicated result of the getter
+(: repeat-id? (All (A) ((A -> String) -> ((Listof A) -> (U String #f)))))
 (define (repeat-id? getter)
   (lambda (list)
-    (cond [(null? list) #f]
-          [else (repeats? (sort (map getter list) string<?))])))
+    (check-duplicates (sort (map getter list) string<?))))
 
-(: repeats? (All (A) ((Listof A) -> (U A #f))))
-(define (repeats? ls)
-  (if (null? ls) #f
-      (letrec ([helper : (A (Listof A) -> (U A #f))
-                       (lambda (head tail)
-                         (cond [(null? tail) #f]
-                               [else (let ((next (car tail)))
-                                       (cond [(equal? head next) head]
-                                             [else (helper next (cdr tail))]))]))])
-        (helper (car ls) (cdr ls)))))
-
-(: validate-step (Step -> (U String #f)))
+;; dead code?
+(: validate-step (Step -> (Result Void)))
 (define (validate-step step)
-  (cond [(not (Step? step)) (raise-argument-error 'validate-step "Step" step)]
-        [(validate-id (Step-id step)) (validate-id (Step-id step))]
-        [else (let* ((reviews (Step-reviews step))
-                     (ids (map Review-id reviews))
-                     (sorted (sort ids string<?)))
-                (let ((repeat (repeats? sorted))
-                      ; FIXME: this filter should reduce (Listof (U String #f)) to just (Listof String) but the type checker
-                      ; is unable to confirm this.
-                      [invalid-ids : (Listof String) (cast (filter (lambda (x) x) (map validate-id ids)) (Listof String))])
-                  (cond [repeat (string-append "Each review id must be unique for the step it is in. Found duplicate review id '" repeat "' in the step '" (Step-id step) "'.")]
-                        [(not (null? invalid-ids)) (string-join invalid-ids "\n")]
-                        [else #f])))]))
+  (sdo (validate-id (Step-id step))
+       (let* ((reviews (Step-reviews step))
+              (ids (map Review-id reviews))
+              (sorted (sort ids string<?)))
+         (let ([repeat (check-duplicates sorted)]
+               [invalid-id-messages
+                (map Failure-message (filter Failure? (map validate-id ids)))])
+           (cond [repeat
+                  (Failure
+                   (string-append "Each review id must be unique for the step "
+                                  "it is in. Found duplicate review id '"
+                                  repeat "' in the step '" (Step-id step) "'."))]
+                 [(not (null? invalid-id-messages))
+                  (Failure (string-join invalid-id-messages "\n"))]
+                 [else success])))))
 
-(: validate-id (String -> (U String #f)))
+(: validate-id (String -> (Result Void)))
 (define (validate-id id)
-  (let ((try-match (regexp-match-exact? "[a-zA-Z0-9-]*" id)))
-    (cond [try-match #f]
-          [else "Id can only contain letters, numbers, and '-' characters. Rejected '" id "'."])))
-  
-(: validate-assignment (Assignment Boolean -> (U String #f)))
+  (cond
+    [(regexp-match-exact? #px"[a-zA-Z0-9-]*" id) success]
+    [else
+     (Failure
+      (string-append
+       "Id can only contain letters, numbers, and '-' characters. Rejected '" id "'."))]))
+
+;; given an assignment and a boolean indicating whether this one should replace
+;; another one with the same name, return a (Result Void)
+(: validate-assignment (Assignment Boolean -> (Result Void)))
 (define (validate-assignment assignment override)
-  (cond [(and (not override) (assignment:exists? (Assignment-id assignment) (class-name))) (string-append "The specified assignment id '" (Assignment-id assignment) "' already exists.")]
-        [else (let* ((check-steps ((repeat-id? Step-id) (Assignment-steps assignment)))
-                     ; FIXME: this filter should reduce (Listof (U String #f)) to just (Listof String) but the type checker
-                     ; is unable to confirm this.
-                     [check-review-ids : (Listof String) (cast (filter (lambda (x) x) 
-                                                                       (map (repeat-id? Review-id) 
-                                                                            (map Step-reviews (Assignment-steps assignment)))) (Listof String))]
-                     (valid-id (validate-id (Assignment-id assignment)))
-                     (ids (append (map Step-id (Assignment-steps assignment)) (apply append (map (lambda ([step : Step]) (map Review-id (Step-reviews step))) (Assignment-steps assignment)))))
-                     ; FIXME: this filter should reduce (Listof (U String #f)) to just (Listof String) but the type checker
-                      ; is unable to confirm this.
-                     [valid-step-ids : (Listof String) (cast 
-                                                        (filter (lambda (x) (not (eq? #f x))) (map validate-id ids)) (Listof String))])
-                (cond [valid-id valid-id]
-                      [(not (null? check-review-ids)) (string-append "Found duplicate review-ids: " (string-join check-review-ids ", "))]
-                      [check-steps (string-append "Assignment may not have multiple steps with the same id. Found multiple instances of '" check-steps "'")]
-                      [(not (null? valid-step-ids)) (string-join valid-step-ids "")]
-                      [else #f]))]))
+  (cond [(and (not override) (assignment:exists? (Assignment-id assignment) (class-name)))
+         (Failure
+          (string-append "The specified assignment id '"
+                         (Assignment-id assignment)
+                         "' already exists."))]
+        [else
+         (define check-steps ((repeat-id? Step-id) (Assignment-steps assignment)))
+         (let* ([check-review-ids (filter string? 
+                                          (map (repeat-id? Review-id) 
+                                               (map Step-reviews (Assignment-steps assignment))))]
+                (ids (append (map Step-id (Assignment-steps assignment))
+                             (apply append
+                                    (map (λ ([step : Step])
+                                           (map Review-id (Step-reviews step)))
+                                         (Assignment-steps assignment)))))
+                [valid-step-ids (filter string? (map validate-id ids))])
+           (sdo (validate-id (Assignment-id assignment))
+                (cond
+                  [(not (null? check-review-ids))
+                   (Failure
+                    (string-append "Found duplicate review-ids: " (string-join check-review-ids ", ")))]
+                  [check-steps
+                   (Failure
+                    (string-append "Assignment may not have multiple steps with the same id. Found multiple instances of '"
+                                   check-steps "'"))]
+                  [(not (null? valid-step-ids))
+                   (Failure
+                    (string-join valid-step-ids ""))]
+                  [else (Success (void))])))]))
 
 
-(: yaml-bytes->create-assignment (Bytes -> (U String #t)))
-(define (yaml-bytes->create-assignment bytes)
-  (let ((yaml-string (bytes->string/utf-8 bytes)))
-    (let ((yaml (with-handlers ([exn:fail? could-not-parse]) (string->yaml yaml-string))))
-      (cond [(Failure? yaml) (Failure-message yaml)]
-            [else (let ((assignment (with-handlers ([exn:fail? invalid-yaml]) (yaml->assignment yaml))))
-                    (cond [(Failure? assignment) (Failure-message assignment)]
-                          [else (let ((result (create-or-save-assignment assignment #t)))                                  
-                                  (cond [(eq? #t result) (save-assignment-description (class-name) (Assignment-id assignment) yaml-string) "Success"]
-                                        [else result]))]))]))))
-
-
-(: yaml-bytes->save-assignment (Bytes -> (U String #t)))
-(define (yaml-bytes->save-assignment bytes)
-  (let ((yaml-string (bytes->string/utf-8 bytes)))
-    (let ((yaml (with-handlers ([exn:fail? could-not-parse]) (string->yaml yaml-string))))
-      (cond [(Failure? yaml) (Failure-message yaml)]
-            [else (let ((assignment (with-handlers ([exn:fail? invalid-yaml]) (yaml->assignment yaml))))
-                    (cond [(Failure? assignment) (Failure-message assignment)]
-                          [else (let ((result (create-or-save-assignment assignment #f)))                                  
-                                  (cond [(eq? #t result) (save-assignment-description (class-name) (Assignment-id assignment) yaml-string) "Success"]
-                                        [else result]))]))]))))
+(: yaml-bytes->create-or-save-assignment (Bytes Boolean -> (Result Void)))
+(define (yaml-bytes->create-or-save-assignment bytes create?)
+  (let ((yaml-string (bytes->string/utf-8 bytes)))    
+    (sdo [yaml <- (with-handlers ([exn:fail? could-not-parse]) (Success (string->yaml yaml-string)))]
+         [assignment <- (with-handlers ([exn:fail? invalid-yaml]) (Success (yaml->assignment yaml)))]
+         (create-or-save-assignment assignment create?)
+         (Success (save-assignment-description (class-name) (Assignment-id assignment) yaml-string))
+         (Success (void)))))
 
 
 ;; TODO: check to see if assignment has the same name as before
-(: create-or-save-assignment (Assignment Boolean -> (U String #t)))
+(: create-or-save-assignment (Assignment Boolean -> (Result Void)))
 (define (create-or-save-assignment assignment create?)
-  (let ((validation (validate-assignment assignment (not create?))))
-    (cond [validation validation]
-          [else (when create? (create-database-entries assignment))
-                (create-base-rubrics assignment)
-                (check-no-reviews assignment)
-                #t])))
+  (sdo (validate-assignment assignment (not create?))
+       (begin
+         (when create? (create-database-entries assignment))
+         (create-base-rubrics assignment)
+         (check-no-reviews assignment)
+         (Success (void)))))
 
 
 (: check-no-reviews (Assignment -> Void))
 (define (check-no-reviews assignment)
   (let ((no-reviews (null? (filter no-reviews? (Assignment-steps assignment))))
         (assignment-id (Assignment-id assignment)))
-    (if no-reviews (assignment:mark-ready assignment-id (class-name)) (assignment:mark-not-ready assignment-id (class-name)))))
+    (if no-reviews (assignment:mark-ready assignment-id (class-name))
+        (assignment:mark-not-ready assignment-id (class-name)))))
 
 
 (: no-reviews? (Step -> Boolean))
@@ -189,14 +203,19 @@
                  (do-submit-step (AssignmentHandler-do-submit-step handler))) 
             (cond
               [(and (MustSubmitNext? next) 
-                    (equal? (Step-id (MustSubmitNext-step next)) step-id)) (do-submit-step assignment (step-id->step assignment-id step-id) uid file-name data steps)]
+                    (equal? (Step-id (MustSubmitNext-step next)) step-id))
+               (do-submit-step assignment (step-id->step assignment-id step-id) uid file-name data steps)]
               [else (failure "Could not submit to the step '" step-id "'." (next-action-error next))]))]))
 
 
 (: next-action-error ((U MustSubmitNext MustReviewNext #t) -> String))
 (define (next-action-error next)
-  (cond [(MustSubmitNext? next) (string-append "Your next action is to submit to on '" (Step-id (MustSubmitNext-step next)) "'.")]
-        [(MustReviewNext? next) (string-append "Your next action is to complete reviews for '" (Step-id (MustReviewNext-step next)) "'.")]
+  (cond [(MustSubmitNext? next)
+         (string-append "Your next action is to submit to on '"
+                        (Step-id (MustSubmitNext-step next)) "'.")]
+        [(MustReviewNext? next)
+         (string-append "Your next action is to complete reviews for '"
+                        (Step-id (MustReviewNext-step next)) "'.")]
         [(eq? #t next) "You have completed this assignment."]
         [else ""]))
 
@@ -248,4 +267,5 @@
          (filter-f (lambda ([step : Step]) (equal? step-id (Step-id step))))
          (result (filter filter-f steps)))
     (car result)))
+
 

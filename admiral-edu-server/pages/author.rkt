@@ -62,23 +62,17 @@
 (define (post->validate session post-data rest)
   (let ((action (last rest)))
     (cond
-      [(equal? VALIDATE-ACTION action) (validate session post-data)]
-      [(equal? VALIDATE-AND-SAVE-ACTION action) (validate-and-save session post-data rest)])))
+      [(equal? VALIDATE-ACTION action) (validate session post-data #t)]
+      [(equal? VALIDATE-AND-SAVE-ACTION action) (validate session post-data rest #f)])))
 
-(define (validate session post-data)
-  (let ((result (yaml-bytes->create-assignment post-data)))
+(define (validate session post-data create?)
+  (let ((result (match (yaml-bytes->create-or-save-assignment post-data create?)
+                  [(Success _) "Success"]
+                  [(Failure msg) msg])))
     (response/full
      200 #"Okay"
      (current-seconds) #"application/json; charset=utf-8"
      empty
      (list (string->bytes/utf-8 result)))))
 
-(define (validate-and-save session post-data rest)
-  (let ((assignment-id (cadr rest)))
-    (let ((result (yaml-bytes->save-assignment post-data)))
-      (response/full
-       200 #"Okay"
-       (current-seconds) #"application/json; charset=utf-8"
-     empty
-     (list (string->bytes/utf-8 result))))))
   
