@@ -172,7 +172,7 @@
                    (list "A review has been assigned to you."
                          (string-append "Assignment-id: " assignment-id)
                          "You can access the review at the following URL:"
-                         (string-append "https://" (assert sub-domain string?) (assert server-name string?) "/" (class-name) "/next/" assignment-id "/"))
+                         (string-append "https://" (sub-domain) (server-name) "/" (class-name) "/next/" assignment-id "/"))
                    "\n"))
       result)))
 
