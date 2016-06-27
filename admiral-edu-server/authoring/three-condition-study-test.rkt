@@ -48,8 +48,6 @@
 
 (current-configuration test-conf)
 
-;; UNGHHH! When are these supposed to be run?
-
 ;; refresh, create assignment 1
 (define (init-tests)
   (db-init-tables)
@@ -60,7 +58,7 @@
   (roles:create student-role "Student" 0)
 
   (map make-student (list ACE AMY ART ALF JOE JAN JIM JON SAL SAM STU SUE SID))
-  (create-assignment three-test-assignment)
+  (create-or-save-assignment three-test-assignment #t)
   (write-file (dependency-file-name "test-assignment") (file->string "sample-yaml/test-assignment.yaml"))
   (save-assignment-description (class-name) "test-assignment" (file->string "sample-yaml/test-assignment-description.yaml")))
 
@@ -74,7 +72,7 @@
   (roles:create student-role "Student" 0)
 
   (map make-student (list ACE AMY ART ALF JOE JAN JIM JON SAL SAM STU SUE SID))
-  (create-assignment three-test-assignment2)
+  (create-or-save-assignment three-test-assignment2 #t)
   (write-file (dependency-file-name "test-assignment2") (file->string "sample-yaml/test-assignment2.yaml"))
   (save-assignment-description (class-name) "test-assignment2" (file->string "sample-yaml/test-assignment-description2.yaml")))
 
@@ -161,38 +159,42 @@
   ;; No reviews yet because only gets-review submissions
   (check-review-assignments (list ACE AMY ART ALF) (list))
   (check-review-assignments (list JOE) (list (cons ACE JOE) (cons AMY JOE) (cons ART JOE)))
-  (check-review-assignments (list JAN JIM JON SAL SAM STU SUE SID) (list
-                                                                    (cons ACE JOE)
-                                                                    (cons AMY JOE)
-                                                                    (cons ART JOE)
-                                                                    (cons ALF JAN)
-                                                                    (cons ACE JAN)
-                                                                    (cons AMY JAN)
-                                                                    (cons ART JIM)
-                                                                    (cons ALF JIM)
-                                                                    (cons ACE JIM)
-                                                                    (cons AMY JON)
-                                                                    (cons ART JON)
-                                                                    (cons ALF JON)))
+  (check-review-assignments
+   (list JAN JIM JON SAL SAM STU SUE SID)
+   (list
+    (cons ACE JOE)
+    (cons AMY JOE)
+    (cons ART JOE)
+    (cons ALF JAN)
+    (cons ACE JAN)
+    (cons AMY JAN)
+    (cons ART JIM)
+    (cons ALF JIM)
+    (cons ACE JIM)
+    (cons AMY JON)
+    (cons ART JON)
+    (cons ALF JON)))
    )
 (define (test-submit-order2)
   (init-tests)
   ;; No reviews yet because only gets-review submissions
   (check-review-assignments (list ACE AMY ART) (list))
   (check-review-assignments (list JOE) (list (cons ACE JOE) (cons AMY JOE) (cons ART JOE)))
-  (check-review-assignments (list JAN JIM JON SAL SAM STU SUE SID) (list
-                                                                    (cons ACE JOE)
-                                                                    (cons AMY JOE)
-                                                                    (cons ART JOE)
-                                                                    (cons ACE JAN)
-                                                                    (cons AMY JAN)
-                                                                    (cons ART JAN)
-                                                                    (cons ACE JIM)
-                                                                    (cons AMY JIM)
-                                                                    (cons ART JIM)
-                                                                    (cons HOLD JON)
-                                                                    (cons HOLD JON)
-                                                                    (cons HOLD JON)))
+  (check-review-assignments
+   (list JAN JIM JON SAL SAM STU SUE SID)
+   (list
+    (cons ACE JOE)
+    (cons AMY JOE)
+    (cons ART JOE)
+    (cons ACE JAN)
+    (cons AMY JAN)
+    (cons ART JAN)
+    (cons ACE JIM)
+    (cons AMY JIM)
+    (cons ART JIM)
+    (cons HOLD JON)
+    (cons HOLD JON)
+    (cons HOLD JON)))
    )
 (define HOLD "HOLD")
 

@@ -16,14 +16,14 @@
          delete-assignment
          yaml-bytes->create-assignment
          yaml-bytes->save-assignment
-         create-assignment
          next-step
          submit-step
          assignment-id->assignment-dependencies
          handle-dependency
          find-dependencies
          check-ready
-         assignment-id->assignment)
+         assignment-id->assignment
+         create-or-save-assignment)
 
 
 
@@ -76,8 +76,7 @@
   
 (: validate-assignment (Assignment Boolean -> (U String #f)))
 (define (validate-assignment assignment override)
-  (cond [(not (Assignment? assignment)) (raise-argument-error 'validate-assignment "Assignment" assignment)]
-        [(and (not override) (assignment:exists? (Assignment-id assignment) (class-name))) (string-append "The specified assignment id '" (Assignment-id assignment) "' already exists.")]
+  (cond [(and (not override) (assignment:exists? (Assignment-id assignment) (class-name))) (string-append "The specified assignment id '" (Assignment-id assignment) "' already exists.")]
         [else (let* ((check-steps ((repeat-id? Step-id) (Assignment-steps assignment)))
                      ; FIXME: this filter should reduce (Listof (U String #f)) to just (Listof String) but the type checker
                      ; is unable to confirm this.
@@ -104,7 +103,7 @@
       (cond [(Failure? yaml) (Failure-message yaml)]
             [else (let ((assignment (with-handlers ([exn:fail? invalid-yaml]) (yaml->assignment yaml))))
                     (cond [(Failure? assignment) (Failure-message assignment)]
-                          [else (let ((result (create-assignment assignment)))                                  
+                          [else (let ((result (create-or-save-assignment assignment #t)))                                  
                                   (cond [(eq? #t result) (save-assignment-description (class-name) (Assignment-id assignment) yaml-string) "Success"]
                                         [else result]))]))]))))
 
@@ -116,32 +115,20 @@
       (cond [(Failure? yaml) (Failure-message yaml)]
             [else (let ((assignment (with-handlers ([exn:fail? invalid-yaml]) (yaml->assignment yaml))))
                     (cond [(Failure? assignment) (Failure-message assignment)]
-                          [else (let ((result (save-assignment assignment)))                                  
+                          [else (let ((result (create-or-save-assignment assignment #f)))                                  
                                   (cond [(eq? #t result) (save-assignment-description (class-name) (Assignment-id assignment) yaml-string) "Success"]
                                         [else result]))]))]))))
 
 
-(: create-assignment (Assignment -> (U String #t)))
-(define (create-assignment assignment)
-  (cond [(not (Assignment? assignment)) (raise-argument-error 'create-assignment "Assignment" assignment)]
-        [else (let ((validation (validate-assignment assignment #f)))
-                (cond [validation validation]
-                      [else (create-database-entries assignment)
-                            (create-base-rubrics assignment)
-                            (check-no-reviews assignment)
-                            #t]))]))
-
-
 ;; TODO: check to see if assignment has the same name as before
-(: save-assignment (Assignment -> (U String #t)))
-(define (save-assignment assignment)
-  (cond [(not (Assignment? assignment)) (raise-argument-error 'save-assignment "Assignment" assignment)]
-        [else (let ((validation (validate-assignment assignment #t)))
-                (cond [validation validation]
-                      [else ;; (create-database-entries assignment)
-                            (create-base-rubrics assignment)
-                            (check-no-reviews assignment)
-                            #t]))]))
+(: create-or-save-assignment (Assignment Boolean -> (U String #t)))
+(define (create-or-save-assignment assignment create?)
+  (let ((validation (validate-assignment assignment (not create?))))
+    (cond [validation validation]
+          [else (when create? (create-database-entries assignment))
+                (create-base-rubrics assignment)
+                (check-no-reviews assignment)
+                #t])))
 
 
 (: check-no-reviews (Assignment -> Void))

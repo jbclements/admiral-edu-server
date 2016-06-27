@@ -217,7 +217,7 @@
   
   (define (init-tests)
     (db-init-tables)
-    (create-assignment test-assignment))
+    (create-or-save-assignment test-assignment #t))
 
   (init-tests)
   (test-initial-dependencies)
