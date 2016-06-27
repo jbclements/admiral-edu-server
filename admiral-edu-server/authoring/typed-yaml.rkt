@@ -7,8 +7,8 @@
          string->yaml)
 
 (define-type YAML (Rec Y (U YAML-ATOM
+                            '()
                             (Pairof Y Y)
-                            (Listof Y)
                             (HashTable YAML-ATOM Y)
                             (Setof Y))))
 
