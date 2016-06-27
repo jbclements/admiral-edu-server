@@ -1,7 +1,5 @@
 #lang racket
 
-;; NOTE: This module is not typeable because it uses Units
-
 (require "../configuration.rkt"
          (prefix-in c: "cloud-storage.rkt")
          (prefix-in l: "local-storage.rkt"))
@@ -49,6 +47,11 @@
 
 ; list-dirs: (path -> (listof path))
 ; Returns all directories that are at the specified path.
+
+
+
+
+
 
 
 

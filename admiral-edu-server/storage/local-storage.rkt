@@ -1,4 +1,8 @@
-#lang typed/racket
+#lang typed/racket/base
+
+(require racket/file
+         racket/string
+         racket/list)
 
 ;;TODO: Once everything is typed, we should replace almost all instances of Path-String with Path
 
@@ -15,8 +19,8 @@
 
 
 ; (path -> contents -> ())
-; Given a path and the contents to a file, writes that file (over writing any existing file).
-; Writes the local file (over writing if necessary). Then, pushes the local file to the cloud.
+; Given a path and the contents to a file, writes that file (overwriting any existing file).
+; Writes the local file (overwriting if necessary). Then, pushes the local file to the cloud.
 (provide write-file)
 (: write-file (String Any -> Void))
 (define (write-file path contents)

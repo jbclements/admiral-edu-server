@@ -136,3 +136,4 @@
                        "WHERE" assignment-id "=? AND"
                                class-id "=?")))
     (query-exec query assignment class)))
+

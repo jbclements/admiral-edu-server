@@ -12,12 +12,6 @@
 
 
 
-(provide assignment)
-(: assignment (String String String AssignmentHandler Step * -> Assignment))
-(define (assignment name id description assignment-handler . steps)
-  (Assignment name id description assignment-handler steps))
-
-
 ;; Step Description
 (provide (struct-out Step))
 (struct: Step ([id : String]

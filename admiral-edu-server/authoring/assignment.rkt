@@ -1,14 +1,12 @@
 #lang typed/racket/base
 
-(require/typed yaml
-               [string->yaml (String -> Assignment-YAML)])
-
 (require/typed json
                [jsexpr->string (Any -> String)])
 
 (require racket/string
          racket/match
          racket/list
+         "typed-yaml.rkt"
          "../storage/storage.rkt"
          "assignment-structs.rkt"
          "assignment-parser.rkt"
@@ -126,7 +124,7 @@
 (: yaml-bytes->create-or-save-assignment (Bytes Boolean -> (Result Void)))
 (define (yaml-bytes->create-or-save-assignment bytes create?)
   (let ((yaml-string (bytes->string/utf-8 bytes)))    
-    (sdo [yaml <- (with-handlers ([exn:fail? could-not-parse]) (Success (string->yaml yaml-string)))]
+    (sdo [yaml <- (with-handlers ([exn:fail? could-not-parse]) (Success (string->assignment-yaml yaml-string)))]
          [assignment <- (with-handlers ([exn:fail? invalid-yaml]) (Success (yaml->assignment yaml)))]
          (create-or-save-assignment assignment create?)
          (Success (save-assignment-description (class-name) (Assignment-id assignment) yaml-string))
@@ -181,7 +179,7 @@
 
 (: next-step (String String -> (U MustReviewNext MustSubmitNext #t)))
 (define (next-step assignment-id uid)
-  (let* ((assignment (yaml->assignment (string->yaml (retrieve-assignment-description (class-name) assignment-id))))
+  (let* ((assignment (yaml->assignment (string->assignment-yaml (retrieve-assignment-description (class-name) assignment-id))))
          (handler (Assignment-assignment-handler assignment))
          (next-action (AssignmentHandler-next-action handler)))
     (next-action assignment (Assignment-steps assignment) uid)))
@@ -195,7 +193,7 @@
   ;; Assignment must exist
   (cond 
     [(not (assignment:exists? assignment-id (class-name))) (failure "The specified assignment '" assignment-id "' does not exists.")]
-    [else (let* ((assignment (yaml->assignment (string->yaml (retrieve-assignment-description (class-name) assignment-id))))
+    [else (let* ((assignment (yaml->assignment (string->assignment-yaml (retrieve-assignment-description (class-name) assignment-id))))
                  (steps (Assignment-steps assignment))
                  (handler (Assignment-assignment-handler assignment))
                  (next-action (AssignmentHandler-next-action handler)) 
@@ -254,7 +252,7 @@
 
 (: assignment-id->assignment (String -> Assignment))
 (define (assignment-id->assignment id)
-  (yaml->assignment (string->yaml (retrieve-assignment-description (class-name) id))))
+  (yaml->assignment (string->assignment-yaml (retrieve-assignment-description (class-name) id))))
 
 
 (: step-id->step (String String -> Step))
@@ -269,3 +267,9 @@
     (car result)))
 
 
+;; this is really a hack; this cast fail could happen much later. The
+;; problem is that since there's no ImmutableHashTable type, you can't
+;; formulate this as a flat predicate.
+(: string->assignment-yaml (String -> Assignment-YAML))
+(define (string->assignment-yaml s)
+  (cast (string->yaml s) Assignment-YAML))

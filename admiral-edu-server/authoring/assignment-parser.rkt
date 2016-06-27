@@ -1,5 +1,6 @@
 #lang typed/racket/base
 
+
 (require/typed yaml
                [yaml->string (Any -> String)])
 
@@ -11,6 +12,22 @@
          "util.rkt"
          "next-action.rkt"
          "../base.rkt")
+
+(provide Assignment-YAML
+         Review-YAML)
+
+;; why is this H.O. AssignmentHandler thing in one of the YAML structures?
+(define-type Assignment-YAML (HashTable String (U String AssignmentHandler (Listof Step-YAML))))
+(define-type Step-YAML (HashTable String (U String (Listof Review-YAML))))
+(define-type Review-YAML (U student-submission-YAML
+                            instructor-solution-YAML))
+(define-type student-submission-YAML (HashTable String (HashTable String (U String Nonnegative-Integer Rubric-YAML))))
+;; FIXME: Without the Nonnegative-Integer here the contract for review->yaml fails on untyped modules when taking an instructor-solution
+(define-type instructor-solution-YAML (HashTable String (HashTable String (U String Nonnegative-Integer Rubric-YAML))))
+(define-type Rubric-YAML (Listof RubricElement-YAML))
+(define-type RubricElement-YAML (U (HashTable String String)
+                                   (HashTable String (HashTable String (U String Number)))))
+
 
 (define basic-class "BasicElement")
 (define likert-class "LikertElement")
@@ -45,23 +62,19 @@
   (cond [(hash-has-keys? yaml "assignment-handler") (assert (hash-ref assignment-handlers (hash-ref yaml "assignment-handler")) AssignmentHandler?)]
         [else default-assignment-handler]))
 
-(provide Assignment-YAML)
-(define-type Assignment-YAML (HashTable String (U String AssignmentHandler (Listof Step-YAML))))
-
 ;; TODO(3 study): Output next-action-function
 (provide assignment->yaml)
 (: assignment->yaml (Assignment -> Assignment-YAML))
 (define (assignment->yaml assignment)
-  (cond [(not (Assignment? assignment)) (raise-argument-error 'assignment->yaml "Assignment" assignment)]
-        [else (let ((name (Assignment-name assignment))
-                    (id (Assignment-id assignment))
-                    (description (Assignment-description assignment))
-                    (steps (map step->yaml (Assignment-steps assignment)))
-                    (handler (AssignmentHandler-key (Assignment-assignment-handler assignment))))
-                `#hash(("name" . ,name) ("id" . ,id) ("description" . ,description) ("assignment-handler" . ,handler) ("steps" . ,steps)))]))
+  (let ((name (Assignment-name assignment))
+        (id (Assignment-id assignment))
+        (description (Assignment-description assignment))
+        (steps (map step->yaml (Assignment-steps assignment)))
+        (handler (AssignmentHandler-key (Assignment-assignment-handler assignment))))
+    `#hash(("name" . ,name) ("id" . ,id) ("description" . ,description) ("assignment-handler" . ,handler) ("steps" . ,steps))))
 
 
-(define-type Step-YAML (HashTable String (U String (Listof Review-YAML))))
+
 ;; Step
 (provide step->yaml)
 (: step->yaml (Step -> Step-YAML))
@@ -89,7 +102,6 @@
 
 ;; Reviews
 ;; Student Submission
-(define-type student-submission-YAML (HashTable String (HashTable String (U String Nonnegative-Integer Rubric-YAML))))
 
 (provide student-submission->yaml)
 (: student-submission->yaml (student-submission -> student-submission-YAML))
@@ -118,8 +130,7 @@
 ;; Instructor Solution
 ;(define-type student-submission-YAML (HashTable String (HashTable String (U String Nonnegative-Integer Rubric-YAML))))
 
-;; FIXME: Without the Nonnegative-Integer here the contract for review->yaml fails on untyped modules when taking an instructor-solution
-(define-type instructor-solution-YAML (HashTable String (HashTable String (U String Nonnegative-Integer Rubric-YAML))))
+
 
 (provide instructor-solution->yaml)
 (: instructor-solution->yaml (instructor-solution -> instructor-solution-YAML))
@@ -144,9 +155,6 @@
                               (instructor-solution id (yaml->rubric rubric)))]))]))
 
 ;; Generic
-(provide Review-YAML)
-(define-type Review-YAML (U student-submission-YAML
-                            instructor-solution-YAML))
 
 (provide review->yaml)
 (: review->yaml (Review -> Review-YAML))
@@ -161,8 +169,6 @@
         [(hash-has-key? yaml "instructor-solution") (yaml->instructor-solution (cast yaml instructor-solution-YAML))]
         [(hash-has-key? yaml "student-submission") (yaml->student-submission (cast yaml student-submission-YAML))]
         [else (raise-user-error "Expected one field either `instructor-solution` or `student-submission`." yaml)]))
-
-(define-type Rubric-YAML (Listof RubricElement-YAML))
 
 ;; Rubric
 (provide rubric->yaml)
@@ -309,9 +315,6 @@
                          (id . ,id)
                          (prompt . ,text)
                          (content . ""))))
-
-(define-type RubricElement-YAML (U (HashTable String String)
-                                   (HashTable String (HashTable String (U String Number)))))
 ;; Any Rubricoo Element
 (provide yaml->element)
 (: yaml->element (RubricElement-YAML -> RubricElement))
