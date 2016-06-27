@@ -1,6 +1,8 @@
-#lang racket
+#lang racket/base
 
-(require web-server/http/bindings
+(require racket/string
+         racket/list
+         web-server/http/bindings
          web-server/http/request-structs
          web-server/templates
          web-server/http/response-structs
@@ -145,7 +147,7 @@
                    "<p>Review id:" review-id "</p>"
                    "<p>This review step requires " (number->string amount) " default solution(s).</p>"
                    "<form action='" 
-                   (string-append base-url assignment-id "/" step-id "/" review-id "/upload/")
+                   (string-append (base-url) assignment-id "/" step-id "/" review-id "/upload/")
                    "' method='post' enctype='multipart/form-data'>"
                    (generate-form-string amount)
                    "<input type='submit' value='Upload'>"
