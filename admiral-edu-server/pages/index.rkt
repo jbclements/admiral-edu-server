@@ -16,7 +16,6 @@
       (render-menu session role))))
       ;(users session role))))
   
-
 (define (new-user session role binds)
   (let* ((new-uid (extract-binding/single 'new-uid binds))
          (new-role (extract-binding/single 'new-role binds))

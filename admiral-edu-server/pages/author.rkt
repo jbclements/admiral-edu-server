@@ -81,5 +81,4 @@
        (current-seconds) #"application/json; charset=utf-8"
      empty
      (list (string->bytes/utf-8 result))))))
-
   

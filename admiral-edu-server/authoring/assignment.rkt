@@ -12,11 +12,24 @@
          "assignment-parser.rkt"
          "../base.rkt")
 
-(provide (all-from-out "assignment-structs.rkt"))
+(provide (all-from-out "assignment-structs.rkt")
+         delete-assignment
+         yaml-bytes->create-assignment
+         yaml-bytes->save-assignment
+         create-assignment
+         next-step
+         submit-step
+         assignment-id->assignment-dependencies
+         handle-dependency
+         find-dependencies
+         check-ready
+         assignment-id->assignment)
+
+
+
 
 ;; assignment-id -> void
 ;; Completely remove all trace of an assignment
-(provide delete-assignment)
 (: delete-assignment (String -> Void))
 (define (delete-assignment assignment-id)
   (database:delete-assignment (class-name) assignment-id)
@@ -84,7 +97,6 @@
                       [else #f]))]))
 
 
-(provide yaml-bytes->create-assignment)
 (: yaml-bytes->create-assignment (Bytes -> (U String #t)))
 (define (yaml-bytes->create-assignment bytes)
   (let ((yaml-string (bytes->string/utf-8 bytes)))
@@ -97,7 +109,6 @@
                                         [else result]))]))]))))
 
 
-(provide yaml-bytes->save-assignment)
 (: yaml-bytes->save-assignment (Bytes -> (U String #t)))
 (define (yaml-bytes->save-assignment bytes)
   (let ((yaml-string (bytes->string/utf-8 bytes)))
@@ -110,8 +121,6 @@
                                         [else result]))]))]))))
 
 
-
-(provide create-assignment)
 (: create-assignment (Assignment -> (U String #t)))
 (define (create-assignment assignment)
   (cond [(not (Assignment? assignment)) (raise-argument-error 'create-assignment "Assignment" assignment)]
@@ -168,7 +177,7 @@
     (map create steps)
     (void)))
 
-(provide next-step)
+
 (: next-step (String String -> (U MustReviewNext MustSubmitNext #t)))
 (define (next-step assignment-id uid)
   (let* ((assignment (yaml->assignment (string->yaml (retrieve-assignment-description (class-name) assignment-id))))
@@ -180,7 +189,6 @@
 ;; Attempts to publish for the specified uid, assignment, and step-id. If this is not the next expected action,
 ;; This returns a failure with a message describing what the user should do next.
 ;; If file-name and data are supplied and not #f, it is uploaded as a submission before creating a database record
-(provide submit-step)
 (: submit-step (->* (String String String) ((U String #f) (U Bytes #f)) (Result String)))
 (define (submit-step assignment-id step-id uid [file-name #f] [data #f])
   ;; Assignment must exist
@@ -206,7 +214,6 @@
         [else ""]))
 
 
-(provide assignment-id->assignment-dependencies)
 (: assignment-id->assignment-dependencies (String -> (Listof Dependency)))
 (define (assignment-id->assignment-dependencies id)
   (let* ((assignment (assignment-id->assignment id))
@@ -215,7 +222,6 @@
     (get-deps-f assignment)))
 
 
-(provide handle-dependency)
 (: handle-dependency (String Dependency (Listof (Pairof Symbol (U String Bytes))) (Listof Any) -> (Result String)))
 (define (handle-dependency assignment-id dependency bindings raw-bindings)
   (let* ((assignment (assignment-id->assignment assignment-id))
@@ -224,7 +230,6 @@
     (take-dependency assignment-id dependency bindings raw-bindings)))
          
 
-(provide find-dependencies)
 (: find-dependencies (String String String -> (Listof Dependency)))
 (define (find-dependencies assignment-id step-id review-id)
   (let ((deps (assignment-id->assignment-dependencies assignment-id))
@@ -234,7 +239,6 @@
     (filter f deps)))
 
 
-(provide check-ready)
 (: check-ready (String -> (U Void #f)))
 (define (check-ready assignment-id)
   (let ((deps (assignment-id->assignment-dependencies assignment-id))
@@ -243,7 +247,6 @@
 
 
 (: assignment-id->assignment (String -> Assignment))
-(provide assignment-id->assignment)
 (define (assignment-id->assignment id)
   (yaml->assignment (string->yaml (retrieve-assignment-description (class-name) id))))
 

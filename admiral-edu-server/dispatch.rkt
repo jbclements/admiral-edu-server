@@ -139,6 +139,8 @@
          (error:error-not-registered session)
          (page session valid-role)))))
 
+;; if the session has a valid role, call 'page' and wrap
+;; the resulting string as a response
 (define (render-html session page rest)
   (let ((valid-role (role session)))
     (if (not valid-role)
