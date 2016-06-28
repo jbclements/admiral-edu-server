@@ -1,12 +1,16 @@
-#lang typed/racket
+#lang typed/racket/base
 
-(require "../../configuration.rkt"
+(require racket/string
+         racket/match
+         "../../configuration.rkt"
          "../../ct-session.rkt"
          "../../util/basic-types.rkt"
          "../../util/failure.rkt")
 
 (provide (all-from-out "../../util/basic-types.rkt")
          (all-from-out "../../util/failure.rkt"))
+
+(define-logger ct-mysql)
 
 (require/typed (prefix-in native: "untyped-db.rkt")
                [native:sql-timestamp? (Any -> Boolean)]
@@ -56,6 +60,7 @@
 (: query-exec (String QueryArgument * -> Void))
 (provide query-exec)
 (define (query-exec query . args)
+  (log-ct-mysql-debug "mysql exec with args: ~v" (cons query args))
   (cast (native:run 'query-exec query args) Void))
 
 (: query-row (String QueryArgument * -> (Vectorof QueryResult)))

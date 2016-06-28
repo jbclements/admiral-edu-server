@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require "../configuration.rkt"
          (prefix-in c: "cloud-storage.rkt")

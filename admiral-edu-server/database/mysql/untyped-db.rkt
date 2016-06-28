@@ -1,7 +1,9 @@
-#lang racket
+#lang racket/base
 
 (require db)
 (require "../../configuration.rkt")
+
+(define-logger ct-mysql)
 
 (provide (all-from-out db))
 
@@ -25,13 +27,13 @@
 
 
 
+;; yikes... opens new connection for every query?
 
 (define (connect)
-  (let ((new-conn (mysql-connect #:user (db-user-name)
-                                 #:database (db-name)
-                                 #:password (db-password)
-                                 #:server (db-address))))
-    new-conn))
+  (mysql-connect #:user (db-user-name)
+                 #:database (db-name)
+                 #:password (db-password)
+                 #:server (db-address)))
 
 (provide run)
 ;(: run (All (A) ((QueryFunction A) String QueryArgument * -> A)))

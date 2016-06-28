@@ -1,6 +1,7 @@
-#lang typed/racket
+#lang typed/racket/base
 
-(require "typed-db.rkt")
+(require "typed-db.rkt"
+         "../../configuration.rkt")
 
 (provide table)
 (: table String)
@@ -50,3 +51,12 @@
                    "LIMIT 1"))
          (result (query-row q the-id)))
     (cast (vector-ref result 0) Exact-Nonnegative-Integer)))
+
+(provide table-exists?)
+(define (table-exists?)
+  (let* ((q (merge "SELECT COUNT(*)"
+                   "FROM INFORMATION_SCHEMA.TABLES"
+                   "WHERE TABLE_SCHEMA=?"
+                   "AND TABLE_NAME=?"))
+         (result (query-value q (db-name) table)))
+    (equal? 1 result)))

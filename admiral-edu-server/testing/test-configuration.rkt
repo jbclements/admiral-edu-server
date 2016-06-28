@@ -13,15 +13,14 @@
          ("bucket" . "some-bucket-name/")
          ("class-name" . "test-class")
          ("storage-mode" . "local")
-         ("db-user-name" . "captain_teach")
          ("cloud-secret-key" . "YOUR-SECRET-KEY")
-         ("db-password" . "captain_teach")
          ("sub-domain" . "www.")
          ("mail-password" . "password")
-         ("db-name" . "captain_teach")
+         ("db-name" . "captain_teach_testing")
+         ("db-password" . "captain_teach")
+         ("db-user-name" . "captain_teach")
          ("master-user" . "youremail@domain.com")
-         ("db-address" . "localhost")
-         ("db-name" . "captain_teach_testing")))
+         ("db-address" . "localhost")))
 
 (module+ test
   (require typed/rackunit

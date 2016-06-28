@@ -11,6 +11,8 @@
          (prefix-in system: "mysql/system.rkt")
          (prefix-in migrate: "mysql/migrate.rkt"))
 
+(define-logger ct-mysql)
+
 ;; User Table
 (provide (all-from-out "mysql/user.rkt"))
 

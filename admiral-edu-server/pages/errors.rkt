@@ -1,7 +1,11 @@
-#lang racket
+#lang racket/base
 
-(require web-server/servlet)
-(require "../ct-session.rkt")
+(require web-server/servlet
+         racket/date
+         racket/list
+         racket/string)
+(require "../logging.rkt"
+         "../ct-session.rkt")
 (require web-server/http/bindings
          web-server/templates
          web-server/http/response-structs
@@ -48,12 +52,23 @@
                 
 
 (provide response-error)
-(define (response-error message)
+(define (response-error message code status)
+  (log-ct-error-info
+   "[~a] ERROR: ~a"
+   (date->string (current-date) #t)
+   message)
   (response/full
-   200 #"Okay"
+   code status
    (current-seconds) TEXT/HTML-MIME-TYPE
    empty
    (list (string->bytes/utf-8 (error message)))))
+
+(provide response-error/xexpr)
+(define (response-error/xexpr xexpr code status)
+  (response/xexpr
+   #:code code
+   #:message status
+   xexpr))
 
 (provide error)
 (define (error message)
@@ -83,8 +98,11 @@
 
 (provide four-oh-four)
 (define (four-oh-four)
-  (response/xexpr
-   '(html (body (p "404")))))
+  (log-ct-error-info
+   "[~a] ERROR: ~a"
+   (date->string (current-date) #t)
+   "404 not found")
+  (response-error/xexpr four-oh-four-xexpr 404 "Not Found"))
 
 (provide four-oh-four-xexpr)
 (define four-oh-four-xexpr

@@ -1,7 +1,9 @@
-#lang racket
+#lang racket/base
 
-(require db
+(require racket/match
+         db
          "common.rkt"
+         "../../configuration.rkt"
          "../../util/basic-types.rkt"
          (prefix-in system: "system.rkt")
          (prefix-in review: "review.rkt")
@@ -26,7 +28,7 @@
         [else (Failure "The system has not migrated to version 2.")])))
 
 (define (get-current-version)
-  (cond [(not (system-table-exists?)) 0]
+  (cond [(not (system:table-exists?)) 0]
         [else (system:select-version)]))
 
 (define (do-migrate)
@@ -45,13 +47,7 @@
 
 
   
-(provide system-table-exists?)
-(define (system-table-exists?)
-  (let* ((q (merge "SELECT COUNT(*)"
-                   "FROM INFORMATION_SCHEMA.TABLES"
-                   "WHERE TABLE_NAME=?"))
-         (result (run query-value q system:table)))
-    (= 1 result)))
+
 
 (define (do-review-table)
   (let ((q (merge "ALTER TABLE" review:table

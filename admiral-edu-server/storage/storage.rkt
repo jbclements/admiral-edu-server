@@ -1,6 +1,10 @@
-#lang typed/racket
+#lang typed/racket/base
 
-(require "../configuration.rkt"
+(require racket/system
+         racket/file
+         racket/string
+         racket/list
+         "../configuration.rkt"
          "../util/basic-types.rkt"
          "../database/mysql.rkt"
          (prefix-in local: "local-storage.rkt"))

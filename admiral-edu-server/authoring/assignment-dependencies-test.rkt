@@ -83,11 +83,12 @@
   
   
   (define test-assignment
-    (assignment "Clocks"
+    (Assignment "Clocks"
                 "clocks"
                 "Students develop functions representing an alarm clock."
                 default-assignment-handler
-                (step "tests"
+                (list
+                 (step "tests"
                       "Submit your test cases. Do not submit any clock implementation."
                       (instructor-solution "poor-tests"
                                            (rubric
@@ -212,7 +213,7 @@
                                            (instruction "If applicable, leave inline feedback where the code is not structured well.")
                                            
                                            (free-form "feedback"
-                                                      "Additional Comments"))))))
+                                                      "Additional Comments")))))))
 
   
   (define (init-tests)
