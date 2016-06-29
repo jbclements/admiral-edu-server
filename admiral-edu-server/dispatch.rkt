@@ -37,15 +37,11 @@
    [((string-arg) ...) #:method "post" (handler #t)]
    [else error:four-oh-four]))
 
-;; given whether this is a POST, handles an incoming request
+;; given whether this is a POST, handles an incoming request, returns a response
 (define (handler post?)
   (lambda (req path)
-    (log-ct-access-info
-     "[~a] ~a - ~a ~a"
-     (date->string (current-date) #t)
-     (class-name)
-     (if post? "POST" "GET")
-     path)
+    (log-ct-access-info "[~a] ~a - ~a ~a" (date->string (current-date) #t)
+     (class-name) (if post? "POST" "GET") path)
     (match (req->uid req)
       [(? string? uid-str)
        (let* ((raw-bindings (request-bindings/raw req))
@@ -58,9 +54,9 @@
                         (handlerPrime post? post-data session bindings raw-bindings clean-path))))
          result)]
       [else
-       (error:response-error "missing authentication headers."
-                             400
-                             "Bad Request")])))
+       (error:error-xexprs->response
+        `((p "missing authentication headers."))
+        400 #"Bad Request")])))
 
 
 (define (ensure-trailing-slash candidate)
@@ -74,7 +70,6 @@
   (match path
     ['() (render session index)]
     [(list "")
-     (log-ct-error-info "booga booga!")
      (render session index)]
     [(cons "review" rest) (cond [post? (review:post->review session post-data rest)]                                
                                 [else (render-html session review:load rest)])]
@@ -110,7 +105,9 @@
      (if post?
          (feedback:post session role rest bindings post-data)
          (render-html session feedback:load rest))]
-    [(cons "export" rest) (export:load session (role session) rest)]
+    [(cons "export" rest)
+     ;; no render function here? scary
+     (export:load session (role session) rest)]
     [(cons "exception" rest) (error "Test an exception occurring.")]
     [(cons "roster" rest)
      (if post?
@@ -152,10 +149,13 @@
 ;; If the session has a valid role, renders the specified page. Otherwise,
 ;; this displays an error message
 (define (render session page)
+  (match (role session)
+    [#f (error:error-not-registered session)])
   (let ((valid-role (role session)))
+    
     (response/xexpr
      (if (not valid-role) 
-         (error:error-not-registered session)
+         
          (page session valid-role)))))
 
 ;; if the session has a valid role, call 'page' and wrap

@@ -1,6 +1,10 @@
-#lang racket
+#lang racket/base
 
-(require web-server/http/bindings
+(require racket/string
+         racket/list
+         racket/match
+         racket/contract
+         web-server/http/bindings
          web-server/templates
          web-server/http/response-structs
          xml
@@ -30,9 +34,11 @@
      "and rubric structures may cause inconsistencies in the exported"
      "assignment data.</p>")))
 
-(provide load)
+(provide (contract-out
+          [load (->* (ct-session? any/c any/c) (any/c) (or/c response? xexpr?))]))
+
 (define (load session role rest [message '()])
-  (if (not (roles:Record-can-edit role)) (error:not-authorized)
+  (if (not (roles:Record-can-edit role)) (error:not-authorized-response)
       (let* ((len (length rest))
              (action (if (= 0 len) NEW-ACTION (car rest))))
         (cond [(equal? NEW-ACTION action) (authoring session role rest "")]
@@ -42,7 +48,9 @@
   (page session role rest message "" (string-append "'" VALIDATE-ACTION "'") "test"))
 
 (define (edit session role rest [message '()])
-  (if (< (length rest) 1) (error:error "Invalid URL. Expected /author/edit/assignment-id/")
+  (if (< (length rest) 1) (error:error-xexprs->response
+                           '((p "Invalid URL. Expected /author/edit/assignment-id/"))
+                           400 #"Bad Request")
       (let ((assignment-id (car rest)))
         (if (not (assignment:exists? assignment-id (class-name))) (error:error (string-append "No such assignment: " assignment-id))
             (let* ((contents (retrieve-assignment-description (class-name) assignment-id)))

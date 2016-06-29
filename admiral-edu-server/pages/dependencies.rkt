@@ -31,7 +31,8 @@
           [(> len 2) (dependencies-form (car rest) (cadr rest) (caddr rest) rest)])))
 
 (define (assignment-dependencies assignment-id [message ""])
-  (cond [(not (assignment:exists? assignment-id (class-name))) (error:error-page "The assignment id '" assignment-id "' was not found.")]
+  (cond [(not (assignment:exists? assignment-id (class-name)))
+         (assignment-not-found-response assignment-id)]
         [else (let* ((deps (assign:assignment-id->assignment-dependencies assignment-id))
                      [header (string-append "<a href='/" (class-name) "/assignments/'>Assignments</a>")]
                      (dependency-list (string-append (string-join (map (dep->html assignment-id) deps) "\n")))
@@ -44,14 +45,17 @@
                 (include-template "html/basic.html"))]))
 
 (define (three-study-form assignment-id [message #f])
-  (cond [(not (assignment:exists? assignment-id (class-name))) (error:error-page "The assignment id '" assignment-id "' was not found.")]
+  (cond [(not (assignment:exists? assignment-id (class-name)))
+         (assignment-not-found-response assignment-id)]
         [else 
          (let* ([header assignment-id]
                 [extra-message ""]
                 [body (render-three-study-form assignment-id)])
            (include-template "html/basic.html"))]))
 
+
 (define (render-three-study-form assignment-id)
+  ;; FIXME should be xexpr...
   (string-append "<p>You are uploading the 3 condition study yaml file.</p>"
                  "<form method='post' action='" (base-url) assignment-id "/" THREE-STUDY-ACTION "/" "' enctype='multipart/form-data'>"
                  "<input type='file' name='three-condition-file'>"
@@ -61,17 +65,19 @@
 ;(struct dependency (step-id review-id amount instructor-solution) #:transparent)
 (define (dep->html assignment-id)
   (lambda (dep)
-    (cond [(assign:review-dependency? dep) (begin
-                                      (let* ((sid (assign:review-dependency-step-id dep))
-                                             (rid (assign:review-dependency-review-id dep))
-                                             (inst (if (assign:instructor-solution-dependency? dep) " - <b>Instructor Solution</b>" ""))
-                                             (a-start (string-append "<a href=\"" (base-url) assignment-id "/" sid "/" rid "/\">"))
-                                             (a-end (if (assign:dependency-met dep) " - Ready" " - Dependencies Missing")))
-                                        (string-append "<li>" 
-                                                       a-start
-                                                       sid ":" rid inst  "</a>"
-                                                       a-end 
-                                                       "</li>")))]
+    (cond [(assign:review-dependency? dep)
+           (begin
+             ;; FIXME string pasting
+             (let* ((sid (assign:review-dependency-step-id dep))
+                    (rid (assign:review-dependency-review-id dep))
+                    (inst (if (assign:instructor-solution-dependency? dep) " - <b>Instructor Solution</b>" ""))
+                    (a-start (string-append "<a href=\"" (base-url) assignment-id "/" sid "/" rid "/\">"))
+                    (a-end (if (assign:dependency-met dep) " - Ready" " - Dependencies Missing")))
+               (string-append "<li>" 
+                              a-start
+                              sid ":" rid inst  "</a>"
+                              a-end 
+                              "</li>")))]
           [(assign:three-study-config-dependency? dep) (begin
                                                          (let ((ready (if (assign:dependency-met dep) " - Ready" " - Dependency Missing")))
                                                            (string-append "<li>"
@@ -166,3 +172,9 @@
                                                 "</p>\n") acc)
                                 (- n 1))])))))
     (helper '() n)))
+
+
+(define (assignment-not-found-response assignment-id)
+  ;; 400 or 404?
+  (error:error-xexprs->400-response
+   (string-append "The assignment id '" assignment-id "' was not found.")))

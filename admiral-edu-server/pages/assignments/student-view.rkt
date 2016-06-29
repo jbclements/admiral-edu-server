@@ -1,21 +1,25 @@
-#lang typed/racket
+#lang typed/racket/base
 
-(require "../../base.rkt"
-         "../typed-xml.rkt")
+(require racket/list
+         "../../base.rkt"
+         "../typed-xml.rkt"
+         "../responses.rkt")
 
 ; ct-session -> (listof string) -> (#f xexpr?) -> bool? -> (listof xexpr? void?)
 (provide load)
-(: load (->* (ct-session (Listof String) (U XExpr #f)) (Boolean) (Listof (U XExpr Void))))
+(: load (->* (ct-session (Listof String) (U XExpr #f)) (Boolean) Response))
 (define (load  session url message [post #f])
   (let*: ((start-url (hash-ref (ct-session-table session) 'start-url))
           [open : XExpr (cons 'ul (list-open-assignments start-url))]
           [closed : XExpr (cons 'ul (list-closed-assignments session start-url))])
-    `((h1 "Assignments")
-      ,(when message message)
-      (h2 "Open Assignments")
-      ,open
-      (h2 "Closed Assignments")
-      ,closed)))
+    (xexprs->response
+     `((h1 "Assignments")
+       ,(if message message "")
+       (h2 "Open Assignments")
+       ,open
+       (h2 "Closed Assignments")
+       ,closed))))
+
 
 ; string-url -> (listof xexpr? void?)
 (: list-open-assignments (String -> (Listof XExpr)))

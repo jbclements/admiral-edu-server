@@ -1,30 +1,36 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require/typed xml
                [xexpr->string (XExpr -> String)])
 
-(require "../../base.rkt"
+(require racket/match
+         "../../base.rkt"
          "../typed-xml.rkt"
+         "../responses.rkt"
+         "../errors.rkt"
          (prefix-in action: "action.rkt"))
 
 (provide load)
-(: load (->* (ct-session (Listof String) (U XExpr #f)) (Boolean) (Listof (U XExpr Void))))
+(: load (->* (ct-session (Listof String) (U XExpr #f)) (Boolean) Response))
 (define (load session url message [post #f])
       (match (assignment:list (class-name))
-        ['no-such-class '((h2 "No such class found."))]
+        ['no-such-class
+         ;; is this an internal error?
+         (error-xexprs->400-response '((h2 "No such class found.")))]
         [records
          (let*: ((assign-list (cast records (Listof assignment:Record)))
                  (open-assignments (filter assignment:Record-open assign-list))
                  (closed-assignments (filter (lambda: ([x : assignment:Record]) (not (assignment:Record-open x))) assign-list))
                  [open-xexpr : XExpr (cons 'ul (map record->html open-assignments))]
                  [closed-xexpr : XExpr (cons 'ul (map record->html closed-assignments))])
-           `((h1 "Assignments")
-             ,(when message message)
-             (p () (a ((href ,(string-append "/" (class-name) "/author/"))) "New Assignment"))
-             (h2 "Open Assignments")
-             ,open-xexpr
-             (h2 "Closed Assignments")
-             ,closed-xexpr))]))
+           (xexprs->response
+            `((h1 "Assignments")
+              ,(if message message "")
+              (p () (a ((href ,(string-append "/" (class-name) "/author/"))) "New Assignment"))
+              (h2 "Open Assignments")
+              ,open-xexpr
+              (h2 "Closed Assignments")
+              ,closed-xexpr)))]))
 
 (: record->html (assignment:Record -> XExpr))
 (define (record->html record)

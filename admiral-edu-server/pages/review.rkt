@@ -101,7 +101,7 @@
         (cond
           [(equal? (last rest) "save") (post->save-rubric session post-data review)]
           [(equal? (last rest) "load") (post->load-rubric session review)]
-          [else (error:four-oh-four)]))))
+          [else (error:four-oh-four-response)]))))
 
 (define (post->save-rubric session post-data review)
   (let ((data (jsexpr->string (bytes->jsexpr post-data)))
@@ -144,7 +144,7 @@
         (cond 
           [(equal? (last rest) "save") (push->save session post-data path review)]
           [(equal? (last rest) "load") (push->load session path review)]
-          [else (error:four-oh-four)]))))
+          [else (error:four-oh-four-response)]))))
 
 (define (push->save session post-data path review)
   (let ((data (jsexpr->string (bytes->jsexpr post-data)))

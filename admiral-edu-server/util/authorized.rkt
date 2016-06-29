@@ -1,7 +1,8 @@
 #lang racket
 
 (require "../base.rkt"
-         "../pages/typed-xml.rkt")
+         "../pages/typed-xml.rkt"
+         "../pages/errors.rkt")
 
 (require (prefix-in error: "../pages/errors.rkt"))
                ;[error:not-authorized (-> Any)])
@@ -21,7 +22,7 @@
 ;(: can-edit (All (a b) (-> ct-session (-> a * b) a * Any)))
 (define (can-edit session f . args)
   (cond [(can-edit? session) (apply f args)]
-        [else (error:not-authorized)]))
+        [else (error:not-authorized-response)]))
 
 
 (provide can-edit?)

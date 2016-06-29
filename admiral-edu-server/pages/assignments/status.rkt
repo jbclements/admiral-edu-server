@@ -1,34 +1,37 @@
-#lang typed/racket
+#lang typed/racket/base
 
-(require "../../database/mysql/typed-db.rkt"
+(require racket/match
+         racket/list
+         racket/string
+         "../../database/mysql/typed-db.rkt"
          "../../base.rkt"
          "../../authoring/assignment.rkt"
-         "../typed-xml.rkt"         
+         "../typed-xml.rkt"
+         "../responses.rkt"
+         (prefix-in error: "../errors.rkt")
          (prefix-in action: "action.rkt"))
 
-(require/typed (prefix-in error: "../errors.rkt")
-               [error:four-oh-four-xexpr (Listof (U XExpr Void))])
-
-
 (provide load)
-(: load (->* (ct-session (Listof String) (U XExpr #f)) (Boolean) (Listof (U XExpr Void))))
+(: load (->* (ct-session (Listof String) (U XExpr #f)) (Boolean)
+             Response))
 (define (load session url message [post #f])
   (match url
     [(list assignment-id) (display-assignment assignment-id message)]
     [(list assignment-id step-id) (display-step session assignment-id step-id message post)]
     [(list assignment-id step-id review-id) (display-review session assignment-id step-id review-id message post)]
-    [_ error:four-oh-four-xexpr]))
+    [_ (error:four-oh-four-response)]))
 
 
-(: display-assignment (String (U XExpr #f) -> (Listof (U XExpr Void))))
+(: display-assignment (String (U XExpr #f) -> Response))
 (define (display-assignment assignment-id message)
   (let*: ((assignment (assignment-id->assignment assignment-id))
-          [steps : (Listof (U XExpr Void)) (list (cons 'ol (apply append (map (step->statistic assignment-id) (Assignment-steps assignment)))))])
-    (append (header assignment-id message)
-            steps)))
+          [steps : (Listof XExpr) (list (cons 'ol (apply append (map (step->statistic assignment-id) (Assignment-steps assignment)))))])
+    (xexprs->response
+     (append (header assignment-id message)
+             steps))))
 
 
-(: header (String (U XExpr #f) -> (Listof (U XExpr Void))))
+(: header (String (U XExpr #f) -> (Listof XExpr)))
 (define (header assignment-id message)
   (let* ((assignment (assignment-id->assignment assignment-id))
          (record (assignment:select (class-name) assignment-id))
@@ -38,9 +41,10 @@
   `((h1 () ,(action:assignments "Assignments"))
     (h2 () ,(action:dashboard assignment-id assignment-id))
     (h3 () ,(action:status assignment-id "Status") " : " ,status)
-    ,(when message message))))
+    ,(if message message ""))))
 
-(: display-step (ct-session String String (U XExpr #f) Boolean -> (Listof (U XExpr Void))))
+(: display-step (ct-session String String (U XExpr #f) Boolean ->
+                            Response))
 (define (display-step session assignment-id step-id message post)
   (let* ((message (if post (check-for-action assignment-id step-id session) #f))
          (order (get-order session))
@@ -48,26 +52,27 @@
          (next-order (opposite-order order))
          (count (number->string (submission:count-step assignment-id (class-name) step-id)))
          (submission-records (submission:select-all assignment-id (class-name) step-id sort-by order)))
-  (append (header assignment-id message)
-          `((h4 (),step-id)
-            (p () "Submissions : " ,count)
-            (p () "Select a User ID to view their submission.")
-            (h3 () "Student Submissions:")
-            (h4 () "Global Actions")
-            ,(publish-all-action)
-            ,(unpublish-all-action))
-          `(,(append-xexpr
-              `(table ()
-                      (tr ()
-                          (th () ,(sort-by-action "user_id" next-order "Student ID"))
-                          (th () ,(sort-by-action "last_modified" next-order "Last Modified"))
-                          (th () ,(sort-by-action "published" next-order "Published"))
-                          (th () "Actions")))
-              (map submission-record->xexpr submission-records)))
-          `((h3 () "Students Pending Submission"))
-          (list-no-submissions assignment-id step-id))))
+  (xexprs->response
+   (append (header assignment-id message)
+           `((h4 (),step-id)
+             (p () "Submissions : " ,count)
+             (p () "Select a User ID to view their submission.")
+             (h3 () "Student Submissions:")
+             (h4 () "Global Actions")
+             ,(publish-all-action)
+             ,(unpublish-all-action))
+           `(,(append-xexpr
+               `(table ()
+                       (tr ()
+                           (th () ,(sort-by-action "user_id" next-order "Student ID"))
+                           (th () ,(sort-by-action "last_modified" next-order "Last Modified"))
+                           (th () ,(sort-by-action "published" next-order "Published"))
+                           (th () "Actions")))
+               (map submission-record->xexpr submission-records)))
+           `((h3 () "Students Pending Submission"))
+           (list-no-submissions assignment-id step-id)))))
 
-(: list-no-submissions (String String -> (Listof (U XExpr Void))))
+(: list-no-submissions (String String -> (Listof XExpr)))
 (define (list-no-submissions assignment-id step-id)
   (let ((no-submission (submission:select-no-submissions assignment-id (class-name) step-id)))
     (cond [(empty? no-submission) '((p "No pending submissions."))]
@@ -172,7 +177,8 @@
     
 
 
-(: display-review (ct-session String String String (U XExpr #f) Boolean -> (Listof (U XExpr Void))))
+(: display-review (ct-session String String String (U XExpr #f) Boolean
+                              -> Response))
 (define (display-review session assignment-id step-id review-id message post)
   (let* ((message (if post (check-for-action assignment-id step-id session) #f))
          (assigned (number->string (review:count-all-assigned-reviews assignment-id (class-name) step-id review-id)))
@@ -182,19 +188,20 @@
          (next-order (opposite-order order))
          (review-records (review:select-all assignment-id (class-name) step-id review-id sort-by order))
          (reviews (apply append (map review-record->xexpr review-records))))
-    (append (header assignment-id message)
-            `((h4 () ,step-id " > " ,review-id)
-              (p () "Assigned : " ,assigned)
-              (p () "Completed : " ,completed)
-              (p () "Selecting a students ID will bring you to the students view of a review."))
-            `(,(append-xexpr `(table ()
-                                     (th () ,(sort-by-action review:reviewer-id next-order "Reviewer ID"))
-                                     (th () ,(sort-by-action review:reviewee-id next-order "Reviewee ID"))
-                                     (th () ,(sort-by-action review:completed next-order "Completed"))
-                                     (th () ,(sort-by-action review:flagged next-order "Flagged"))
-                                     (th () ,(sort-by-action review:feedback-viewed-time-stamp next-order "Feedback Viewed"))
-                                     (th () "Actions"))
-                             reviews)))))
+    (xexprs->response
+     (append (header assignment-id message)
+             `((h4 () ,step-id " > " ,review-id)
+               (p () "Assigned : " ,assigned)
+               (p () "Completed : " ,completed)
+               (p () "Selecting a students ID will bring you to the students view of a review."))
+             `(,(append-xexpr `(table ()
+                                      (th () ,(sort-by-action review:reviewer-id next-order "Reviewer ID"))
+                                      (th () ,(sort-by-action review:reviewee-id next-order "Reviewee ID"))
+                                      (th () ,(sort-by-action review:completed next-order "Completed"))
+                                      (th () ,(sort-by-action review:flagged next-order "Flagged"))
+                                      (th () ,(sort-by-action review:feedback-viewed-time-stamp next-order "Feedback Viewed"))
+                                      (th () "Actions"))
+                              reviews))))))
 
 
 

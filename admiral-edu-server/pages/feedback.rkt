@@ -1,15 +1,17 @@
-#lang racket
-(require web-server/http/bindings
-         web-server/templates
-         web-server/http/response-structs
-         xml
-         json
+#lang racket/base
+
+(require racket/list
+         racket/string
+         racket/match
          web-server/http/bindings
-         yaml)
+         web-server/templates
+         xml
+         web-server/http/bindings)
 
 (require "../storage/storage.rkt"
          "../base.rkt"
          (prefix-in error: "errors.rkt")
+         "responses.rkt"
          "../util/file-extension-type.rkt"
          "../authoring/assignment.rkt")
 
@@ -41,18 +43,11 @@
          (match (equal? uid reviewee))
          (feedback (if (exists-binding? 'feedback bindings) (extract-binding/single 'feedback bindings) ""))
          (flag (if (exists-binding? 'flag bindings) #t #f)))
-    (cond [(not match) (response-with (error:not-authorized))]
+    (cond [(not match) (error:not-authorized-response)]
           [else (begin
                   (review:set-flagged review-hash flag)
                   (save-review-feedback review feedback)
-                  (response-with (do-view session (list review-hash) "<p>Feedback submitted.</p>")))])))
-
-(define (response-with resp)
-  (response/full
-   200 #"Okay"
-   (current-seconds) TEXT/HTML-MIME-TYPE
-   empty
-   (list (string->bytes/utf-8 resp))))
+                  (string->response (do-view session (list review-hash) "<p>Feedback submitted.</p>")))])))
 
 (define (do-default session role rest message)
   (let* ((uid (ct-session-uid session))
@@ -166,7 +161,8 @@
          (reviewer (ct-session-uid session))
          (class (ct-session-class session)))
     (review:mark-feedback-viewed r-hash)
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session))
+        (error:not-authorized-response)
         (include-template "html/feedback.html"))))
 
 (define (validate review session)

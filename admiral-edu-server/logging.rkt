@@ -1,4 +1,4 @@
-#lang racket/base
+#lang typed/racket/base
 
 ;; provide some basic logging mechanism. One level higher
 ;; than printf.
@@ -14,6 +14,7 @@
 
 ;; for now, all logs go to stdout
 
+(: dump-listener-to-stdout (Log-Receiver -> Void))
 (define (dump-listener-to-stdout listener)
   (thread
    (λ ()
@@ -21,7 +22,8 @@
        (define message (sync listener))
        (printf "~a\n" (vector-ref message 1))
        (flush-output)
-       (loop)))))
+       (loop))))
+  (void))
 
 (dump-listener-to-stdout access-listener)
 (dump-listener-to-stdout error-listener)
