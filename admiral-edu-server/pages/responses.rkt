@@ -19,11 +19,16 @@
                [#:opaque Response response?]
                [TEXT/HTML-MIME-TYPE Bytes])
 
-(provide response/full
+(require/typed "templates.rkt"
+               [xexprs->plain-page-html (String (Listof XExpr) -> String)])
+
+(provide response/full ;; <- bad, don't use this
          response/xexpr
          xexprs->response
-         string->response
+         xexprs->plain-page-response
+         string->response ;; <- bad, don't use this
          Response
+         response?
          TEXT/HTML-MIME-TYPE)
 
 ;; wrap the given xexpr in html and body tags, map to
@@ -31,6 +36,16 @@
 (: xexprs->response ((Listof XExpr) -> Response))
 (define (xexprs->response xexprs)
   (response/xexpr `(html (body ,@xexprs))))
+
+(: xexprs->plain-page-response (String (Listof XExpr) -> Response))
+(define (xexprs->plain-page-response title xexprs)
+  (response/full
+   200 #"Okay"
+   (current-seconds) TEXT/HTML-MIME-TYPE
+   '()
+   (list (string->bytes/utf-8
+          (xexprs->plain-page-html title xexprs)))))
+
 
 ;; FIXME ELIMINATE USES OF THIS FUNCTION (replace with xexprs)
 (: string->response (String -> Response))

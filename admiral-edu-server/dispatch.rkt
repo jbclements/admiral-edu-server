@@ -24,7 +24,12 @@
          (prefix-in feedback: "pages/feedback.rkt")
          (prefix-in roster: "pages/roster.rkt")
          (prefix-in browse: "pages/browse.rkt")
-         (prefix-in typed: "dispatch-typed.rkt"))
+         (prefix-in typed: "dispatch-typed.rkt")
+         (except-in "pages/responses.rkt"
+                    response?
+                    response/xexpr
+                    response/full
+                    TEXT/HTML-MIME-TYPE))
 
 (define (any? x)
   #t)
@@ -35,13 +40,15 @@
   (dispatch-rules
    [((string-arg) ...) (handler #f)]
    [((string-arg) ...) #:method "post" (handler #t)]
-   [else error:four-oh-four]))
+   [else error:four-oh-four-response]))
 
 ;; given whether this is a POST, handles an incoming request, returns a response
 (define (handler post?)
   (lambda (req path)
-    (log-ct-access-info "[~a] ~a - ~a ~a" (date->string (current-date) #t)
-     (class-name) (if post? "POST" "GET") path)
+    (log-ct-access-info/nomacro
+     (format
+      "[~a] ~a - ~a ~a" (date->string (current-date) #t)
+      (class-name) (if post? "POST" "GET") path))
     (match (req->uid req)
       [(? string? uid-str)
        (let* ((raw-bindings (request-bindings/raw req))
@@ -49,10 +56,10 @@
               (post-data (request-post-data/raw req))
               (clean-path (filter (lambda (x) (not (equal? "" x))) path))
               (start-rel-url (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/"))))
-              (session (ct-session (class-name) uid-str (make-table start-rel-url bindings)))
-              (result (with-handlers ([any? error:exception-occurred])
-                        (handlerPrime post? post-data session bindings raw-bindings clean-path))))
-         result)]
+              (session (ct-session (class-name) uid-str (make-table start-rel-url bindings))))
+         (with-handlers ([any? error:server-error-response])
+                        (handlerPrime post? post-data session
+                                      bindings raw-bindings clean-path)))]
       [else
        (error:error-xexprs->response
         `((p "missing authentication headers."))
@@ -92,7 +99,7 @@
      (if post?
          (submit:submit session role rest bindings raw-bindings)
          ;; BUG: this is calling error twice, right?
-         (error:response-error/xexpr
+         (error:error-xexprs->response
           `((p "You've accessed this page in an invalid way.")
             (p "Try returning to "
                (a ((href . ,(string-append "https://"
@@ -100,7 +107,7 @@
                   "Class Home")
                " and trying again."))
           400
-          "Bad Request"))]
+          #"Bad Request"))]
     [(cons "feedback" rest)
      (if post?
          (feedback:post session role rest bindings post-data)
@@ -123,13 +130,13 @@
 (define (require-auth session f)
   (let* ((user-role (role session))
          (can-sudo (if user-role (roles:Record-can-edit user-role) #f)))
-    (if can-sudo (f) (error:not-authorized))))
+    (if can-sudo (f) (error:not-authorized-response))))
 
 (define (with-sudo post post-data uid session bindings raw-bindings path)
   (let* ((user-role (role session))
          (can-sudo (if user-role (roles:Record-can-edit user-role) #f))
          (new-session (ct-session (ct-session-class session) uid (ct-session-table session))))
-    (if (not can-sudo) (error:four-oh-four)
+    (if (not can-sudo) (error:four-oh-four-response)
         (handlerPrime post post-data new-session bindings raw-bindings path))))
 
 
@@ -150,40 +157,28 @@
 ;; this displays an error message
 (define (render session page)
   (match (role session)
-    [#f (error:error-not-registered session)])
-  (let ((valid-role (role session)))
-    
-    (response/xexpr
-     (if (not valid-role) 
-         
-         (page session valid-role)))))
+    [#f (error:not-registered-response session)]
+    [role (response/xexpr (page session role))]))
 
 ;; if the session has a valid role, call 'page' and wrap
 ;; the resulting string as a response
 (define (render-html session page rest)
-  (let ((valid-role (role session)))
-    (if (not valid-role)
-        (response/xexpr (error:error-not-registered session))
-        (response/full
-         200 #"Okay"
-         (current-seconds) TEXT/HTML-MIME-TYPE
-         empty
-         (list (string->bytes/utf-8 (page session valid-role rest)))))))
+  (match (role session)
+    [#f (error:not-registered-response session)]
+    [role (string->response (page session role))]))
 
 (define (render-any session page rest)
     (let ((valid-role (role session)))
     (if (not valid-role)
-        (response/xexpr (error:error-not-registered session))
+        (error:not-registered-response session)
         (page session valid-role rest))))
 
 
-
-
-;; If the session has a valid role, renders the specified page with the specified bindings. 
+;; If the session has a valid role, renders the specified page with
+;; the specified bindings. 
 ;; Otherwise, this displays an error message
 (define (post->render session page bindings)
-  (let ((valid-role (role session)))
-    (response/xexpr
-     (if (not valid-role) 
-         (error:error-not-registered session)
-         (page session valid-role bindings)))))
+  (match (role session)
+    [#f (error:not-registered-response session)]
+    [role (response/xexpr
+           (page session role bindings))]))

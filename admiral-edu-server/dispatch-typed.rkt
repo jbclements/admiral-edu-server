@@ -28,18 +28,22 @@
 (: handlerPrime (Boolean Any ct-session Any Any (Listof String) -> Response))
 (define (handlerPrime post post-data session bindings raw-bindings path)
   (match path
-    [(cons "assignments" url) (render-xexprs "Assignments" session assignments:load url post)]
+    [(cons "assignments" url) (render-xexprs "Assignments" session
+                                             assignments:load url post)]
     [else (error:four-oh-four-response)]))
 
 
-(: render-xexprs (String ct-session (ct-session (Listof String) Boolean -> (Listof (U XExpr Void))) (Listof String) Boolean
+(: render-xexprs (String ct-session
+                         (ct-session (Listof String) Boolean ->
+                                     (U Response
+                                        (Listof XExpr)))
+                         (Listof String) Boolean
                          -> Response))
 (define (render-xexprs title session page url post)
   (let ((valid-user (user-exists? session)))
     (if (not valid-user)
-        (response/xexpr (error:not-registered-response session))
-        (let* ((xexprs (page session url post))
-               (strings (map xexpr->string (cast (filter (compose not void?) xexprs) (Listof XExpr))))
-               (body (string-join strings "\n"))
-               (response (string->plain-page-html title body)))
-          (string->response response)))))
+        (error:not-registered-response session)
+        (let ()
+          (define page-result (page session url post))
+          (cond [(response? page-result) page-result]
+                [else (xexprs->plain-page-response title page-result)])))))

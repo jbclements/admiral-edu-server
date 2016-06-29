@@ -14,6 +14,7 @@
                [xexprs->error-page-html ((Listof XExpr) -> String)])
 
 
+
 ;; TODO : Sam says submit PR to add this ...
 ;; very strange that this is necessary:
 (require/typed typed/racket/base
@@ -25,6 +26,7 @@
          error-xexprs->400-response
          not-authorized-response
          not-registered-response
+         server-error-response
          four-oh-four-response
          error)
 
@@ -72,9 +74,8 @@
 
 ;; given the thing raised (maybe an exn, maybe not), log it and
 ;; return a response. This is for internal server errors.
-(provide response-server-error)
-(: response-server-error (Any -> Response))
-(define (response-server-error exn)
+(: server-error-response (Any -> Response))
+(define (server-error-response exn)
   (log-ct-error-info
    "[~a] ERROR:"
    (date->string (current-date) #t))
