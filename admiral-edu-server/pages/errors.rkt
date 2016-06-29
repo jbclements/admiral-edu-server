@@ -98,8 +98,8 @@
          (marks (exn-continuation-marks exn))
          (stack (if (continuation-mark-set? marks)
                     (continuation-mark-set->context marks) #f)))
-    (log-ct-error-info "Caught Exception: ~a\n" exn)
-    (log-ct-error-info "Message: ~a\n" message)
+    (log-ct-error-info "Caught Exception: ~e" exn)
+    (log-ct-error-info "Message: ~a" message)
     (when stack (map print-stack-elem
                      ;; test this cast!
                      stack))
@@ -111,7 +111,7 @@
   (let ((label (if (null? elem) "function-name???" (car elem)))
         (srcloc (if (and (not (null? elem)) (srcloc? (cdr elem)))
                     (srcloc->string (cdr elem)) "No Source Location")))
-  (log-ct-error-info "~a - ~a\n" label srcloc)))
+  (log-ct-error-info "~a - ~a" label srcloc)))
 
 
 

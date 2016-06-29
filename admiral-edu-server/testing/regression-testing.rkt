@@ -65,6 +65,8 @@
   (for ([r (in-list requests)])
     (write (apply run-request r))
     (newline))
+
+  (sleep 1)
   )
 
 

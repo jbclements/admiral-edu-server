@@ -38,27 +38,27 @@
                                user-id "=?")))
     (query-exec query class-name uid)))
 
-(provide (struct-out Record))
-(struct: Record ([class : String] [uid : String] [role : roles:Record]) #:transparent)
+(provide (struct-out ClassRole))
+(struct: ClassRole ([class : String] [uid : String] [role : roles:Record]) #:transparent)
 
 (define record-cols (string-join (list class-id user-id role-id) ","))
-(define-type Record-Vector (Vector String String Integer))
+(define-type ClassRole-Vector (Vector String String Integer))
 
-(: vector->record (Record-Vector -> Record))
+(: vector->record (ClassRole-Vector -> ClassRole))
 (define (vector->record vec)
   (let* ((class (vector-ref vec 0))
          (uid (vector-ref vec 1))
          (role (roles:get-role (vector-ref vec 2)))
-         (result (Record class uid role)))
+         (result (ClassRole class uid role)))
     result))
 
 (provide all)
-(: all (String -> (Listof Record)))
+(: all (String -> (Listof ClassRole)))
 (define (all class)
   (let* ((query (merge "SELECT" record-cols
                        "FROM" table
                        "WHERE" class-id "=?"))
-         (results (cast (query-rows query class) (Listof Record-Vector)))
+         (results (cast (query-rows query class) (Listof ClassRole-Vector)))
          (records (map vector->record results)))
     records))
 

@@ -166,7 +166,7 @@
 (define (render-html session page rest)
   (match (role session)
     [#f (error:not-registered-response session)]
-    [role (string->response (page session role))]))
+    [role (string->response (page session role rest))]))
 
 (define (render-any session page rest)
     (let ((valid-role (role session)))
