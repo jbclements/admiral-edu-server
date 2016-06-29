@@ -19,7 +19,7 @@
          ("db-name" . "captain_teach_testing")
          ("db-password" . "captain_teach")
          ("db-user-name" . "captain_teach")
-         ("master-user" . "youremail@domain.com")
+         ("master-user" . "masteruser@example.com")
          ("db-address" . "localhost")))
 
 (module+ test

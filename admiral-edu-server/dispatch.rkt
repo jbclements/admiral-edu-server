@@ -73,6 +73,7 @@
                   (cond [(eq? #\/ last-char) candidate]
                         [else (string-append candidate "/")]))])))
 
+(provide handlerPrime)
 (define (handlerPrime post? post-data session bindings raw-bindings path)
   (match path
     ['() (render session index)]
