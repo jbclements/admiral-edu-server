@@ -19,7 +19,7 @@
          ("sub-domain" . "www.")
          ("mail-password" . "password")
          ("db-name" . "captain_teach")
-         ("master-user" . "youremail@domain.com")
+         ("master-user" . "masteruser@example.com")
          ("db-address" . "localhost")
          ("db-name" . "captain_teach_testing")))
 

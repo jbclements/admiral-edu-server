@@ -116,6 +116,9 @@
 
 (define (render-roster start-url)
   (let ((records (role:all (class-name))))
+    (printf "records: ~v\n" records)
+    (printf "role of first record: ~v\n" (role:Record-role (car records)))
+    
     (string-append "<p><a href='" start-url UPLOAD-ROSTER "/'>Upload Roster</a></p>\n"
                    "<p><a href='" start-url NEW-STUDENT "/'>New User</a></p>\n"
                    (render-instructors records start-url)

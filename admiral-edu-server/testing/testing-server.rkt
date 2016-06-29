@@ -19,11 +19,19 @@
   (define stop
     (serve #:dispatch (dispatch/servlet ct-rules)
            #:port (ct-port)))
-  
+
+  (sleep 1)
   (printf "server is running.\n")
   
-  (display
-   (http-sendrecv/url "http://localhost:8080/index.html"))
-  (newline)
+  (define-values (status headers result-port)
+    (http-sendrecv/url
+     (string->url "http://localhost:8080/roster")
+     #:headers '("oidc_claim_email: masteruser@example.com")))
+  (printf "~v\n~v\n~v"
+          status
+          headers
+          (regexp-match #px".*" result-port))
+  
+  
   
   stop)

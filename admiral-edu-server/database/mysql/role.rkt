@@ -60,6 +60,7 @@
                        "WHERE" class-id "=?"))
          (results (cast (query-rows query class) (Listof Record-Vector)))
          (records (map vector->record results)))
+    (printf "record roles: ~v\n" (map Record-role records))
     records))
 
 (provide select)

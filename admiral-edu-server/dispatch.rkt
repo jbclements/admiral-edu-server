@@ -39,11 +39,14 @@
 ;; given whether this is a POST, handles an incoming request
 (define (handler post?)
   (lambda (req path)
+    (printf "path: ~v\n" path)
     (let* ((raw-bindings (request-bindings/raw req))
            (bindings (request-bindings req))
            (post-data (request-post-data/raw req))
            (clean-path (filter (lambda (x) (not (equal? "" x))) path))
-           (start-rel-url (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/"))))
+           (start-rel-url (let ([ans (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/")))])
+                            (printf "start-rel-url: ~s\n" ans)
+                            ans))
            (session (ct-session (class-name) (req->uid req) (make-table start-rel-url bindings)))
            (result (with-handlers ([any? error:exception-occurred])
                      (handlerPrime post? post-data session bindings raw-bindings clean-path))))
@@ -57,6 +60,7 @@
                   (cond [(eq? #\/ last-char) candidate]
                         [else (string-append candidate "/")]))])))
 
+(provide handlerPrime)
 (define (handlerPrime post post-data session bindings raw-bindings path)
   (printf "[~a] ~a ~a - ~a ~a [~a]\n" (date->string (current-date) #t) (ct-session-class session) (ct-session-uid session) (if post "POST" "GET") path session) (flush-output)
   (match path
