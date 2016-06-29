@@ -6,6 +6,7 @@
 (require "typed-xml.rkt")
 
 (require/typed web-server/servlet
+               [#:opaque Response response?]
                ; (number? bytes? number?
                ; (or false bytes?) (listof header?) (listof bytes)
                ;  -> response?
@@ -16,7 +17,7 @@
                                 [#:code Natural]
                                 [#:message Bytes]
                                 -> Response)]
-               [#:opaque Response response?]
+               
                [TEXT/HTML-MIME-TYPE Bytes])
 
 (require/typed "templates.rkt"

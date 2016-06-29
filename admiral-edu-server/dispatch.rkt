@@ -26,10 +26,10 @@
          (prefix-in browse: "pages/browse.rkt")
          (prefix-in typed: "dispatch-typed.rkt")
          (except-in "pages/responses.rkt"
-                    response?
                     response/xexpr
                     response/full
-                    TEXT/HTML-MIME-TYPE))
+                    TEXT/HTML-MIME-TYPE
+                    response?))
 
 (define (any? x)
   #t)

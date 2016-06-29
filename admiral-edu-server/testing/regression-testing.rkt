@@ -17,7 +17,8 @@
   
   (current-configuration test-conf)
 
-  (db-init-tables)
+  ;; start with a fresh database
+  (db-init)
   
   (let ((result (initialize)))
     (when (Failure? result)
@@ -50,7 +51,7 @@
            (post-data #"" #;(request-post-data/raw req))
            (start-rel-url (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/"))))
            (session (ct-session (class-name) (master-user) (make-table start-rel-url bindings)))
-           (result (with-handlers ([(λ (x) #t) error:exception-occurred])
+           (result (with-handlers ([(λ (x) #t) error:server-error-response])
                      (handlerPrime #f post-data session bindings raw-bindings path))))
       (list user path (explode-response result))))
 
