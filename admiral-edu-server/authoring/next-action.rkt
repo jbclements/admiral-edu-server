@@ -195,6 +195,9 @@
 (define (run-submissions class assignment stepName review-id bindings raw-bindings amount)
   (letrec: ((helper : (Exact-Nonnegative-Integer -> (Result String))
                     (lambda ([n : Exact-Nonnegative-Integer])
+                      ;; FIXME oh this is so nasty! If the raw bindings come in in the
+                      ;; wrong order all hell breaks loose! Just rewrite to use raw-bindings
+                      ;; everywhere!
                       (if (<= n 0) (Success "Dependencies uploaded.")
                           (let* ((sym (string->symbol (string-append "file-" (number->string n))))
                                  (uname (dependency-submission-name review-id n))

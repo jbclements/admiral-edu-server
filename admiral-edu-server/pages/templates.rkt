@@ -1,3 +1,4 @@
+
 #lang racket/base
 
 ;; include-template apparently doesn't play nice with TR
@@ -52,5 +53,5 @@
    (regexp #px"abc<i>wow</i>tag"))
 
   (check-match
-   (xexprs->plain-page-html '((p "goofy")))
-   (regexp #px"<p>goofy</p>")))
+   (xexprs->plain-page-html "Quadra!" '((p "goofy")))
+   (regexp #px"Quadra!.*<p>goofy</p>")))
