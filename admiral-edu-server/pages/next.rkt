@@ -29,9 +29,11 @@
                (assignment (car rest))     
                (do-next (next-step assignment-id uid)))
           (cond 
-            [(MustSubmitNext? do-next) (handle-submit-next session assignment user-id do-next start-url)]
+            [(MustSubmitNext? do-next) (dreadful-hack
+                                        (handle-submit-next session assignment user-id do-next start-url))]
             [(MustReviewNext? do-next) (handle-review-next do-next start-url)]
-            [(eq? #t do-next) (assignment-completed)]
+            [(eq? #t do-next) (dreadful-hack
+                               (assignment-completed))]
             [else (error "Unknown next-action.")])))))
 
 (define (handle-submit-next session assignment-id user-id action start-url)
@@ -41,7 +43,7 @@
          (exists (submission:exists? assignment-id (class-name) step-id user-id)))
     (cond [exists (view-publish session step-id instruction start-url assignment-id)]
           ;; hack to translate to string ... remove when view-publish is updated to xexprs:
-          [else (dreadful-hack (view-upload step-id instruction start-url assignment-id))])))
+          [else (view-upload step-id instruction start-url assignment-id)])))
 
 (require racket/list)
 (define (dreadful-hack xexprs)
@@ -56,37 +58,39 @@
          (the-path (submission-path class assignment-id user-id step-id))
          (publish-okay (> (length (list-files the-path)) 0)))
     ;; FIXME CSS BUGS, use xexprs:
-    (string-append "<p>Below is your current submission to '" step-id "'. It has not yet been published. You may make changes until you are ready to publish.</p>"
-                   "<iframe width='800px' height='600px' style='border: none;' src='" browse-url "' scrolling='no'></iframe>"
-                   "<h3>Publish Current Submission</h3>"
-                   "<p><b>Warning:</b> After publishing, you may not make any changes to this submission step. "
-                   "Make sure all files you would like to submit for this step are present in the preview above "
-                   "before clicking the button below.</p>"
-                   (if publish-okay (string-append
-                                     "<form action='" submit-url "' method='post'>"
-                                     "<input type='hidden' name='action' value='submit'>"
-                                     "<input type='submit' value='Publish Submission'>"
-                                     "</form>")
-                       "<p>Your submission contains no files. Please upload a new submission before publishing this one.</p>")
-                   "<h3>Upload new submission</h3>"
-                   "<p><b>Warning:</b> This will over write your current submission.</p>"
-                   "<form action='" submit-url "' method='post' enctype='multipart/form-data'>"
-                   "<p>Instructions: " instruction "</p>"
-                   "<p>File:</p>"
-                   "<p><input type='file' id='file' name='file'></p>"
-                   "<script>"
-                   "function enableUpload(){"
+    `((p "Below is your current submission to '" ,step-id "'. It has not yet "
+         "been published. You may make changes until you are ready to publish.")
+      (iframe ((width "800px") (height "600px") (style "border: none")
+                               (src ,browse-url) (scrolling "no")) " ")
+      (h3 "Publish Current Submission")
+      (p (b "Warning:") "After publishing, you may not make any changes to "
+         "this submission step. Make sure all files you would like to submit "
+         "for this step are present in the preview above before clicking the "
+         "button below.")
+      ,(cond [publish-okay
+              `(form ((action ,submit-url) (method "post"))
+                     (input ((type "hidden") (name "action") (value "submit")))
+                     (input ((type "submit") (value "Publish Submission"))))]
+             [else
+              `(p "Your submission contains no files. Please upload a new "
+                 "submission before publishing this one.")])
+      (h3 "Upload new submission")
+      (p (b "Warning:") "This will overwrite your current submission.")
+      (form ((action ,submit-url) (method "post") (enctype "multipart/form-data"))
+            (p "Instructions: " ,instruction)
+            (p "File:")
+            (p (input ((type "file") (id "file") (name "file"))))
+            (script "function enableUpload(){"
                    "if(document.getElementById('verify').checked){"
                    "document.getElementById('upload').disabled = false;"
                    "} else {"
                    " document.getElementById('upload').disabled = true;"
-                   "}"
-                   "}"
-                   "</script>"
-                   "<p><input id='verify' type='checkbox' onchange='enableUpload()' value='understand'>I understand that I am overwriting my current submission.</p>"
-                   "<p><input id='upload' type='submit' disabled=true value='Upload'></p>"
-                   "</form>"
-                   )))
+                   "}""}")
+            (p (input ((id "verify") (type "checkbox") (onchange "enableUpload()")
+                                     (value "understand")))
+               "I understand that I am overwriting my current submission.")
+            (p (input ((id "upload") (type "submit") (disabled "true")
+                                     (value "Upload"))))))))
         
 (define (view-upload step-id instruction start-url assignment-id)
   `((p "You are uploading a submission to '" ,step-id "'.")
@@ -103,20 +107,23 @@
   (let* ((step (MustReviewNext-step action))
          (step-id (Step-id step))
          (reviews (MustReviewNext-reviews action))
-         (result  (string-append 
-                   "<p>You must complete the following reviews: </p>"
-                   (apply string-append (map (review-link start-url) reviews)))))
-    result))
+         )
+    `((p "You must complete the following reviews: ")
+      . ,(map (review-link start-url) reviews))))
 
+;; returns a single xexpr
 (define (review-link start-url)
   (lambda (hash)
     (let* ((review (review:select-by-hash hash))
            (completed (review:Record-completed review))
            (reviewee (review:Record-reviewee-id review)))
       (cond [completed ""]
-            [(string=? reviewee "HOLD") (string-append "<p>This review is on hold. You will be notified when this review is assigned.</p>")]
-            [else (string-append "<p><a href='" start-url "../../review/" hash "/'>Review</a></p>")]))))
+            [(string=? reviewee "HOLD")
+             `(p "This review is on hold. You will be notified when this review is assigned.")]
+            [else
+             `(p (a ((href ,(string-append start-url "../../review/" hash "/")))
+                    "Review"))]))))
 
 (define (assignment-completed)
-  "You have completed this assignment.")
+  '("You have completed this assignment."))
                       

@@ -185,6 +185,11 @@ steps:
       (200 (,stu1 ()))
       (200 (,stu1 ("assignments")))
       (200 (,stu1 ("feedback" "test-with-html")))
+      ((200 ,no-italics) (,stu1 ("next" "test-with-html")))
+      (200 (,stu1 ("submit" "test-with-html" "tests")
+                  (multipart/file
+                   ((file "my-file" "oh.... \n two lines!\n")))
+                  #t))
       ((200 ,no-italics) (,stu1 ("next" "test-with-html")))))
 
   (define REGRESSION-FILE-PATH

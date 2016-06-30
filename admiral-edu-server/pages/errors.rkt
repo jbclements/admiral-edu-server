@@ -24,9 +24,10 @@
 
 (provide error-xexprs->response
          error-xexprs->400-response
-         not-authorized-response
-         not-registered-response
          server-error-response
+         not-authorized-response
+         assignment-closed-response
+         not-registered-response
          four-oh-four-response
          error)
 
@@ -53,24 +54,6 @@
 (: error-xexprs->400-response ((Listof XExpr) -> Response))
 (define (error-xexprs->400-response xexprs)
   (error-xexprs->response xexprs 400 #"Bad Request"))
-
-
-
-(: not-authorized-response (-> Response))
-(define (not-authorized-response)
-  (error-xexprs->response
-   `((p "You are not authorized to access this page. "
-       "You may need to "
-       (a ((href "/authentication/redirect?logout=/logout.html"))
-          "log out")
-       "and log back in with a different account name."))
-   403 #"Forbidden"))
-
-;; FIXME not embedded in html?
-(provide assignment-closed)
-(: assignment-closed (-> String))
-(define (assignment-closed)
-  "<p>The assignment you were attempting to access is currently closed.</p>")
 
 ;; given the thing raised (maybe an exn, maybe not), log it and
 ;; return a response. This is for internal server errors.
@@ -114,6 +97,20 @@
   (log-ct-error-info "~a - ~a" label srcloc)))
 
 
+(: not-authorized-response (-> Response))
+(define (not-authorized-response)
+  (error-xexprs->response
+   `((p "You are not authorized to access this page. "
+       "You may need to "
+       (a ((href "/authentication/redirect?logout=/logout.html"))
+          "log out")
+       "and log back in with a different account name."))
+   403 #"Forbidden"))
+
+(: assignment-closed-response (-> Response))
+(define (assignment-closed-response)
+  (error-xexprs->400-response
+   `((p "The assignment you were attempting to access is currently closed."))))
 
 (: not-registered-response (ct-session -> Response))
 (define (not-registered-response session)
@@ -142,7 +139,7 @@
    404
    #"Not Found"))
 
-;; hack to get it to compile for now!
+;; FIXME hack to get it to compile for now!
 (: error (Any -> Void))
 (define (error x)
   (error 'unimplemented!))
