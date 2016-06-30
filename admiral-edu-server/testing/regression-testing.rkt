@@ -5,7 +5,7 @@
 ;; of requests and prints out the results, but it also checks that the
 ;; status codes are what they should be.
 
-(module+ main
+(module+ test
   (require racket/string
            racket/struct
            racket/list
@@ -15,6 +15,7 @@
            web-server/web-server
            web-server/http/request-structs
            rackunit
+           rackunit/text-ui
            "../dispatch.rkt"
            (prefix-in error: "../pages/errors.rkt")
            "../base.rkt"
@@ -181,6 +182,8 @@ steps:
                  (file-2 "grogra-2" "efgh"))) #t))
       (200 (,m ("assignments")))
       (200 (,m ("assignments" "dashboard" "test-with-html")))
+      ;; not open yet:
+      (400 (,stu1 ("next" "test-with-html")))
       (200 (,m ("assignments" "open" "test-with-html")))
       (200 (,stu1 ()))
       (200 (,stu1 ("assignments")))
@@ -195,20 +198,23 @@ steps:
   (define REGRESSION-FILE-PATH
     (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))
 
-  (call-with-output-file REGRESSION-FILE-PATH
-    (λ (r-port)
-      (for ([test (in-list tests)])
-        (match-define (list expected request-args) test)
-        (define result (apply run-request request-args))
-        (match expected
-          [(? number? code) (check-equal? (first result) code)]
-          [(list (? number? code)
-                 (? procedure? test-proc))
-           (begin (check-equal? (first result) code)
-                  (test-proc result))])
-        (define output-val (list request-args result))
-        (fprintf r-port "~s\n" output-val)
-        (printf "~s\n" output-val))))
+  (run-tests
+   (test-suite
+    "generate regression & a few tests"
+    (call-with-output-file REGRESSION-FILE-PATH
+      (λ (r-port)
+        (for ([test (in-list tests)])
+          (match-define (list expected request-args) test)
+          (define result (apply run-request request-args))
+          (match expected
+            [(? number? code) (check-equal? (first result) code)]
+            [(list (? number? code)
+                   (? procedure? test-proc))
+             (begin (check-equal? (first result) code)
+                    (test-proc result))])
+          (define output-val (list request-args result))
+          (fprintf r-port "~s\n" output-val)
+          (printf "~s\n" output-val))))))
 
   (sleep 1)
   )

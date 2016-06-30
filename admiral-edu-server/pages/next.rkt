@@ -1,22 +1,11 @@
 #lang racket/base
 
-(require web-server/http/bindings
-         web-server/templates
-         web-server/http/response-structs
-         xml
-         json
-         yaml)
-
 (require "../base.rkt"
          "../temporary-hacks.rkt"
+         "responses.rkt"
          (prefix-in error: "errors.rkt")
          "../authoring/assignment.rkt"
          "../storage/storage.rkt")
-
-(define (repeat val n)
-  (cond
-    [(<= n 0) '()]
-    [else (cons val (repeat val (- n 1)))]))
 
 (provide next)
 (define (next session role rest [message '()])
@@ -30,11 +19,12 @@
         (let* ((uid (ct-session-uid session))
                (assignment (car rest))     
                (do-next (next-step assignment-id uid)))
-          (dreadful-hack
+          (xexprs->plain-page-response
            (cond 
              [(MustSubmitNext? do-next) (handle-submit-next session assignment user-id do-next start-url)]
              [(MustReviewNext? do-next) (handle-review-next do-next start-url)]
              [(eq? #t do-next) (assignment-completed)]
+             ;; is this unreachable or a user error?
              [else (error "Unknown next-action.")]))))))
 
 (define (handle-submit-next session assignment-id user-id action start-url)

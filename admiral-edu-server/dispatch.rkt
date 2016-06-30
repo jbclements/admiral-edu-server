@@ -76,56 +76,53 @@
 (provide handlerPrime)
 (define (handlerPrime post? post-data session bindings raw-bindings path)
   (match path
-    ['() (render session index)]
+    ['() (X1render session index)]
     [(list "")
-     (render session index)]
+     (X1render session index)]
     [(cons "review" rest) (cond [post? (review:post->review session post-data rest)]                                
-                                [else (render-html session review:load rest)])]
+                                [else (X2render session review:load rest)])]
     [(cons "file-container" rest) (cond [post? (review:push->file-container session post-data rest)]
                                         [(and (> (length rest) 1)
-                                              (string=? "download" (list-ref rest (- (length rest) 2)))) (render-any session review:check-download rest)]
-                                        [(render-html session review:file-container rest)])]
+                                              (string=? "download" (list-ref rest (- (length rest) 2)))) (render session review:check-download rest)]
+                                        [(X2render session review:file-container rest)])]
     [(cons "su" (cons uid rest))
      (with-sudo post? post-data uid session bindings raw-bindings rest)]
     [(cons "author" rest)
      (if post?
          (author:post->validate session post-data rest)
-         (render-html session author:load rest))]
-    [(cons "next" rest) (render-html session next rest)]
+         (X2render session author:load rest))]
+    [(cons "next" rest) (render session next rest)]
     [(cons "dependencies" rest)
      (if post?
          (dep:post session rest bindings raw-bindings)
-         (render-html session dep:dependencies rest))]
+         (X2render session dep:dependencies rest))]
     [(cons "submit" rest)
      (if post?
          (submit:submit session role rest bindings raw-bindings)
-         ;; BUG: this is calling error twice, right?
-         (error:error-xexprs->response
+         (error:error-xexprs->400-response
           `((p "You've accessed this page in an invalid way.")
             (p "Try returning to "
                (a ((href . ,(string-append "https://"
                                            (sub-domain) (server-name) "/" (class-name))))
                   "Class Home")
-               " and trying again."))
-          400
-          #"Bad Request"))]
+               " and trying again."))))]
     [(cons "feedback" rest)
      (if post?
          (feedback:post session role rest bindings post-data)
-         (render-html session feedback:load rest))]
+         (X2render session feedback:load rest))]
     [(cons "export" rest)
      ;; no render function here? scary
      (export:load session (role session) rest)]
     [(cons "exception" rest) (error "Test an exception occurring.")]
     [(cons "roster" rest)
      (if post?
-         (render-html session (roster:post post-data bindings) rest)
-         (render-html session roster:load rest))]
+         (X2render session (roster:post post-data bindings) rest)
+         (X2render session roster:load rest))]
     [(cons "browse" rest)
      (cond [(and (> (length rest) 1)
                  (string=? "download" (list-ref rest (- (length rest) 2))))
-            (render-any session browse:download rest)]
-           [else (render-html session browse:load rest)])]
+            (render session browse:download rest)]
+           [else (X2render session browse:load rest)])]
     [else (typed:handlerPrime post? post-data session bindings raw-bindings path)]))
 
 (define (require-auth session f)
@@ -156,23 +153,23 @@
 
 ;; If the session has a valid role, renders the specified page. Otherwise,
 ;; this displays an error message
-(define (render session page)
+(define (X1render session page)
   (match (role session)
     [#f (error:not-registered-response session)]
     [role (response/xexpr (page session role))]))
 
 ;; if the session has a valid role, call 'page' and wrap
 ;; the resulting string as a response
-(define (render-html session page rest)
+(define (X2render session page rest)
   (match (role session)
     [#f (error:not-registered-response session)]
     [role (string->response (page session role rest))]))
 
-(define (render-any session page rest)
-    (let ((valid-role (role session)))
-    (if (not valid-role)
-        (error:not-registered-response session)
-        (page session valid-role rest))))
+
+(define (render session page rest)
+  (match (role session)
+    [#f (error:not-registered-response session)]
+    [role (string->response (page session role rest))]))
 
 
 ;; If the session has a valid role, renders the specified page with
