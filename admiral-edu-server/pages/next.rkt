@@ -40,15 +40,22 @@
          (step-id (Step-id step))
          (exists (submission:exists? assignment-id (class-name) step-id user-id)))
     (cond [exists (view-publish session step-id instruction start-url assignment-id)]
-          [else (view-upload step-id instruction start-url assignment-id)])))
+          ;; hack to translate to string ... remove when view-publish is updated to xexprs:
+          [else (dreadful-hack (view-upload step-id instruction start-url assignment-id))])))
+
+(require racket/list)
+(define (dreadful-hack xexprs)
+  (apply string-append (add-between (map xexpr->string xexprs) "\n")))
 
 (define (view-publish session step-id instruction start-url assignment-id)
+  ;; FIXME path-appending, need security for ids
   (let* ((submit-url (string-append start-url "../../submit/" assignment-id  "/" step-id "/"))
          (browse-url (string-append start-url "../../browse/" assignment-id "/" step-id "/"))
          (class (ct-session-class session))
          (user-id (ct-session-uid session))
          (the-path (submission-path class assignment-id user-id step-id))
          (publish-okay (> (length (list-files the-path)) 0)))
+    ;; FIXME CSS BUGS, use xexprs:
     (string-append "<p>Below is your current submission to '" step-id "'. It has not yet been published. You may make changes until you are ready to publish.</p>"
                    "<iframe width='800px' height='600px' style='border: none;' src='" browse-url "' scrolling='no'></iframe>"
                    "<h3>Publish Current Submission</h3>"
@@ -82,13 +89,15 @@
                    )))
         
 (define (view-upload step-id instruction start-url assignment-id)
-    (string-append "<p>You are uploading a submission to '" step-id "'.</p>" 
-                   "<p>Instructions: "instruction"</p>"
-                   "<form action='" start-url "../../submit/" assignment-id "/" step-id "/' method='post' enctype='multipart/form-data'>"
-                   "<p>File:</p>"
-                   "<p><input type='file' id='file' name='file'></p>"
-                   "<p><input type='submit' value='Upload'></p>"
-                   "</form>"))
+  `((p "You are uploading a submission to '" ,step-id "'.")
+    (p "Instructions: " ,instruction)
+    ;; FIXME PATH BULDING
+    (form ((action ,(string-append start-url "../../submit/" assignment-id "/" step-id "/"))
+           (method "post")
+           (enctype "multipart/form-data"))
+          (p "File:")
+          (p (input ((type "file") (id "file") (name "file"))))
+          (p (input ((type "submit") (value "Upload")))))))
 
 (define (handle-review-next action start-url)
   (let* ((step (MustReviewNext-step action))

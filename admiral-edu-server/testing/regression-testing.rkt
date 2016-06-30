@@ -138,6 +138,10 @@ steps:
                   granularity: 9
 ")
 
+  (define (no-italics result)
+    (match-define (list _ _ _ _ _ content) result)
+    (check (compose not string-contains?) content "<i>"))
+
   ;; a test (currently) consists of a list
   ;; containing the expected status code and the
   ;; arguments to pass to run-request.
@@ -179,16 +183,27 @@ steps:
       (200 (,m ("assignments" "dashboard" "test-with-html")))
       (200 (,m ("assignments" "open" "test-with-html")))
       (200 (,stu1 ()))
-      (200 (,stu1 ("assignments")))))
+      (200 (,stu1 ("assignments")))
+      (200 (,stu1 ("feedback" "test-with-html")))
+      ((200 ,no-italics) (,stu1 ("next" "test-with-html")))))
 
-  
-  
-  (for ([test (in-list tests)])
-    (match-define (list expected-code request-args) test)
-    (define result (apply run-request request-args))
-    (check-equal? (first result) expected-code)
-    (write (list request-args result))
-    (newline))
+  (define REGRESSION-FILE-PATH
+    (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))
+
+  (call-with-output-file REGRESSION-FILE-PATH
+    (λ (r-port)
+      (for ([test (in-list tests)])
+        (match-define (list expected request-args) test)
+        (define result (apply run-request request-args))
+        (match expected
+          [(? number? code) (check-equal? (first result) code)]
+          [(list (? number? code)
+                 (? procedure? test-proc))
+           (begin (check-equal? (first result) code)
+                  (test-proc result))])
+        (define output-val (list request-args result))
+        (fprintf r-port "~s\n" output-val)
+        (printf "~s\n" output-val))))
 
   (sleep 1)
   )
