@@ -14,7 +14,8 @@
 (require "../storage/storage.rkt"
          "../base.rkt"
          (prefix-in error: "errors.rkt")
-         "../authoring/assignment.rkt")
+         "../authoring/assignment.rkt"
+         "../temporary-hacks.rkt")
 
 (define (repeat val n)
   (cond
@@ -52,7 +53,7 @@
                            '((p "Invalid URL. Expected /author/edit/assignment-id/"))
                            400 #"Bad Request")
       (let ((assignment-id (car rest)))
-        (if (not (assignment:exists? assignment-id (class-name))) (error:error (string-append "No such assignment: " assignment-id))
+        (if (not (assignment:exists? assignment-id (class-name))) (XXerror (string-append "No such assignment: " assignment-id))
             (let* ((contents (retrieve-assignment-description (class-name) assignment-id)))
               (page session role rest message contents (string-append "'" VALIDATE-AND-SAVE-ACTION "'") "test"))))))
 

@@ -28,8 +28,7 @@
          not-authorized-response
          assignment-closed-response
          not-registered-response
-         four-oh-four-response
-         error)
+         four-oh-four-response)
 
 ;; FIXME this module needs to define its role better; is it
 ;; internal, external... ? Some of these return error messages,
@@ -139,7 +138,3 @@
    404
    #"Not Found"))
 
-;; FIXME hack to get it to compile for now!
-(: error (Any -> Void))
-(define (error x)
-  (error 'unimplemented!))

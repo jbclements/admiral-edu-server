@@ -11,6 +11,7 @@
 
 (require "../storage/storage.rkt"
          "../base.rkt"
+         "../temporary-hacks.rkt"
          (prefix-in assign: "../authoring/assignment.rkt")
          (prefix-in error: "errors.rkt"))
 
@@ -138,7 +139,7 @@
 
 (define (render-result assignment-id result)
   (cond [(Success? result) (assignment-dependencies assignment-id (string-append "<p>" (Success-result result) "</p>"))]
-        [(Failure? result) (error:error (Failure-message result))]
+        [(Failure? result) (XXerror (Failure-message result))]
         [else (raise (format "Unknown result: ~a" result))]))
 
 

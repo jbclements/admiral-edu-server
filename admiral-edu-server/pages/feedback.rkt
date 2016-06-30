@@ -188,7 +188,8 @@
          (test-prime (newline))
          (file-path (submission-file-path class assignment reviewee stepName file))
          (contents (if (is-directory? file-path) (render-directory file-path start-url) (render-file file-path))))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session))
+        (error:not-authorized-response)
         (string-append (include-template "html/feedback-file-container-header.html")
                        contents
                        (include-template "html/file-container-footer.html")))))
@@ -267,7 +268,9 @@
   (let* ((hash (car rest))
          (path (string-join (take (cdr rest) (- (length rest) 2))  "/"))
          (review (review:select-by-hash hash)))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    ;; FIXME can now return response..
+    (if (not (validate review session))
+        (error:not-authorized-response)
         (post->load session path review))))
 
 (define (post->load session path review)
@@ -289,7 +292,9 @@
 (define (post->do-view session rest post-data)
   (let* ((hash (car rest))
          (review (review:select-by-hash hash)))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session))
+        ;; FIXME can return response
+        (error:not-authorized-response)
         (post->load-rubric session review))))
   
 (define (post->load-rubric session review)

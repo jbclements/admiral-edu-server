@@ -8,6 +8,7 @@
          yaml)
 
 (require "../base.rkt"
+         "../temporary-hacks.rkt"
          (prefix-in error: "errors.rkt")
          "../authoring/assignment.rkt"
          "../storage/storage.rkt")
@@ -24,17 +25,17 @@
          (is-open (assignment:Record-open assignment-record))
          (start-url (hash-ref (ct-session-table session) 'start-url))
          (user-id (ct-session-uid session)))
-    (if (not is-open) (error:assignment-closed)
+    (if (not is-open)
+        (error:assignment-closed-response)
         (let* ((uid (ct-session-uid session))
                (assignment (car rest))     
                (do-next (next-step assignment-id uid)))
-          (cond 
-            [(MustSubmitNext? do-next) (dreadful-hack
-                                        (handle-submit-next session assignment user-id do-next start-url))]
-            [(MustReviewNext? do-next) (handle-review-next do-next start-url)]
-            [(eq? #t do-next) (dreadful-hack
-                               (assignment-completed))]
-            [else (error "Unknown next-action.")])))))
+          (dreadful-hack
+           (cond 
+             [(MustSubmitNext? do-next) (handle-submit-next session assignment user-id do-next start-url)]
+             [(MustReviewNext? do-next) (handle-review-next do-next start-url)]
+             [(eq? #t do-next) (assignment-completed)]
+             [else (error "Unknown next-action.")]))))))
 
 (define (handle-submit-next session assignment-id user-id action start-url)
   (let* ((step (MustSubmitNext-step action))
@@ -45,9 +46,7 @@
           ;; hack to translate to string ... remove when view-publish is updated to xexprs:
           [else (view-upload step-id instruction start-url assignment-id)])))
 
-(require racket/list)
-(define (dreadful-hack xexprs)
-  (apply string-append (add-between (map xexpr->string xexprs) "\n")))
+
 
 (define (view-publish session step-id instruction start-url assignment-id)
   ;; FIXME path-appending, need security for ids
@@ -103,6 +102,7 @@
           (p (input ((type "file") (id "file") (name "file"))))
           (p (input ((type "submit") (value "Upload")))))))
 
+;; returns a list of xexprs
 (define (handle-review-next action start-url)
   (let* ((step (MustReviewNext-step action))
          (step-id (Step-id step))

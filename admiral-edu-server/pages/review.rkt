@@ -12,7 +12,8 @@
          "../base.rkt"
          "../email/email.rkt"
          "../util/file-extension-type.rkt"
-         (prefix-in error: "errors.rkt"))
+         (prefix-in error: "errors.rkt")
+         "../temporary-hacks.rkt")
 
 (define (repeat val n)
   (cond
@@ -30,7 +31,7 @@
 (define (check-download session role rest)
   (let* ((r-hash (car rest))
          (review (review:select-by-hash r-hash)))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
         (let* ((path (cdr rest))
                (len (length path))
                (file-path (string-join (append (take path (- len 2)) (list (last path))) "/")))
@@ -55,7 +56,7 @@
          (reviewer (ct-session-uid session))
          (class (ct-session-class session))
          (r (review:select-by-hash r-hash)))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
         (if (equal? r 'no-reviews)
             (let ([display-message "There are no reviews available for you at this time."])
               (include-template "html/message.html"))
@@ -75,7 +76,7 @@
          (updir (apply string-append (repeat "../" (+ (length rest) 1))))
          (root-url updir)
          (completed (review:Record-completed review)))
-    (cond [completed (error:error "The review you were trying to submit has already been submitted. You may not submit it again.")]
+    (cond [completed (XXerror "The review you were trying to submit has already been submitted. You may not submit it again.")]
           [else
            (begin
              
@@ -97,7 +98,7 @@
 (define (post->review session post-data rest)
   (let* ((r-hash (car rest))
          (review (review:select-by-hash r-hash)))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
         (cond
           [(equal? (last rest) "save") (post->save-rubric session post-data review)]
           [(equal? (last rest) "load") (post->load-rubric session review)]
@@ -111,7 +112,7 @@
         (reviewee (review:Record-reviewee-id review))
         (reviewer (ct-session-uid session))
         (review-id (review:Record-review-id review)))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
         (begin
           (when (not (review:Record-completed review)) (save-rubric class assignment stepName review-id reviewer reviewee data))
           (response/full
@@ -128,7 +129,7 @@
          (reviewer (ct-session-uid session))
          (review-id (review:Record-review-id review))
          (data (retrieve-rubric class assignment stepName review-id reviewer reviewee)))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
         (response/full
          200 #"Okay"
          (current-seconds) #"application/json; charset=utf-8"
@@ -140,7 +141,7 @@
   (let* ((r-hash (car rest))
          (path (string-join (take (cdr rest) (- (length rest) 2))  "/"))
          (review (review:select-by-hash r-hash)))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
         (cond 
           [(equal? (last rest) "save") (push->save session post-data path review)]
           [(equal? (last rest) "load") (push->load session path review)]
@@ -154,7 +155,7 @@
         (reviewee (review:Record-reviewee-id review))
         (reviewer (ct-session-uid session))
         (review-id (review:Record-review-id review)))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
         (begin
           (when (not (review:Record-completed review)) (save-review-comments class assignment stepName review-id reviewer reviewee path data))
           (response/full
@@ -171,7 +172,7 @@
          (reviewer (ct-session-uid session))
          (review-id (review:Record-review-id review))
          (data (load-review-comments class assignment stepName review-id reviewer reviewee path)))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
         (response/full
          200 #"Okay"
          (current-seconds) #"application/json; charset=utf-8"
@@ -184,7 +185,7 @@
          (stepName (review:Record-step-id review))
          (reviewee (review:Record-reviewee-id review))
          (data (get-file-bytes class assignment stepName reviewee path)))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
         (response/full
          200 #"Okay"
          (current-seconds) #"application/octet-stream; charset=utf-8"
@@ -210,8 +211,8 @@
          (test-prime (newline))
          (file-path (submission-file-path class assignment reviewee stepName file))
          (contents (if (is-directory? file-path) (render-directory file-path start-url) (render-file file-path))))
-    (if (not (validate review session)) (error:error "You are not authorized to see this page.")
-        (if (not (validate review session)) (error:error "You are not authorized to see this page.")
+    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
+        (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
             (string-append (include-template "html/file-container-header.html")
                            contents
                            (include-template "html/file-container-footer.html"))))))
