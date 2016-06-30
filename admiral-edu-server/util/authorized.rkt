@@ -15,6 +15,7 @@
          (result (role:select class uid)))
     result))
 
+;; FIXME: I don't really think this function should exist at all....:
 
 ; TODO: Eventually this should have the following type
 ;(: can-edit (All (a) (-> ct-session (-> a * (Listof (U XExpr Void))) a * (Listof (U XExpr Void)))))

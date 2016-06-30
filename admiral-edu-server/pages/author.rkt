@@ -68,10 +68,13 @@
 
 (provide post->validate)
 (define (post->validate session post-data rest)
-  (let ((action (last rest)))
-    (cond
-      [(equal? VALIDATE-ACTION action) (validate session post-data #t)]
-      [(equal? VALIDATE-AND-SAVE-ACTION action) (validate session post-data rest #f)])))
+  (cond [(empty? rest) (error:four-oh-four-response)]
+        [else
+         (let ((action (last rest)))
+           (cond
+             [(equal? VALIDATE-ACTION action) (validate session post-data #t)]
+             [(equal? VALIDATE-AND-SAVE-ACTION action) (validate session post-data rest #f)]
+             [else (error:four-oh-four-response)]))]))
 
 (define (validate session post-data create?)
   (let ((result (match (yaml-bytes->create-or-save-assignment post-data create?)

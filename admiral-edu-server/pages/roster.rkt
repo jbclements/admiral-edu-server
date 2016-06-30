@@ -36,6 +36,7 @@
 (define (do-post action post-data bindings)
   (cond [(equal? action CREATE-STUDENT) (post->create-student bindings)]
         [(equal? action PROCESS-ROSTER) (post->process-roster bindings)]
+        ;;> should not be a 200-okay.
         [(equal? action ILLEGAL-ACTION) "<p>The action you took could not be processed.</p>"]
         [else ""]))
 
