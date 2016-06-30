@@ -51,6 +51,7 @@
                   (cond [(eq? #\/ last-char) candidate]
                         [else (string-append candidate "/")]))])))
 
+(provide handlerPrime)
 (define (handlerPrime post post-data session bindings raw-bindings path)
   (printf "[~a] ~a ~a - ~a ~a [~a]\n" (date->string (current-date) #t) (ct-session-class session) (ct-session-uid session) (if post "POST" "GET") path session) (flush-output)
   (match path
