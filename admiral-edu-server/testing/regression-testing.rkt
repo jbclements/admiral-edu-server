@@ -204,16 +204,20 @@ steps:
     "generate regression & a few tests"
     (call-with-output-file REGRESSION-FILE-PATH
       (λ (r-port)
-        (for ([test (in-list tests)])
+        (for ([test (in-list tests)]
+              [i (in-naturals)])
           (match-define (list expected request-args) test)
           (define result (apply run-request request-args))
-          (match expected
-            [(? number? code) (check-equal? (first result) code)]
+          (test-case
+           (format "~s" (list i request-args))
+           (match expected
+            [(? number? code)
+             (check-equal? (first result) code)]
             [(list (? number? code)
                    (? procedure? test-proc))
              (begin (check-equal? (first result) code)
-                    (test-proc result))])
-          (define output-val (list request-args result))
+                    (test-proc result))]))
+          (define output-val (list i request-args result))
           (fprintf r-port "~s\n" output-val)
           (printf "~s\n" output-val))))))
 
