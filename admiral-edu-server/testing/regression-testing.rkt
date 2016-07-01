@@ -22,13 +22,9 @@
            "../storage/storage-basic.rkt"
            "../util/config-file-reader.rkt"
            net/url
-           "test-configuration.rkt")
+           "testing-shim.rkt")
   
-  
-  (current-configuration test-conf)
-
-  ;; start with a fresh database
-  (db-init)
+  (init-shim)
   
   (let ((result (initialize)))
     (when (Failure? result)
@@ -46,14 +42,18 @@
   #;(struct response (code message seconds mime headers output))
 
   (define (explode-response r)
-    (list (response-code r)
-          (response-message r)
-          (response-seconds r)
-          (response-mime r)
-          (response-headers r)
-          (let ([os (open-output-string)])
-            ((response-output r) os)
-            (get-output-string os))))
+    (cond
+      [(response? r)
+       (list (response-code r)
+             (response-message r)
+             (response-seconds r)
+             (response-mime r)
+             (response-headers r)
+             (let ([os (open-output-string)])
+               ((response-output r) os)
+               (get-output-string os)))]
+      [else
+       (list 'not-a-response-at-all r)]))
 
   ;; there are some fairly complex invariants relating the raw bindings,
   ;; the bindings (though we shouldn't be using these at all), and the post
@@ -88,13 +88,14 @@
   (define (run-request user path [binding-spec '()] [post? #f] [post-data #""])
     (let* ([bindings (spec->bindings binding-spec)]
            (raw-bindings (spec->raw-bindings binding-spec))
-           (start-rel-url (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/"))))
-           (session (ct-session (class-name) user (make-table start-rel-url bindings)))
-           (result (with-handlers ([(λ (x) #t) error:server-error-response])
+           (start-rel-url (ensure-trailing-slash (string-append "/" (class-name-shim) "/" (string-join path "/"))))
+           (session (ct-session (class-name-shim) user (make-table start-rel-url bindings)))
+           (result (with-handlers ([(λ (x) #t) server-error-shim])
                      (handlerPrime post? post-data session bindings raw-bindings path))))
       (explode-response result)))
 
-  (define m (master-user))
+
+  (define m (master-user-shim))
   (define stu1 "frogstar@example.com")
 
   (define assignment-yaml #"name: Assignment 1 Captain Teach
