@@ -14,6 +14,7 @@
            web-server/http/response-structs
            web-server/web-server
            web-server/http/request-structs
+           xml
            rackunit
            rackunit/text-ui
            "../dispatch.rkt"
@@ -22,7 +23,8 @@
            "../storage/storage-basic.rkt"
            "../util/config-file-reader.rkt"
            net/url
-           "testing-shim.rkt")
+           "testing-shim.rkt"
+           )
   
   (init-shim)
   
@@ -94,9 +96,22 @@
                      (handlerPrime post? post-data session bindings raw-bindings path))))
       (explode-response result)))
 
+  ;; quick hack to speed test case entry: replace slashes with spaces, turn into list:
+  (define (path2list p)
+    (regexp-split #px"/" p))
+
+  ;; a cheap "test case" that actually captures the html, because the hashes
+  ;; aren't stable between runs
+  (define (html-capturer result)
+    (match-define (list _ _ _ _ _ content) result)
+    ;; blecch!
+    (set! saved-html content))
+  (define saved-html #f)
+
 
   (define m (master-user-shim))
   (define stu1 "frogstar@example.com")
+  (define stu2 "mf2@example.com")
 
   (define assignment-yaml #"name: Assignment 1 Captain Teach
 id: a1-ct
@@ -176,6 +191,8 @@ steps:
       (200 (,m ("assignments" "dashboard" "test-with-html")))
       (200 (,m ("dependencies" "test-with-html")))
       (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews")))
+      ;; fix this bug by rewriting to use raw bindings everywhere and fail nicely
+      ;; on line 197 of authoring/next-action.rkt
       (400 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload") () #t #""))
       (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload")
                (multipart/file
@@ -185,7 +202,9 @@ steps:
       (200 (,m ("assignments" "dashboard" "test-with-html")))
       ;; not open yet:
       (400 (,stu1 ("next" "test-with-html")))
+      ;; open the assignment
       (200 (,m ("assignments" "open" "test-with-html")))
+      ;; student navigation:
       (200 (,stu1 ()))
       (200 (,stu1 ("assignments")))
       (200 (,stu1 ("feedback" "test-with-html")))
@@ -194,7 +213,41 @@ steps:
                   (multipart/file
                    ((file "my-file" "oh.... \n two lines!\n")))
                   #t))
-      ((200 ,no-italics) (,stu1 ("next" "test-with-html")))))
+      ((200 ,no-italics) (,stu1 ("next" "test-with-html")))
+      ;; re-submit
+      (200 (,stu1 ("submit" "test-with-html" "tests")
+                  (multipart/file
+                   ((file "my-file" "oops... \n two different lines\n")))
+                  #t))
+      ;; re-submit with different file name
+      (200 (,stu1 ("submit" "test-with-html" "tests")
+                  (multipart/file
+                   ((file "my-different-file" "oops... \n two different lines\n")))
+                  #t))
+      ;; content of the iframe:
+      (200 (,stu1 ("browse" "test-with-html" "tests")))
+      ;; the file (gosh I hope you can't see others' submissions...
+      (200 (,stu1 ("browse" "test-with-html" "tests" "my-different-file")))
+      ;; create another student
+      (200 (,m ("roster" "new-student") ((action . "create-student")
+                                         (uid . ,stu1))
+               #t))
+      ;; that student submits:
+      (200 (,stu2 ("submit" "test-with-html" "tests")
+                  (multipart/file
+                   ((file "a-third-file" "zzz\n\nzzz\nzzz\n")))
+                  #t))
+      ;; can stu2 read stu1's file? No. Good.
+      (403 (,stu2 ("browse" "test-with-html" "tests" "my-different-file")))
+      ;; stu1 completes submit:
+      (200 (,stu1 ,(path2list "submit/test-with-html/tests")
+                  ((action . "submit"))
+                  #t))
+      ((200 ,html-capturer) (,stu1 ,(path2list "feedback/test-with-html")))
+      ;; bogus hash:
+      #;(403 (,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")))
+      #;(200 (,stu1 ,(path2list "review/598109a435c52dc0ae10c616bcae407a")))))
+
 
   (define REGRESSION-FILE-PATH
     (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))
@@ -221,6 +274,17 @@ steps:
           (fprintf r-port "~s\n" output-val)
           (printf "~s\n" output-val))))))
 
+  (define parsed (string->xexpr (string-append "<top>" saved-html
+                                               "</top>")))
+  (printf "~v\n"
+          (match parsed
+            [(list-rest 'top (list) _ _ _ _ _ _ _ _ _
+                        _ _ _ _ _
+                        `(li () ,z)
+                        ;`(li () (a ((href ,p)) _))
+                        rest)
+             z]))
+  
   (sleep 1)
   )
 
