@@ -10,7 +10,8 @@
 (require 
   "auth/google-openidc.rkt"
   "base.rkt"
-  "logging.rkt")
+  "logging.rkt"
+  "temporary-hacks.rkt")
 
 (require "pages/index.rkt"
          (prefix-in review: "pages/review.rkt")
@@ -169,7 +170,7 @@
 (define (render session page rest)
   (match (role session)
     [#f (error:not-registered-response session)]
-    [role (string->response (page session role rest))]))
+    [role (render-hack (page session role rest))]))
 
 
 ;; If the session has a valid role, renders the specified page with

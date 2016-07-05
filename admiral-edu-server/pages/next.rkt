@@ -20,6 +20,7 @@
                (assignment (car rest))     
                (do-next (next-step assignment-id uid)))
           (xexprs->plain-page-response
+           "Captain Teach"
            (cond 
              [(MustSubmitNext? do-next) (handle-submit-next session assignment user-id do-next start-url)]
              [(MustReviewNext? do-next) (handle-review-next do-next start-url)]
