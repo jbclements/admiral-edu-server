@@ -7,7 +7,7 @@
   (byte-regexp (regexp-quote (bytes #x01 #x55 #xbc))))
 
 (define stuff
-  (call-with-input-file "/tmp/data"
+  (call-with-input-file "/Users/clements/clements/datasets/zap-data-ct"
     (λ (port)
       (regexp-split splitter port))))
 
@@ -116,34 +116,68 @@
 
 (define master-setup (third grouped-by-cookie))
 
-(for/list ([request (in-list master-setup)])
-  (define maybe-content-type
-    (findf (λ (l) (regexp-match #px#"^Content-Type: " l)) (third request)))
-  (define maybe-content-length
-    (findf (λ (l) (regexp-match #px#"^Content-Length: " l)) (third request)))
-  (match (caar request)
-    [#"GET"
-     (cond
-       [(or maybe-content-type maybe-content-length)
-        (error 'get-had-content "~e" request)]
-       [else
-        (first request)])]
-    [#"POST"
-     (cond [(or (not maybe-content-type) (not maybe-content-length))
-            (error 'post-had-no-content "~e" request)]
-           [else
-            (define content-length
-              (string->number
-               (bytes->string/utf-8
-                (second
-                 (regexp-match #px"^Content-Length: ([0-9]+)$"
-                               maybe-content-length)))))
-            (list
-             (first request)
-             maybe-content-type
-             (subbytes (first (fourth request))
-                       5 (+ 5 content-length)))])
-     ]))
+;; all of the ones with no response seem to be repeated get requests
+;; that are missing a trailing slash. Confused.
+;; ... okay, let's see what happens.
+#;(let loop ([seen-so-far (hash)]
+           [remaining master-setup])
+  (cond [(empty? remaining) 'done]
+        [else
+         (define f (first remaining))
+         (define path (second (first f)))
+         (cond
+           [(not (first (fourth f)))
+            (let ([ans path])
+              (printf "~s\n" ans)
+              ans)
+            (when (not (hash-has-key? seen-so-far
+                                      (bytes-append path #"/")))
+              (error 'not-seen-so-far "path: ~v" path))
+            (loop seen-so-far (rest remaining))]
+           [(loop (hash-set seen-so-far path #t)
+                  (rest remaining))])]))
+
+(map first (filter (λ (qm) (not (first (fourth qm)))) master-setup))
+
+(define actions
+  (for/list ([request (in-list master-setup)])
+    (define maybe-content-type
+      (findf (λ (l) (regexp-match #px#"^Content-Type: " l)) (third request)))
+    (define maybe-content-length
+      (findf (λ (l) (regexp-match #px#"^Content-Length: " l)) (third request)))
+    (define maybe-response (second (fourth request)))
+    (define maybe-code
+      (match (regexp-match #px#"^HTTP/1\\.1 ([0-9]+)" maybe-response)
+        [(list _ n) (string->number (bytes->string/utf-8 n))]
+        [#f #f]))
+    (match (caar request)
+      [#"GET"
+       (cond
+         [(or maybe-content-type maybe-content-length)
+          (error 'get-had-content "~e" request)]
+         [else
+          (list maybe-code (first request))])]
+      [#"POST"
+       (cond [(or (not maybe-content-type) (not maybe-content-length))
+              (error 'post-had-no-content "~e" request)]
+             [else
+              (define content-length
+                (string->number
+                 (bytes->string/utf-8
+                  (second
+                   (regexp-match #px"^Content-Length: ([0-9]+)$"
+                                 maybe-content-length)))))
+              (list
+               maybe-code
+               (first request)
+               maybe-content-type
+               (subbytes (first (fourth request))
+                         5 (+ 5 content-length)))])
+       ])))
+
+(call-with-output-file "/tmp/actions.rktd"
+  (λ (port)
+    (pretty-write actions port)))
 
 
 
