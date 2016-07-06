@@ -203,9 +203,12 @@
                                  (uname (dependency-submission-name review-id n))
                                  (data (extract-binding/single sym bindings))
                                  (filename (bytes->string/utf-8 (binding:file-filename (list-ref raw-bindings (- n 1))))))
-                            (let ((result (upload-dependency-solution class (dependency-submission-name review-id n) assignment stepName filename data)))
-                              (cond [(Failure? result) result]
-                                    [else (helper (- n 1))])))))))
+                            (cond [(string=? filename "")
+                                   (Failure "no filename provided")]
+                                  [else
+                                   (let ((result (upload-dependency-solution class (dependency-submission-name review-id n) assignment stepName filename data)))
+                                     (cond [(Failure? result) result]
+                                           [else (helper (- n 1))]))]))))))
     (helper amount)))
 
 (provide default-assignment-handler)
