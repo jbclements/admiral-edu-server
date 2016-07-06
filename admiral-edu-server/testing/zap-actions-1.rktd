@@ -16,7 +16,8 @@
  (200
   (#"POST" #"https://www.captainteach.org/2166-dev/roster/")
   #"Content-Type: multipart/form-data; boundary=---------------------------205091904268377093898143351"
-  #"-----------------------------205091904268377093898143351\r\nContent-Disposition: form-data; name=\"action\"\r\n\r\nprocess-roster\r\n-----------------------------205091904268377093898143351\r\nContent-Disposition: form-data; name=\"file\"; filename=\"roster.txt\"\r\nContent-Type: text/plain\r\n\r\nyokeleast@gmail.com\njbclements@gmail.com\n\r\n-----------------------------205091904268377093898143351--\r\n")
+  ;; edited to change email addresses...
+  #"-----------------------------205091904268377093898143351\r\nContent-Disposition: form-data; name=\"action\"\r\n\r\nprocess-roster\r\n-----------------------------205091904268377093898143351\r\nContent-Disposition: form-data; name=\"file\"; filename=\"roster.txt\"\r\nContent-Type: text/plain\r\n\r\nfrogstar@example.com\nmf2@example.com\n\r\n-----------------------------205091904268377093898143351--\r\n")
  (200
   (#"GET"
    #"https://www.captainteach.org/2166-dev/roster/edit/johnbclements@gmail.com/"))
