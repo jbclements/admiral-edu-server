@@ -3,3 +3,4 @@
 compiled/
 coverage/
 test-class/
+.DS_Store

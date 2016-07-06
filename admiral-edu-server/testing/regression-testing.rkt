@@ -24,7 +24,7 @@
            "../util/config-file-reader.rkt"
            net/url
            "testing-shim.rkt"
-           )
+           "extract-links.rkt")
   
   (init-shim)
   
@@ -100,13 +100,19 @@
   (define (path2list p)
     (regexp-split #px"/" p))
 
-  ;; a cheap "test case" that actually captures the html, because the hashes
+  ;; a cheap "test case" that actually captures the review hash, because the hashes
   ;; aren't stable between runs
-  (define (html-capturer result)
+  (define (hash-capturer result)
     (match-define (list _ _ _ _ _ content) result)
+    (define links (extract-html-links content))
+    (define last-link (last links))
+    (define hash
+      (second
+       (regexp-match #px"review/(.*)/$" last-link)))
     ;; blecch!
-    (set! saved-html content))
-  (define saved-html #f)
+    (set! saved-hash hash))
+  
+  (define saved-hash #f)
 
 
   (define m (master-user-shim))
@@ -162,6 +168,9 @@ steps:
   ;; a test (currently) consists of a list
   ;; containing the expected status code and the
   ;; arguments to pass to run-request.
+  ;; GRR! In order to allow hashes to be extracted
+  ;; from earlier requests, must allow request args
+  ;; to be thunked. 
   (define tests
     `((200 (,m ()))
       (200 (,m ("assignments")))
@@ -243,10 +252,13 @@ steps:
       (200 (,stu1 ,(path2list "submit/test-with-html/tests")
                   ((action . "submit"))
                   #t))
-      ((200 ,html-capturer) (,stu1 ,(path2list "feedback/test-with-html")))
+      ((200 ,hash-capturer) (,stu1 ,(path2list "feedback/test-with-html")))
       ;; bogus hash:
-      #;(403 (,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")))
-      #;(200 (,stu1 ,(path2list "review/598109a435c52dc0ae10c616bcae407a")))))
+      (403 (,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")))
+      ;; thunk to delay extraction of saved html:
+      (200 ,(λ () (list stu1 (list "review" saved-hash))))
+      ;; the iframe...
+      (200 ,(λ () (list stu1 (list "file-container" saved-hash))))))
 
 
   (define REGRESSION-FILE-PATH
@@ -259,7 +271,12 @@ steps:
       (λ (r-port)
         (for ([test (in-list tests)]
               [i (in-naturals)])
-          (match-define (list expected request-args) test)
+          (match-define (list expected request-args-or-thunk) test)
+          (define request-args
+            ;; !@#$ request hashes... can't extract until earlier tests have been
+            ;; run.
+            (cond [(procedure? request-args-or-thunk) (request-args-or-thunk)]
+                  [else request-args-or-thunk]))
           (define result (apply run-request request-args))
           (test-case
            (format "~s" (list i request-args))
@@ -274,16 +291,6 @@ steps:
           (fprintf r-port "~s\n" output-val)
           (printf "~s\n" output-val))))))
 
-  (define parsed (string->xexpr (string-append "<top>" saved-html
-                                               "</top>")))
-  (printf "~v\n"
-          (match parsed
-            [(list-rest 'top (list) _ _ _ _ _ _ _ _ _
-                        _ _ _ _ _
-                        `(li () ,z)
-                        ;`(li () (a ((href ,p)) _))
-                        rest)
-             z]))
   
   (sleep 1)
   )
