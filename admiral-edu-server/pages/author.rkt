@@ -70,9 +70,15 @@
 (provide post->validate)
 (define (post->validate session post-data rest-of-path)
   (match rest-of-path
-    [(list (? string? action))
+    ;; FIXME: can we tighten up this pattern? what are the legal shapes?
+    ;; FIXME: looks like the path *used* to be used to determine the name
+    ;; of the saved assignment, but can just be deduced from the file name.
+    ;; probably there shouldn't be any difference between validate and validate-and-save?
+    ;; or maybe there are subtle bugs when you go to edit one and change the assignment
+    ;; id? Maybe the create? boolean is enough to protect sanity?
+    [(list _ ... (? string? action))
      (cond [(equal? VALIDATE-ACTION action) (validate session post-data #t)]
-           [(equal? VALIDATE-AND-SAVE-ACTION action) (validate session post-data rest-of-path #f)]
+           [(equal? VALIDATE-AND-SAVE-ACTION action) (validate session post-data #f)]
            [else (error:four-oh-four-response)])]
     [else (error:four-oh-four-response)]))
 
