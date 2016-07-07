@@ -30,19 +30,19 @@
 (provide check-download)
 (define (check-download session role rest)
   (let* ((r-hash (car rest))
-         (review (review:select-by-hash r-hash)))
+         (review (try-select-by-hash r-hash)))
     (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
         (let* ((path (cdr rest))
                (len (length path))
                (file-path (string-join (append (take path (- len 2)) (list (last path))) "/")))
           (push->download session file-path review))))) 
 
+;; whoa... this function had a heck of a lot of dead code in it... worried.
 (define (do-load session role rest message)
-  (let* ((start-url (hash-ref (ct-session-table session) 'start-url))
-         (r-hash (car rest))
-         (review (review:select-by-hash r-hash))
-         (assignment (review:Record-assignment-id review))
-         (step (review:Record-step-id review))
+  (define start-url (hash-ref (ct-session-table session) 'start-url))
+  (define r-hash (car rest))
+  (define review (try-select-by-hash r-hash))
+  (let* ((step (review:Record-step-id review))
          (completed (review:Record-completed review))
          (updir (apply string-append (repeat "../" (+ (length rest) 1))))
          (root-url updir)
@@ -52,15 +52,9 @@
          (updir-rubric (apply string-append (repeat "../" (- (length rest) 1))))
          [file-container (string-append start-url updir "file-container/" (to-path rest))]
          [save-url (xexpr->string (string-append "\"" start-url updir-rubric step "/save\""))]
-         [load-url (xexpr->string (string-append "\"" start-url updir-rubric step "/load\""))]
-         (reviewer (ct-session-uid session))
-         (class (ct-session-class session))
-         (r (review:select-by-hash r-hash)))
+         [load-url (xexpr->string (string-append "\"" start-url updir-rubric step "/load\""))])
     (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-        (if (equal? r 'no-reviews)
-            (let ([display-message "There are no reviews available for you at this time."])
-              (include-template "html/message.html"))
-            (include-template "html/review.html")))))
+        (include-template "html/review.html"))))
 
 (define (validate review session)
   (let ((uid (ct-session-uid session))
@@ -68,22 +62,20 @@
     (equal? uid reviewer)))
 
 (define (do-submit-review session role rest message)
-  (let* ((start-url (hash-ref (ct-session-table session) 'start-url))
-         (r-hash (cadr rest))
-         (review (review:select-by-hash r-hash))
-         (assignment (review:Record-assignment-id review))
+  (define start-url (hash-ref (ct-session-table session) 'start-url))
+  (define r-hash (cadr rest))
+  (define review (try-select-by-hash r-hash))
+  (let* ((assignment (review:Record-assignment-id review))
          (step (review:Record-step-id review))
          (updir (apply string-append (repeat "../" (+ (length rest) 1))))
          (root-url updir)
          (completed (review:Record-completed review)))
     (cond [completed (XXerror "The review you were trying to submit has already been submitted. You may not submit it again.")]
           [else
-           (begin
-             
-             (review:mark-complete r-hash)
-             (send-review-ready-email review)
-             (string-append "<p>Review Submitted</p>"
-                            "<p><a href='" start-url root-url "feedback/" assignment "/'>Continue</a></p>"))])))
+           (review:mark-complete r-hash)
+           (send-review-ready-email review)
+           (string-append "<p>Review Submitted</p>"
+                          "<p><a href='" start-url root-url "feedback/" assignment "/'>Continue</a></p>")])))
 
 (define (send-review-ready-email review)
   (let* ((uid (review:Record-reviewee-id review))
@@ -97,12 +89,12 @@
 (provide post->review)
 (define (post->review session post-data rest)
   (let* ((r-hash (car rest))
-         (review (review:select-by-hash r-hash)))
+         (review (try-select-by-hash r-hash)))
     (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
         (cond
           [(equal? (last rest) "save") (post->save-rubric session post-data review)]
           [(equal? (last rest) "load") (post->load-rubric session review)]
-          [else (error:four-oh-four-response)]))))
+          [else (raise-404-not-found "Bad path")]))))
 
 (define (post->save-rubric session post-data review)
   (let ((data (jsexpr->string (bytes->jsexpr post-data)))
@@ -138,14 +130,14 @@
 
 (provide push->file-container)
 (define (push->file-container session post-data rest)
-  (let* ((r-hash (car rest))
-         (path (string-join (take (cdr rest) (- (length rest) 2))  "/"))
-         (review (review:select-by-hash r-hash)))
-    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-        (cond 
-          [(equal? (last rest) "save") (push->save session post-data path review)]
-          [(equal? (last rest) "load") (push->load session path review)]
-          [else (error:four-oh-four-response)]))))
+  (define r-hash (car rest))
+  (define path (string-join (take (cdr rest) (- (length rest) 2))  "/"))
+  (define review (try-select-by-hash r-hash))
+  (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
+      (cond 
+        [(equal? (last rest) "save") (push->save session post-data path review)]
+        [(equal? (last rest) "load") (push->load session path review)]
+        [else (error:four-oh-four-response)])))
 
 (define (push->save session post-data path review)
   (let ((data (jsexpr->string (bytes->jsexpr post-data)))
@@ -194,10 +186,10 @@
   
 (provide file-container)
 (define (file-container session role rest [message '()])
-  (let* ((start-url (hash-ref (ct-session-table session) 'start-url))
-         (r-hash (car rest))
-         (review (review:select-by-hash r-hash))
-         (class (ct-session-class session))
+  (define start-url (hash-ref (ct-session-table session) 'start-url))
+  (define r-hash (car rest))
+  (define review (try-select-by-hash r-hash))
+  (let* ((class (ct-session-class session))
          [assignment (review:Record-assignment-id review)]
          [default-mode (determine-mode-from-filename (last rest))]
          (stepName (review:Record-step-id review))
@@ -289,3 +281,11 @@
                                                 (new-acc (cons link acc)))
                                            (helper new-acc tail))]))))
     (helper '() input)))
+
+;; given a user-supplied hash, try to retrieve the review.
+;; signal a 404 if nothing is found.
+(define (try-select-by-hash hash)
+  (define review (review:maybe-select-by-hash hash))
+  (when (not review)
+    (raise-404-not-found "Unrecognized hash"))
+  review)
