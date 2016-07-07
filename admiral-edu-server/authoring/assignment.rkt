@@ -24,23 +24,6 @@
          assignment-id->assignment
          create-or-save-assignment)
 
-;; really need the exception monad here...
-(define-syntax sdo
-  (syntax-rules (<-)
-    [(_ [name <- rhs]) rhs]
-    [(_ rhs) rhs]
-    [(_ [name <- rhs] rest ...)
-     (let ([temp rhs])
-       (cond [(Success? temp)
-              (let ([name (Success-result temp)])
-                (sdo rest ...))]
-             [else temp]))]
-    [(_ rhs rest ...)
-     (let ([temp rhs])
-       (cond [(Success? temp)
-              (sdo rest ...)]
-             [else temp]))]))
-
 ;; represents success for functions that don't return a useful value
 (define success (Success (void)))
 
