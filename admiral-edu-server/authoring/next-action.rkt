@@ -4,7 +4,14 @@
                [extract-binding/single (Symbol (Listof (Pairof Symbol (U String Bytes))) -> (U String Bytes))])
 
 (require/typed web-server/http/request-structs
-               [binding:file-filename (Any -> Bytes)])
+               [#:struct binding
+                ([id : Bytes])]
+               [#:struct (binding:file binding)
+                ([filename : Bytes]
+                 [headers : (Listof Any)]
+                 [content : Bytes])]
+               [bindings-assq (Bytes (Listof binding) ->
+                                     (U binding False))])
 
 (require "../storage/storage.rkt"
          "assignment-structs.rkt"
@@ -152,27 +159,31 @@
 
 ;; Dependencies 
 (provide default-get-dependencies)
+;; get the dependencies associated with an assignment
 (: default-get-dependencies (Assignment -> (Listof Dependency)))
 (define (default-get-dependencies assignment)
-  (cond [(not (Assignment? assignment)) (raise-argument-error 'determine-dependencies "Assignment" assignment)]
-        [else (apply append (map (step-dependencies (Assignment-id assignment)) (Assignment-steps assignment)))]))     
+  (apply append (map (step-dependencies (Assignment-id assignment)) (Assignment-steps assignment))))     
 
+;; given the assignment id, return a function mapping step to dependencies
 (: step-dependencies (String -> (Step -> (Listof Dependency))))
 (define (step-dependencies assignment-id)
   (lambda (step)
     (map (determine-dependency assignment-id (Step-id step)) (Step-reviews step))))
 
+;; given an assignment id and a step id, return a function that for
+;; a review returns a single dependency
 (: determine-dependency (String String -> (Review -> Dependency)))
 (define (determine-dependency assignment-id step-id)
   (lambda (review)
     (let* ((review-id (Review-id review))
-           (met (lambda ([n : Exact-Nonnegative-Integer]) (check-upload assignment-id step-id review-id n))))
-      (cond [(instructor-solution? review) (instructor-solution-dependency (met 1) step-id (Review-id review))]
+           (all-met? (lambda ([n : Exact-Nonnegative-Integer]) (check-upload assignment-id step-id review-id n))))
+      (cond [(instructor-solution? review) (instructor-solution-dependency (all-met? 1) step-id (Review-id review))]
             [(student-submission? review) 
              (let ((amount (student-submission-amount review)))
-               (student-submission-dependency (met amount) step-id (Review-id review) amount))]
+               (student-submission-dependency (all-met? amount) step-id (Review-id review) amount))]
             [else (raise (format "Unknown dependency type: ~a" review))]))))
 
+;; check to see whether all submissions from 1..n are present
 (: check-upload (String String String Exact-Nonnegative-Integer -> Boolean))
 (define (check-upload assignment-id step-id review-id n)
   (cond [(<= n 0) #t]
@@ -181,35 +192,43 @@
 
 
 (provide default-take-dependency)
-(: default-take-dependency (String Dependency (Listof (Pairof Symbol (U Bytes String))) (Listof Any) -> (Result String)))
-(define (default-take-dependency assignment-id dependency bindings raw-bindings)
+;; FIXME propagate binding type outward here for raw-bindings
+(: default-take-dependency (String Dependency Any (Listof Any) -> (Result String)))
+(define (default-take-dependency assignment-id dependency bogus raw-bindings/pre)
+  (define raw-bindings (cast raw-bindings/pre (Listof binding)))
   (let ((review-id (review-dependency-review-id (assert dependency review-dependency?)))
         (step-id (review-dependency-step-id (assert dependency review-dependency?))))
-  (cond [(instructor-solution-dependency? dependency) (run-submissions (class-name) assignment-id step-id review-id bindings raw-bindings 1)]
-        [(student-submission-dependency? dependency) (run-submissions (class-name) assignment-id step-id review-id bindings raw-bindings (student-submission-dependency-amount dependency))]
+  (cond [(instructor-solution-dependency? dependency) (upload-dependencies (class-name) assignment-id step-id review-id raw-bindings 1)]
+        [(student-submission-dependency? dependency) (upload-dependencies (class-name) assignment-id step-id review-id raw-bindings (student-submission-dependency-amount dependency))]
         [else (raise (format "Unknown dependency: ~a" dependency))])))
 
 
-
-(: run-submissions (String String String String (Listof (Pairof Symbol (U Bytes String))) (Listof Any) Exact-Nonnegative-Integer -> (Result String)))
-(define (run-submissions class assignment stepName review-id bindings raw-bindings amount)
-  (letrec: ((helper : (Exact-Nonnegative-Integer -> (Result String))
-                    (lambda ([n : Exact-Nonnegative-Integer])
-                      ;; FIXME oh this is so nasty! If the raw bindings come in in the
-                      ;; wrong order all hell breaks loose! Just rewrite to use raw-bindings
-                      ;; everywhere!
-                      (if (<= n 0) (Success "Dependencies uploaded.")
-                          (let* ((sym (string->symbol (string-append "file-" (number->string n))))
-                                 (uname (dependency-submission-name review-id n))
-                                 (data (extract-binding/single sym bindings))
-                                 (filename (bytes->string/utf-8 (binding:file-filename (list-ref raw-bindings (- n 1))))))
-                            (cond [(string=? filename "")
-                                   (Failure "no filename provided")]
-                                  [else
-                                   (let ((result (upload-dependency-solution class (dependency-submission-name review-id n) assignment stepName filename data)))
-                                     (cond [(Failure? result) result]
-                                           [else (helper (- n 1))]))]))))))
-    (helper amount)))
+;; run submissions? I think this function has the wrong name. It seems
+;; to have evolved quite a lot, and is now a bit of a mess.
+(: upload-dependencies (String String String String (Listof binding) Exact-Nonnegative-Integer -> (Result String)))
+(define (upload-dependencies class assignment stepName review-id raw-bindings amount)
+  (for ([n : Exact-Nonnegative-Integer (in-range amount)])
+    (define name (bytes-append #"file-" (string->bytes/utf-8 (number->string (add1 n)))))
+    (define uname (dependency-submission-name review-id (add1 n)))
+    (define data (bindings-assq name raw-bindings))
+    (cond
+      [(not data)
+       (raise-400-bad-request
+        (format "expected submission containing binding named ~e" name))]
+      [(not (binding:file? data))
+       (raise-400-bad-request
+        (format "expected submission of file for binding named ~e" name))]
+      [else
+       (define filename (bytes->string/utf-8 (binding:file-filename data)))
+       (when (string=? filename "")
+         (raise-400-bad-request
+          (format "expected binding ~e to have a non-empty filename" name)))
+       (define result (upload-dependency-solution
+                       class (dependency-submission-name review-id (add1 n))
+                       assignment stepName filename (binding:file-content data)))
+       (when (Failure? result)
+         (raise-400-bad-request (Failure-message result)))]))
+  (Success "Dependencies uploaded."))
 
 (provide default-assignment-handler)
 (: default-assignment-handler AssignmentHandler)
