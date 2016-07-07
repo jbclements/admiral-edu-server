@@ -11,6 +11,8 @@
   "auth/google-openidc.rkt"
   "base.rkt"
   "logging.rkt"
+  (only-in "pages/errors.rkt"
+           error-xexprs->response)
   "temporary-hacks.rkt")
 
 (require "pages/index.rkt"
@@ -76,6 +78,15 @@
 
 (provide handlerPrime)
 (define (handlerPrime post? post-data session bindings raw-bindings path)
+  (with-handlers ([exn:user-error?
+                   (λ (exn)
+                     (error-xexprs->response
+                      `((p ,(exn-message exn)))
+                      (exn:user-error-code exn)
+                      (match (exn:user-error-code exn)
+                        [400 #"Bad Request"]
+                        [403 #"Not Authorized"]
+                        [404 #"Not Found"])))])
   (match path
     ['() (X1render session index)]
     [(list "")
@@ -124,7 +135,7 @@
                  (string=? "download" (list-ref rest (- (length rest) 2))))
             (render session browse:download rest)]
            [else (X2render session browse:load rest)])]
-    [else (typed:handlerPrime post? post-data session bindings raw-bindings path)]))
+    [else (typed:handlerPrime post? post-data session bindings raw-bindings path)])))
 
 (define (require-auth session f)
   (let* ((user-role (role session))
