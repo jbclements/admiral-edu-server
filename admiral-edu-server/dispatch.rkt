@@ -92,22 +92,22 @@
     [(list "")
      (X1render session index)]
     [(cons "review" rest) (cond [post? (review:post->review session post-data rest)]                                
-                                [else (X2render session review:load rest)])]
+                                [else (render session review:load rest)])]
     [(cons "file-container" rest) (cond [post? (review:push->file-container session post-data rest)]
                                         [(and (> (length rest) 1)
                                               (string=? "download" (list-ref rest (- (length rest) 2)))) (render session review:check-download rest)]
-                                        [(X2render session review:file-container rest)])]
+                                        [(render session review:file-container rest)])]
     [(cons "su" (cons uid rest))
      (with-sudo post? post-data uid session bindings raw-bindings rest)]
     [(cons "author" rest)
      (if post?
          (author:post->validate session post-data rest)
-         (X2render session author:load rest))]
+         (render session author:load rest))]
     [(cons "next" rest) (render session next rest)]
     [(cons "dependencies" rest)
      (if post?
          (dep:post session rest bindings raw-bindings)
-         (X2render session dep:dependencies rest))]
+         (render session dep:dependencies rest))]
     [(cons "submit" rest)
      (if post?
          (submit:submit session role rest bindings raw-bindings)
@@ -121,20 +121,20 @@
     [(cons "feedback" rest)
      (if post?
          (feedback:post session role rest bindings post-data)
-         (X2render session feedback:load rest))]
+         (render session feedback:load rest))]
     [(cons "export" rest)
      ;; no render function here? scary
      (export:load session (role session) rest)]
     [(cons "exception" rest) (error "Test an exception occurring.")]
     [(cons "roster" rest)
      (if post?
-         (X2render session (roster:post post-data bindings) rest)
-         (X2render session roster:load rest))]
+         (render session (roster:post post-data bindings) rest)
+         (render session roster:load rest))]
     [(cons "browse" rest)
      (cond [(and (> (length rest) 1)
                  (string=? "download" (list-ref rest (- (length rest) 2))))
             (render session browse:download rest)]
-           [else (X2render session browse:load rest)])]
+           [else (render session browse:load rest)])]
     [else (typed:handlerPrime post? post-data session bindings raw-bindings path)])))
 
 (define (require-auth session f)
@@ -169,13 +169,6 @@
   (match (role session)
     [#f (error:not-registered-response session)]
     [role (response/xexpr (page session role))]))
-
-;; if the session has a valid role, call 'page' and wrap
-;; the resulting string as a response
-(define (X2render session page rest)
-  (match (role session)
-    [#f (error:not-registered-response session)]
-    [role (string->response (page session role rest))]))
 
 
 (define (render session page rest)
