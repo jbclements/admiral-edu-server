@@ -31,6 +31,7 @@
          list-dirs
          list-sub-files)
 
+(define success (Success (void)))
 
 ;; Start function definitions
 
@@ -168,7 +169,7 @@
 ; Uploads a dependency solution. If necessary, deletes the previous dependency that was uploaded 
 (provide upload-dependency-solution)
 (: upload-dependency-solution (String String String String String (U String Bytes) -> (Result Void)))
-(define (upload-dependency-solution class-id user-id assignment-id step-id file-name data)
+(define (upload-dependency-solution class-id user-id assignment-id step-id file-name file-content)
   (cond [(not (check-file-name file-name)) (Failure (format "Invalid filename ~a" file-name))]
         [else
          (let ((path (submission-path class-id assignment-id user-id step-id)))
@@ -177,8 +178,8 @@
            
            ;; Write to storage
            (let ((result (cond [(or (is-zip? file-name)
-                                    (is-tar? file-name)) (do-unarchive-solution class-id user-id assignment-id step-id file-name data)]
-                               [else (do-single-file-solution class-id user-id assignment-id step-id file-name data)])))
+                                    (is-tar? file-name)) (do-unarchive-solution class-id user-id assignment-id step-id file-name file-content)]
+                               [else (do-single-file-solution class-id user-id assignment-id step-id file-name file-content)])))
              ;; If necessary, create database entry
              (when (not (submission:exists? assignment-id class-id step-id user-id)) (submission:create-instructor-solution assignment-id class-id step-id user-id))
              result))]))
@@ -186,38 +187,40 @@
 ; Uploads a student submission.
 (provide upload-submission)
 (: upload-submission (String String String String String (U String Bytes) -> (Result Void)))
-(define (upload-submission class-id user-id assignment-id step-id file-name data)
-  (let* ((exists (submission:exists? assignment-id class-id step-id user-id))
-         (record (if exists (submission:select assignment-id class-id step-id user-id) #f))
-         (published (if record (submission:Record-published record) #f)))
-    (cond [(not (check-file-name file-name)) (Failure (format "Invalid filename ~a" file-name))]
-          ;; Ensure the students has not finalized their submission
-          [published (Failure "Submission already exists.")]
-          [else (let ((path (submission-path class-id assignment-id user-id step-id)))
-                  
-                  ;; Delete previously uploaded files
-                  (delete-path path)
-                  
-                  ;; Write to storage
-                  (cond [(or (is-zip? file-name)
-                             (is-tar? file-name)) (do-unarchive-solution class-id user-id assignment-id step-id file-name data)]
-                        [else (do-single-file-solution class-id user-id assignment-id step-id file-name data)])
-                  
-                  ;; Create / update record
-                  (when (not exists) (submission:create assignment-id class-id step-id user-id))
-                  (submission:unpublish assignment-id class-id step-id user-id)
-                  (submission:update-timestamp assignment-id class-id step-id user-id)
-                  (Success (void)))])))
+(define (upload-submission class-id user-id assignment-id step-id file-name file-content)
+  (sdo
+   (if (string=? file-name "") (Failure "expected nonempty filename") success)
+   (let* ((exists (submission:exists? assignment-id class-id step-id user-id))
+          (record (if exists (submission:select assignment-id class-id step-id user-id) #f))
+          (published (if record (submission:Record-published record) #f)))
+     (cond [(not (check-file-name file-name)) (Failure (format "Invalid filename ~a" file-name))]
+           ;; Ensure the students has not finalized their submission
+           [published (Failure "Submission already exists.")]
+           [else (let ((path (submission-path class-id assignment-id user-id step-id)))
+                   
+                   ;; Delete previously uploaded files
+                   (delete-path path)
+                   
+                   ;; Write to storage
+                   (cond [(or (is-zip? file-name)
+                              (is-tar? file-name)) (do-unarchive-solution class-id user-id assignment-id step-id file-name file-content)]
+                         [else (do-single-file-solution class-id user-id assignment-id step-id file-name file-content)])
+                   
+                   ;; Create / update record
+                   (when (not exists) (submission:create assignment-id class-id step-id user-id))
+                   (submission:unpublish assignment-id class-id step-id user-id)
+                   (submission:update-timestamp assignment-id class-id step-id user-id)
+                   (Success (void)))]))))
 
 
 (: do-unarchive-solution (String String String String String (U String Bytes) -> (Result Void)))
-(define (do-unarchive-solution class-id user-id assignment-id step-id file-name data)
+(define (do-unarchive-solution class-id user-id assignment-id step-id file-name file-content)
   (let* ((temp-dir (get-local-temp-directory))
          (file-path (string-append temp-dir file-name))
          (path (submission-path class-id assignment-id user-id step-id)))
     
     ;; Write the file out
-    (local:write-file file-path data)
+    (local:write-file file-path file-content)
     
     ;; Unzip it
     (unarchive temp-dir file-path)
@@ -242,9 +245,9 @@
 
       
 (: do-single-file-solution (String String String String String (U String Bytes) -> (Result Void)))
-(define (do-single-file-solution class-id user-id assignment-id step-id file-name data)
+(define (do-single-file-solution class-id user-id assignment-id step-id file-name file-content)
   (let ((s-path (submission-file-path class-id assignment-id user-id step-id file-name)))
-    (write-file s-path data)
+    (write-file s-path file-content)
     (Success (void))))
 
 
