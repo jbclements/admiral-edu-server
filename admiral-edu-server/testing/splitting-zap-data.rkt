@@ -114,33 +114,16 @@
 
 (map length grouped-by-cookie)
 
-(define master-setup (third grouped-by-cookie))
+(define request-group (fifth grouped-by-cookie))
 
 ;; all of the ones with no response seem to be repeated get requests
 ;; that are missing a trailing slash. Confused.
-;; ... okay, let's see what happens.
-#;(let loop ([seen-so-far (hash)]
-           [remaining master-setup])
-  (cond [(empty? remaining) 'done]
-        [else
-         (define f (first remaining))
-         (define path (second (first f)))
-         (cond
-           [(not (first (fourth f)))
-            (let ([ans path])
-              (printf "~s\n" ans)
-              ans)
-            (when (not (hash-has-key? seen-so-far
-                                      (bytes-append path #"/")))
-              (error 'not-seen-so-far "path: ~v" path))
-            (loop seen-so-far (rest remaining))]
-           [(loop (hash-set seen-so-far path #t)
-                  (rest remaining))])]))
 
-(map first (filter (λ (qm) (not (first (fourth qm)))) master-setup))
+;; ... yep, google group posting says that's what the issue is.
+
 
 (define actions
-  (for/list ([request (in-list master-setup)])
+  (for/list ([request (in-list request-group)])
     (define maybe-content-type
       (findf (λ (l) (regexp-match #px#"^Content-Type: " l)) (third request)))
     (define maybe-content-length

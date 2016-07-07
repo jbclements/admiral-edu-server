@@ -29,25 +29,25 @@
       (error (format "Could not initialize system: ~a\n"))))
 
 
-  (define m (master-user-shim))
-  (define stu1 "frogstar@example.com")
-  (define stu2 "mf2@example.com")
-  
-  (define (zap->spec zap-datum)
+
+  ;; translate a zap action into the spec expected
+  ;; by the test engine
+  (define ((zap->spec user) zap-datum)
     (match zap-datum
       [(cons #f rest) #f]
       [(list response-code (list #"GET" url))
        (define spec-path (zap-path->pathlist url))
-       `(,response-code (,m ,spec-path) )]
+       `(,response-code (,user ,spec-path) )]
       [(list response-code (list #"POST" url) content-type bytes)
        (define spec-path (zap-path->pathlist url))
        (define binding-spec (bytes->binding-spec
                              content-type bytes))
-       `(,response-code (,m ,spec-path
+       `(,response-code (,user ,spec-path
                             ,binding-spec
                             #t
                             ,bytes))]))
 
+  ;; translate a URL into a list of strings
   (define (zap-path->pathlist url)
     (match (regexp-match
             #px#"^https://www\\.captainteach\\.org/2166-dev/(.*)$"
@@ -102,14 +102,9 @@
       [#"Content-Type: application/json; charset=UTF-8"
        (list 'json (bytes->string/utf-8 bytes))]))
 
-  (define spec-1 (file->value (build-path here "zap-actions-1.rktd")))
-
-  (define test-specs
-    (filter (λ (x) x) (map zap->spec spec-1)))
 
 
-  
-  
+  ;; copied from dispatch.rkt
   (define (ensure-trailing-slash candidate)
     (let ((len (string-length candidate)))
       (cond [(= 0 len) "/"]
@@ -199,27 +194,20 @@
               "~e" other)]))
   
   
+  (define m (master-user-shim))
+  (define stu1 "frogstar@example.com")
+  (define stu2 "mf2@example.com")
   
+  (define spec-1 (file->value (build-path here "zap-actions-1.rktd")))
+  (define spec-2 (file->value (build-path here "zap-actions-2.rktd")))
   
-  
-  
-  
-  ;; a cheap "test case" that actually captures the review hash, because the hashes
-  ;; aren't stable between runs
-  (define (hash-capturer result)
-    (match-define (list _ _ _ _ _ content) result)
-    (define links (extract-html-links content))
-    (define last-link (last links))
-    (define hash
-      (second
-       (regexp-match #px"review/(.*)/$" last-link)))
-    ;; blecch!
-    (set! saved-hash hash))
-  
-  (define saved-hash #f)
-  
-  
-  
+  (define test-specs-1
+    (filter (λ (x) x) (map (zap->spec m) spec-1)))
+  (define test-specs-2
+    (filter (λ (x) x) (map (zap->spec stu1) spec-2))) 
+
+  (define test-specs (append test-specs-1 test-specs-2))
+
   
   
   (define REGRESSION-FILE-PATH

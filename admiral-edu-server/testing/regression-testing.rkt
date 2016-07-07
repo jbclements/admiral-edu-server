@@ -24,7 +24,8 @@
            "../util/config-file-reader.rkt"
            net/url
            "testing-shim.rkt"
-           "extract-links.rkt")
+           "extract-links.rkt"
+           "user-reviews.rkt")
   
   (init-shim)
   
@@ -256,7 +257,10 @@ steps:
       ;; bogus hash:
       (403 (,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")))
       ;; thunk to delay extraction of saved html:
-      (200 ,(λ () (list stu1 (list "review" saved-hash))))
+      (200 ,(λ () (list stu1 (list "review" (last
+                                             (pending-review-hashes
+                                              "test-with-html"
+                                              stu1))))))
       ;; the iframe...
       (200 ,(λ () (list stu1 (list "file-container" saved-hash))))))
 
