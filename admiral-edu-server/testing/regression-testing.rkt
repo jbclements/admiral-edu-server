@@ -28,6 +28,10 @@
            "user-reviews.rkt")
   
   (init-shim)
+
+  (when (directory-exists? (class-name-shim))
+    (error 'testing "directory named ~v already exists. exiting."
+           (class-name-shim)))
   
   (let ((result (initialize)))
     (when (Failure? result)
@@ -101,20 +105,6 @@
   (define (path2list p)
     (regexp-split #px"/" p))
 
-  ;; a cheap "test case" that actually captures the review hash, because the hashes
-  ;; aren't stable between runs
-  (define (hash-capturer result)
-    (match-define (list _ _ _ _ _ content) result)
-    (define links (extract-html-links content))
-    (define last-link (last links))
-    (define hash
-      (second
-       (regexp-match #px"review/(.*)/$" last-link)))
-    ;; blecch!
-    (set! saved-hash hash))
-  
-  (define saved-hash #f)
-
 
   (define m (master-user-shim))
   (define stu1 "frogstar@example.com")
@@ -131,7 +121,9 @@ steps:
             id: student-reviews
             amount: 2
             rubric:
-              - instruction: Click on the line number to add inline comments to the code to indicate missing tests, or unclear or poorly organized code. Also, use comments to indicate particularly well-organized or clear tests. You must add a summative comment at the end.
+              - instruction: Click on the line number to add inline comments to the code to indicate missing tests, \
+or unclear or poorly organized code. Also, use comments to indicate particularly well-organized or clear tests. You \
+must add a summative comment at the end.
               - likert:
                   id: correctness
                   text: These tests are complete, correct, and easy to read.
@@ -153,7 +145,10 @@ steps:
             id: student-reviews
             amount: 2
             rubric:
-              - instruction: Click on the line </i>number<i> to add inline comments to the code to indicate missing tests, or unclear or poorly organized code. Also, use comments to indicate particularly well-organized or clear tests. You must add a summative comment at the end.
+              - instruction: Click on the line </i>number<i> to add inline comm\
+ents to the code to indicate missing tests, or unclear or poorly organized code\
+. Also, use comments to indicate particularly well-organized or clear tests. Yo\
+u must add a summative comment at the end.
               - likert:
                   id: correctness
                   text: These tests are <i>complete</i>, correct, and easy to read.
@@ -253,17 +248,17 @@ steps:
       (200 (,stu1 ,(path2list "submit/test-with-html/tests")
                   ((action . "submit"))
                   #t))
-      ((200 ,hash-capturer) (,stu1 ,(path2list "feedback/test-with-html")))
+      (200 (,stu1 ,(path2list "feedback/test-with-html")))
       ;; bogus hash:
       (403 (,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")))
       ;; thunk to delay extraction of saved html:
-      (200 ,(λ () (list stu1 (list "review" (last
-                                             (pending-review-hashes
-                                              "test-with-html"
-                                              stu1))))))
+      (200 ,(λ () (list stu1 (list "review" (lastreview)))))
       ;; the iframe...
-      (200 ,(λ () (list stu1 (list "file-container" saved-hash))))))
+      (200 ,(λ () (list stu1 (list "file-container" (lastreview)))))))
 
+  ;; return the last pending review for student 1 on "test-with-html"
+  (define (lastreview)
+    (last (pending-review-hashes "test-with-html" stu1)))
 
   (define REGRESSION-FILE-PATH
     (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))

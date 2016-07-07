@@ -77,14 +77,13 @@
    #"https://www.captainteach.org/2166-dev/review/<HASH1>/tests"))
  (200
   (#"GET"
-   #"https://www.captainteach.org/2166-dev/file-container/<HASH1>/download/a"))
+   #"https://www.captainteach.org/2166-dev/file-container/<HASH1>/download/<FILE1|0>"))
  (#f
   (#"GET"
    #"https://www.captainteach.org/2166-dev/file-container/<HASH1>/download"))
  (200
   (#"GET"
    #"https://www.captainteach.org/2166-dev/review/submit/<HASH1>/"))
- (#f (#"GET" #"https://www.captainteach.org/2166-dev/review/submit"))
  (200
   (#"GET"
    #"https://www.captainteach.org/2166-dev/review/submit/<HASH1>/"))
@@ -99,9 +98,6 @@
    #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/load")
   #"Content-Type: application/json; charset=UTF-8"
   #"")
- (#f
-  (#"GET"
-   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>"))
  (200
   (#"POST"
    #"https://www.captainteach.org/2166-dev/review/<HASH2>/tests/load")
@@ -115,28 +111,28 @@
    #"https://www.captainteach.org/2166-dev/review/<HASH2>/tests"))
  (200
   (#"GET"
-   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/b"))
+   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/<FILE2|0>"))
  (200
   (#"POST"
-   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/b/load")
+   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/<FILE2|0>/load")
   #"Content-Type: application/json; charset=UTF-8"
   #"")
  (#f
   (#"GET"
-   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/b"))
+   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/<HASH2|0>"))
  (200
   (#"POST"
-   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/b/save")
+   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/<HASH2|0>/save")
   #"Content-Type: application/json; charset=UTF-8"
   #"{\n\t\"comments\" :\n\t{\n\t\t\"1\" : \"asthnth!!!\n\"\n\t}\n}")
  (200
   (#"POST"
-   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/b/save")
+   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/<HASH2|0>/save")
   #"Content-Type: application/json; charset=UTF-8"
   #"{\n\t\"comments\" :\n\t{\n\t\t\"1\" : \"asthnth!!!\n<i>a\"\n\t}\n}")
  (200
   (#"POST"
-   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/b/save")
+   #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/<HASH2|0>/save")
   #"Content-Type: application/json; charset=UTF-8"
   #"{\n\t\"comments\" :\n\t{\n\t\t\"1\" : \"asthnth!!!\n<i>abcd</i>\"\n\t}\n}")
  (200

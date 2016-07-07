@@ -18,11 +18,15 @@
            "../dispatch.rkt"
            "../base.rkt"
            "testing-shim.rkt"
-           "extract-links.rkt")
+           "user-reviews.rkt")
 
   (define-runtime-path here ".")
 
   (init-shim)
+
+  (when (directory-exists? (class-name-shim))
+    (error 'testing "directory named ~v already exists. exiting."
+           (class-name-shim)))
   
   (let ((result (initialize)))
     (when (Failure? result)
@@ -32,21 +36,45 @@
 
   ;; translate a zap action into the spec expected
   ;; by the test engine
-  (define ((zap->spec user) zap-datum)
+  (define ((zap->spec user assignment) zap-datum)
     (match zap-datum
       [(cons #f rest) #f]
       [(list response-code (list #"GET" url))
        (define spec-path (zap-path->pathlist url))
-       `(,response-code (,user ,spec-path) )]
+       (cond [(path-contains-hash? spec-path)
+              (list response-code
+                    (λ ()
+                      (list user
+                            (patch-path spec-path (cons assignment user)))))]
+             [else
+              `(,response-code (,user ,spec-path))])]
       [(list response-code (list #"POST" url) content-type bytes)
        (define spec-path (zap-path->pathlist url))
        (define binding-spec (bytes->binding-spec
                              content-type bytes))
-       `(,response-code (,user ,spec-path
-                            ,binding-spec
-                            #t
-                            ,bytes))]))
+       (cond [(path-contains-hash? spec-path)
+              `(,response-code
+                ,(λ ()
+                   (list user
+                         (patch-path spec-path (cons assignment user))
+                         binding-spec
+                         #t
+                         bytes)))]
+             [else
+              `(,response-code (,user
+                                ,spec-path
+                                ,binding-spec
+                                #t
+                                ,bytes))])]))
 
+  ;; does this path contain an element of the form <HASHn> ?
+  (define (path-contains-hash? p)
+    (not (not (ormap (λ (elt) (regexp-match #px"^<HASH[0-9]+>$" elt)) p))))
+
+  (check-true (path-contains-hash? '("review" "<HASH1>")))
+
+  
+  
   ;; translate a URL into a list of strings
   (define (zap-path->pathlist url)
     (match (regexp-match
@@ -202,9 +230,9 @@
   (define spec-2 (file->value (build-path here "zap-actions-2.rktd")))
   
   (define test-specs-1
-    (filter (λ (x) x) (map (zap->spec m) spec-1)))
+    (filter (λ (x) x) (map (zap->spec m 'no-assignment) spec-1)))
   (define test-specs-2
-    (filter (λ (x) x) (map (zap->spec stu1) spec-2))) 
+    (filter (λ (x) x) (map (zap->spec stu1 "a1-577be86f") spec-2))) 
 
   (define test-specs (append test-specs-1 test-specs-2))
 
