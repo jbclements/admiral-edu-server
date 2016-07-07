@@ -1,12 +1,10 @@
-#lang typed/racket
+#lang typed/racket/base
 
-(require "typed-db.rkt"
+(require racket/match
+         racket/string
+         "typed-db.rkt"
          "../../ct-session.rkt"
-         (prefix-in submission: "submission.rkt")
-         (prefix-in class: "class.rkt")
-         (prefix-in assignment: "assignment.rkt")
-         (prefix-in user: "user.rkt")
-         (prefix-in role: "role.rkt"))
+         (prefix-in submission: "submission.rkt"))
 
 (provide table)
 (define table "review")
@@ -152,7 +150,7 @@
     (cond [(eq? reviewee 'no-reviews) #f]
           [else (create assignment class step reviewee uid review-id)])))
 
-
+;; FIXME: provide a better name for this than "Record".
 (provide (struct-out Record))
 (struct: Record ([class-id : String] 
                  [assignment-id : String]
@@ -189,11 +187,20 @@
 (provide select-by-hash)
 (: select-by-hash (String -> Record))
 (define (select-by-hash the-hash)
+  (define maybe-selected (maybe-select-by-hash the-hash))
+  (cond [(not maybe-selected) (error 'select-by-hash "no record matching hash: ~e" the-hash)]
+        [else maybe-selected]))
+
+(provide maybe-select-by-hash)
+(: maybe-select-by-hash (String -> (U Record False)))
+(define (maybe-select-by-hash the-hash)
   (let* ((query (merge "SELECT" record-fields
                        "FROM" table
                        "WHERE" hash "=? LIMIT 1"))
-         (result (query-row query the-hash)))
-    (vector->record (cast result Vector-Record))))
+         (results (query-rows query the-hash)))
+    (match results
+      [(list result) (vector->record (cast result Vector-Record))]
+      [(list) #f])))
 
 (provide select-assigned-reviews)
 (: select-assigned-reviews (String String String String -> (Listof String)))
