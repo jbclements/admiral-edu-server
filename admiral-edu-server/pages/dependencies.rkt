@@ -100,13 +100,16 @@
 (define (post session rest bindings raw-bindings)
   (let* ((class (class-name))
          (assignment (car rest))
+         ;; FIXME: fails on empty list (this happens in a lot of places...):
          (action (last rest)))
     (cond [(equal? action "load") (let ((stepName (cadr rest))
                                         (review-id (caddr rest)))
                                     (load-rubric class assignment stepName review-id))]
-          [(equal? action "upload") (let ((stepName (cadr rest))
-                                          (review-id (caddr rest)))
-                                      (upload-submissions class assignment stepName review-id bindings raw-bindings))]
+          [(equal? action "upload")
+           ;; FIXME: check for existence of these!
+           (let ((stepName (cadr rest))
+                 (review-id (caddr rest)))
+             (upload-submissions class assignment stepName review-id bindings raw-bindings))]
           [(string=? action THREE-STUDY-ACTION) (upload-three-condition assignment bindings raw-bindings)])))
 
 (define (load-rubric class assignment stepName review-id)

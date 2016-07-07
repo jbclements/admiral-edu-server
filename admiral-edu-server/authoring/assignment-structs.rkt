@@ -134,7 +134,8 @@
 (struct AssignmentHandler ([next-action : (Assignment (Listof Step) String -> (U MustSubmitNext MustReviewNext #t))]
                            ;; TODO(after-typed): Remove optional (U String #f) and (U Bytes #f)
                            [do-submit-step : (Assignment Step String (U String #f) (U Bytes #f) (Listof Step) -> (Result String))]
-                           [get-dependencies : (Assignment -> (Listof Dependency))] 
+                           [get-dependencies : (Assignment -> (Listof Dependency))]
+                           ;; FIXME: get rid of bindings argument
                            [take-dependency : (String Dependency (Listof (Pairof Symbol (U String Bytes))) (Listof Any) -> (Result String))]
                            [key : String]))
 

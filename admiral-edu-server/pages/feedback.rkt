@@ -83,6 +83,7 @@
                       "The links below are to reviews completed on your submissions.")))
     (string-append "<h2>Review Feedback</h2><p>" message "</p>" feedback)))
 
+;; generate page text informing user of reviews to be completed
 (define (gen-pending-reviews assignment uid start-url)
   (let* ((reviews (review:select-pending assignment (class-name) uid))
          (pending (map (gen-pending-review start-url) reviews))
@@ -96,6 +97,7 @@
      (map xexpr->string
           (append `((h2 "Pending Reviews") (p ,message)) pending)))))
 
+;; generate page text informing user of a single review to be completed
 (define (gen-pending-review start-url)
   (lambda (record)
     (let ((step (review:Record-step-id record))

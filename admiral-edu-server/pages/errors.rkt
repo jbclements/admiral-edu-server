@@ -35,6 +35,8 @@
 ;; some return strings representing html pages containing error
 ;; messages, some return xexprs, some return responses. Yikes.
 
+;; ... mostly cleaned up now, just a few more...
+
 
 ;; given a list of error xexpr (strings are fine too) and a code and
 ;; a status, return a response embedding that error. These aren't
