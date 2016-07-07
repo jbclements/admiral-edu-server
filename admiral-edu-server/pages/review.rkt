@@ -172,17 +172,20 @@
          (list (string->bytes/utf-8 data))))))
 
 (define (push->download session path review)
-  (let* ((class (ct-session-class session))
-         (assignment (review:Record-assignment-id review))
-         (stepName (review:Record-step-id review))
-         (reviewee (review:Record-reviewee-id review))
-         (data (get-file-bytes class assignment stepName reviewee path)))
-    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-        (response/full
-         200 #"Okay"
-         (current-seconds) #"application/octet-stream; charset=utf-8"
-         empty
-         (list data)))))
+  (when (not (validate review session))
+    (raise-403-not-authorized "You are not authorized to see this page."))
+  (define class (ct-session-class session))
+  (define assignment (review:Record-assignment-id review))
+  (define stepName (review:Record-step-id review))
+  (define reviewee (review:Record-reviewee-id review))
+  (define data (maybe-get-file-bytes class assignment stepName reviewee path))
+  (unless data
+    (raise-403-not-authorized "You are not authorized to see this page."))
+  (response/full
+   200 #"Okay"
+   (current-seconds) #"application/octet-stream; charset=utf-8"
+   empty
+   (list data)))
   
 (provide file-container)
 (define (file-container session role rest [message '()])
@@ -251,6 +254,8 @@
                    "</li>")))
 
 (define (render-file file-path)
+  (unless (eq? (path-info file-path) 'file)
+    (raise-403-not-authorized "You are not allowed to see this page."))
   (string-append "<textarea id=\"file\" class=\"file\">" (retrieve-file file-path) "</textarea>"))
 
 (define (to-step-link step depth)

@@ -4,6 +4,7 @@
          racket/file
          racket/string
          racket/list
+         racket/match
          "../configuration.rkt"
          "../util/basic-types.rkt"
          "../database/mysql.rkt"
@@ -21,6 +22,7 @@
                [list-dirs (String -> (Listof String))]
                [list-sub-files (String -> (Listof String))])
 
+;; FIXME: every one of these needs a wrapper for interactions with user-supplied paths
 
 (provide retrieve-file 
          retrieve-file-bytes
@@ -144,13 +146,17 @@
           [else "{\"comments\" : {}}"])))
 
 ;; Returns the bytes of the file associated with the class, assignment, 
-;; step, user, and path
-(provide get-file-bytes)
-(: get-file-bytes (String String String String String -> Bytes))
-(define (get-file-bytes class assignment step uid path)
-  (let ((file-path (string-append (submission-path class assignment uid step) path)))
-    (printf "Attempting to retrieve: ~a\n" file-path)
-    (retrieve-file-bytes file-path)))
+;; step, user, and path, or #f if the path doesn't refer to a file.
+(provide maybe-get-file-bytes)
+(: maybe-get-file-bytes (String String String String String -> (U False Bytes)))
+(define (maybe-get-file-bytes class assignment step uid path)
+  (define file-path (string-append (submission-path class assignment uid step) path))
+  (match (path-info file-path)
+    ['file
+     (printf "Attempting to retrieve: ~a\n" file-path)
+     (retrieve-file-bytes file-path)]
+    [other
+     #f]))
 
 ;; class-id -> assignment-id user-id step-id
 (provide submission-path)
@@ -377,12 +383,6 @@
 (define (is-tar? file)
   (let* ((clean (string-trim file))
          (split (drop (string-split clean ".") 1)))
-    (or (member? "tar" split string=?)
-        (member? "tgz" split string=?))))
-
-(: member? (All (A) (A (Listof A) (A A -> Any) -> Boolean)))
-(define (member? x xs equality?)
-  (let ((result (member x xs equality?)))
-    (cond [result #t]
-          [else #f])))
+    (not (not (or (member "tar" split string=?)
+                  (member "tgz" split string=?))))))
 

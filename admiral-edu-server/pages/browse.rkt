@@ -49,7 +49,9 @@
          (path (drop url 2))
          (file-path (string-join (append (take path (- (length path) 2)) (list (last path))) "/"))
          (temp (printf "file-path: ~a\n" file-path))
-         (data (get-file-bytes class assignment step user file-path)))
+         (data (maybe-get-file-bytes class assignment step user file-path)))
+    (unless data
+      (raise-403-not-authorized "You are not authorized to see this file."))
     (response/full
      200 #"Okay"
      (current-seconds) #"application/octet-stream; charset=utf-8"
