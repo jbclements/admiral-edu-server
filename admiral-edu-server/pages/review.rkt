@@ -287,5 +287,5 @@
 (define (try-select-by-hash hash)
   (define review (review:maybe-select-by-hash hash))
   (when (not review)
-    (raise-404-not-found "Unrecognized hash"))
+    (raise-403-not-authorized "This page does not exist, or you are not authorized to see it."))
   review)
