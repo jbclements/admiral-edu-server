@@ -228,7 +228,7 @@
   (define stu2 "mf2@example.com")
 
   (define specs
-    (for/list ([i (in-range 4)])
+    (for/list ([i (in-range 5)])
       (file->value (build-path here (string-append "zap-actions-"
                                                    (number->string (add1 i))
                                                    ".rktd")))))
@@ -240,7 +240,8 @@
       (map (zap->spec m 'no-assignment) (list-ref specs 0))
       (map (zap->spec stu1 "a1-577be86f") (list-ref specs 1))
       (map (zap->spec stu2 "a1-577be86f") (list-ref specs 2))
-      (map (zap->spec stu1 "a1-577be86f") (list-ref specs 3)))))
+      (map (zap->spec stu1 "a1-577be86f") (list-ref specs 3))
+      (map (zap->spec m 'no-assignment) (list-ref specs 4)))))
 
   
   

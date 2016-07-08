@@ -114,7 +114,7 @@
 
 (map length grouped-by-cookie)
 
-(define request-group (list-ref grouped-by-cookie 10))
+(define request-group (list-ref grouped-by-cookie 12))
 
 ;; all of the ones with no response seem to be repeated get requests
 ;; that are missing a trailing slash. Confused.
