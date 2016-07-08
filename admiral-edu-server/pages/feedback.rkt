@@ -21,13 +21,17 @@
     [else (cons val (repeat val (- n 1)))]))
 
 (provide load)
+;; handles a GET to /feedback/...
 (define (load session role rest [message '()])
+  (when (empty? rest)
+    (raise-404-not-found "Path not found."))
   (let ((action (car rest)))
     (cond [(equal? "view" action) (do-view session (cdr rest) message)]
           [(equal? "file-container" action) (do-file-container session role (cdr rest) message)]
           [else (do-default session role rest message)])))
 
 (provide post)
+;; handles a POST to /feedback/...
 (define (post session role rest bindings post-data)
   (let ((action (car rest))
         (submit? (exists-binding? 'feedback bindings)))
@@ -175,6 +179,7 @@
 (define (do-file-container session role rest [message '()])
   (let* ((start-url (hash-ref (ct-session-table session) 'start-url))
          (r-hash (car rest))
+         ;; FIXME a server error on a bogus hash here:
          (review (review:select-by-hash r-hash))
          (class (ct-session-class session))
          [assignment (review:Record-assignment-id review)]
@@ -190,6 +195,7 @@
          (test-prime (newline))
          (file-path (submission-file-path class assignment reviewee stepName file))
          (contents (if (is-directory? file-path) (render-directory file-path start-url) (render-file file-path))))
+    ;; FIXME move this check up.
     (if (not (validate review session))
         (error:not-authorized-response)
         (string-append (include-template "html/feedback-file-container-header.html")
