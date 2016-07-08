@@ -18,7 +18,7 @@
            "../dispatch.rkt"
            "../base.rkt"
            "testing-shim.rkt"
-           "user-reviews.rkt")
+           "testing-back-doors.rkt")
 
   (define-runtime-path here ".")
 
@@ -70,7 +70,7 @@
 
   ;; does this path contain an element of the form <HASHn> ?
   (define (path-contains-hash? p)
-    (not (not (ormap (λ (elt) (regexp-match #px"^<HASH[0-9]+>$" elt)) p))))
+    (not (not (ormap (λ (elt) (regexp-match #px"^<HASHV?[0-9]+>$" elt)) p))))
 
   (check-true (path-contains-hash? '("review" "<HASH1>")))
 
@@ -228,7 +228,7 @@
   (define stu2 "mf2@example.com")
 
   (define specs
-    (for/list ([i (in-range 3)])
+    (for/list ([i (in-range 4)])
       (file->value (build-path here (string-append "zap-actions-"
                                                    (number->string (add1 i))
                                                    ".rktd")))))

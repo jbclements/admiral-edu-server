@@ -26,7 +26,7 @@
            net/url
            "testing-shim.rkt"
            "extract-links.rkt"
-           "user-reviews.rkt")
+           "testing-back-doors.rkt")
   
   (init-shim)
 
@@ -256,11 +256,13 @@ u must add a summative comment at the end.
       ;; thunk to delay extraction of saved html:
       (200 ,(λ () (list stu1 (list "review" (lastreview)))))
       ;; the iframe...
-      (200 ,(λ () (list stu1 (list "file-container" (lastreview)))))))
+      (200 ,(λ () (list stu1 (list "file-container" (lastreview)))))
+      ;; viewing a bogus feedback
+      (403 (,stu1 ("feedback" "file-container" "BOGUSSS" "ALSOBAD" "load")))))
 
   ;; return the last pending review for student 1 on "test-with-html"
   (define (lastreview)
-    (last (pending-review-hashes "test-with-html" stu1)))
+    (last (pending-review-hashes (cons "test-with-html" stu1))))
 
   (define REGRESSION-FILE-PATH
     (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))

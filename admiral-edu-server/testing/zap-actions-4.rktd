@@ -72,7 +72,7 @@
    #"https://www.captainteach.org/2166-dev/feedback/view/<HASHV1>/tests/load")
   #"Content-Type: application/json; charset=UTF-8"
   #"")
- (200 (#"GET" #"https://www.captainteach.org/2166-dev/feedback/"))
+ (404 (#"GET" #"https://www.captainteach.org/2166-dev/feedback/"))
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/"))
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/assignments/"))
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/feedback/a1-577be86f/")))
