@@ -25,8 +25,9 @@
   (init-shim)
 
   (when (directory-exists? (class-name-shim))
-    (error 'testing "directory named ~v already exists. exiting."
-           (class-name-shim)))
+    (fprintf (current-error-port)
+             "ALERT: DELETING EXISTING CLASS DIRECTORY.\n")
+    (delete-directory/files (class-name-shim)))
   
   (let ((result (initialize)))
     (when (Failure? result)
@@ -225,16 +226,21 @@
   (define m (master-user-shim))
   (define stu1 "frogstar@example.com")
   (define stu2 "mf2@example.com")
-  
-  (define spec-1 (file->value (build-path here "zap-actions-1.rktd")))
-  (define spec-2 (file->value (build-path here "zap-actions-2.rktd")))
-  
-  (define test-specs-1
-    (filter (λ (x) x) (map (zap->spec m 'no-assignment) spec-1)))
-  (define test-specs-2
-    (filter (λ (x) x) (map (zap->spec stu1 "a1-577be86f") spec-2))) 
 
-  (define test-specs (append test-specs-1 test-specs-2))
+  (define specs
+    (for/list ([i (in-range 3)])
+      (file->value (build-path here (string-append "zap-actions-"
+                                                   (number->string (add1 i))
+                                                   ".rktd")))))
+
+  (define test-specs
+    (filter
+     (λ (x) x)
+     (append
+      (map (zap->spec m 'no-assignment) (list-ref specs 0))
+      (map (zap->spec stu1 "a1-577be86f") (list-ref specs 1))
+      (map (zap->spec stu2 "a1-577be86f") (list-ref specs 2))
+      (map (zap->spec stu1 "a1-577be86f") (list-ref specs 3)))))
 
   
   

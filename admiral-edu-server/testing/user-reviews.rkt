@@ -4,6 +4,9 @@
          "../storage/storage.rkt"
          racket/match)
 
+;; grotty back doors into the system to deal with
+;; nondeterminism in the assignment of hashes
+
 (require/typed "testing-shim.rkt"
                [class-name-shim (-> String)])
 

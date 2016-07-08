@@ -10,6 +10,7 @@
            racket/struct
            racket/list
            racket/match
+           racket/file
            web-server/servlet-dispatch
            web-server/http/response-structs
            web-server/web-server
@@ -30,8 +31,9 @@
   (init-shim)
 
   (when (directory-exists? (class-name-shim))
-    (error 'testing "directory named ~v already exists. exiting."
-           (class-name-shim)))
+    (fprintf (current-error-port)
+             "ALERT: DELETING EXISTING CLASS DIRECTORY.\n")
+    (delete-directory/files (class-name-shim)))
   
   (let ((result (initialize)))
     (when (Failure? result)
