@@ -45,13 +45,22 @@
 (define-syntax maybe-convert
   (syntax-rules (String Natural)
     [(_ v String) v]
-    [(_ v Natural) (cast (string->number v) Natural)]))
+    [(_ v Natural) (cast (string->number v) Natural)]
+    [(_ v Boolean) (cond [(member (string-downcase v)
+                                  (list "true" "t")) #t]
+                         [(member (string-downcase v)
+                                  (list "false" "f")) #f]
+                         [else (error 'maybe-convert
+                                      "expected true/t/false/f, got: ~e"
+                                      v)])]))
 
 (define-syntax check-ty
   (syntax-rules (String Natural)
     [(_ v String) #t]
     [(_ v Natural) (exact-nonnegative-integer?
-                    (string->number v))]))
+                    (string->number v))]
+    [(_ v Boolean) (member (string-downcase v)
+                           (list "true" "t" "false" "f"))]))
 
 (define-configuration-file
   check-conf-hash
@@ -61,6 +70,7 @@
   [db-name String]
   [server-name String]
   [sub-domain String]
+  [mail-enable Boolean]
   [mail-server String]
   [mail-port Natural]
   [mail-username String]
@@ -98,7 +108,8 @@
            ("mail-password" . "password")
            ("db-name" . "captain_teach")
            ("master-user" . "youremail@domain.com")
-           ("db-address" . "localhost")))
+           ("db-address" . "localhost")
+           ("mail-enable" . "fAlSe")))
   
   (check-equal? (check-conf-hash test-conf) test-conf)
 

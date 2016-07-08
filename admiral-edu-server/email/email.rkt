@@ -43,7 +43,8 @@
          (to (list uid))
          (header (standard-message-header from to '() '() subject))
          (split-message (lines message)))
-    (cond [(email-okay uid) (begin
+    (cond [(not (mail-enable)) #f]
+          [(email-okay uid) (begin
                               (smtp-send-message 
                                (mail-server)
                                from 

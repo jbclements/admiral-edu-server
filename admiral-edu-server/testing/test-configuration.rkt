@@ -4,6 +4,7 @@
 
 (define test-conf
   '#hash(("ct-port" . "8080")
+         ("mail-enable" . "fAlSe")
          ("mail-port" . "2525")
          ("mail-server" . "smtp.sendgrid.net")
          ("server-name" . "yoursite.com")
