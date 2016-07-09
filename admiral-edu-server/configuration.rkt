@@ -82,6 +82,10 @@
   [cloud-host String]
   [class-name String]
   [ct-port Natural]
+  [local-storage-path String]
+  [zip-binary String]
+  [unzip-binary String]
+  [tar-binary String]
   [master-user String])
 
 
@@ -109,7 +113,11 @@
            ("db-name" . "captain_teach")
            ("master-user" . "youremail@domain.com")
            ("db-address" . "localhost")
-           ("mail-enable" . "fAlSe")))
+           ("mail-enable" . "fAlSe")
+           ("local-storage-path" . "/tmp/ct-storage")
+           ("zip-binary" . "/usr/bin/zip")
+           ("unzip-binary" . "usr/bin/unzip")
+           ("tar-binary" . "usr/bin/tar")))
   
   (check-equal? (check-conf-hash test-conf) test-conf)
 

@@ -21,7 +21,11 @@
          ("db-password" . "captain_teach")
          ("db-user-name" . "captain_teach")
          ("master-user" . "masteruser@example.com")
-         ("db-address" . "localhost")))
+         ("db-address" . "localhost")
+         ("local-storage-path" . "/tmp/ct-storage")
+         ("zip-binary" . "/usr/bin/zip")
+         ("unzip-binary" . "/usr/bin/unzip")
+         ("tar-binary" . "/usr/bin/tar")))
 
 (module+ test
   (require typed/rackunit

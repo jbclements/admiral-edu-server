@@ -27,12 +27,7 @@
          (prefix-in feedback: "pages/feedback.rkt")
          (prefix-in roster: "pages/roster.rkt")
          (prefix-in browse: "pages/browse.rkt")
-         (prefix-in typed: "dispatch-typed.rkt")
-         (except-in "pages/responses.rkt"
-                    response/xexpr
-                    response/full
-                    TEXT/HTML-MIME-TYPE
-                    response?))
+         (prefix-in typed: "dispatch-typed.rkt"))
 
 (define (any? x)
   #t)

@@ -11,7 +11,8 @@
 
 (require "../storage/storage.rkt"
          "../base.rkt"
-         "../temporary-hacks.rkt"
+         (only-in "templates.rkt"
+                  xexpr->error-page-html)
          (prefix-in assign: "../authoring/assignment.rkt")
          (prefix-in error: "errors.rkt"))
 
@@ -142,7 +143,7 @@
 
 (define (render-result assignment-id result)
   (cond [(Success? result) (assignment-dependencies assignment-id (string-append "<p>" (Success-result result) "</p>"))]
-        [(Failure? result) (XXerror (Failure-message result))]
+        [(Failure? result) (xexpr->error-page-html (Failure-message result))]
         [else (raise (format "Unknown result: ~a" result))]))
 
 
@@ -152,6 +153,7 @@
   (let* ((dep (car (assign:find-dependencies assignment-id step-id review-id)))
          (amount (if (assign:student-submission-dependency? dep) (assign:student-submission-dependency-amount dep) 1))
          (instructor-solution (assign:instructor-solution-dependency? dep)))
+    ;; FIXME urg strings bad bad
     (string-append "<p>Assignment id:" assignment-id "</p>"
                    "<p>Submission Step id:" step-id "</p>"
                    "<p>Review id:" review-id "</p>"

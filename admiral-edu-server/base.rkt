@@ -39,4 +39,3 @@
   (roles:create student-role "Student" 0)
   (role:associate (class-name) (master-user) instructor-role)
   (void))
-      

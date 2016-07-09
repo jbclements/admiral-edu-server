@@ -29,13 +29,15 @@
 
 (provide check-download)
 (define (check-download session role rest)
+  ;; FIXME rest check needed
   (let* ((r-hash (car rest))
          (review (try-select-by-hash r-hash)))
-    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-        (let* ((path (cdr rest))
-               (len (length path))
-               (file-path (string-join (append (take path (- len 2)) (list (last path))) "/")))
-          (push->download session file-path review))))) 
+    (when (not (validate review session))
+      (raise-403-not-authorized "You are not authorized to see this page."))
+    (define path (cdr rest))
+    (define len (length path))
+    (define file-path (string-join (append (take path (- len 2)) (list (last path))) "/"))
+    (push->download session file-path review))) 
 
 ;; whoa... this function had a heck of a lot of dead code in it... worried.
 (define (do-load session role rest message)
@@ -53,8 +55,9 @@
          [file-container (string-append start-url updir "file-container/" (to-path rest))]
          [save-url (xexpr->string (string-append "\"" start-url updir-rubric step "/save\""))]
          [load-url (xexpr->string (string-append "\"" start-url updir-rubric step "/load\""))])
-    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-        (include-template "html/review.html"))))
+    (when (not (validate review session))
+      (raise-403-not-authorized "You are not authorized to see this page."))
+    (include-template "html/review.html")))
 
 (define (validate review session)
   (let ((uid (ct-session-uid session))
@@ -70,7 +73,7 @@
          (updir (apply string-append (repeat "../" (+ (length rest) 1))))
          (root-url updir)
          (completed (review:Record-completed review)))
-    (cond [completed (XXerror "The review you were trying to submit has already been submitted. You may not submit it again.")]
+    (cond [completed "<p>The review you were trying to submit has already been submitted. You may not submit it again.</p>"]
           [else
            (review:mark-complete r-hash)
            (send-review-ready-email review)
@@ -90,11 +93,12 @@
 (define (post->review session post-data rest)
   (let* ((r-hash (car rest))
          (review (try-select-by-hash r-hash)))
-    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-        (cond
-          [(equal? (last rest) "save") (post->save-rubric session post-data review)]
-          [(equal? (last rest) "load") (post->load-rubric session review)]
-          [else (raise-404-not-found "Bad path")]))))
+    (when (not (validate review session))
+      (raise-403-not-authorized "You are not authorized to see this page."))
+    (cond
+      [(equal? (last rest) "save") (post->save-rubric session post-data review)]
+      [(equal? (last rest) "load") (post->load-rubric session review)]
+      [else (raise-404-not-found "Bad path")])))
 
 (define (post->save-rubric session post-data review)
   (let ((data (jsexpr->string (bytes->jsexpr post-data)))
@@ -104,14 +108,15 @@
         (reviewee (review:Record-reviewee-id review))
         (reviewer (ct-session-uid session))
         (review-id (review:Record-review-id review)))
-    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-        (begin
-          (when (not (review:Record-completed review)) (save-rubric class assignment stepName review-id reviewer reviewee data))
-          (response/full
-           200 #"Okay"
-           (current-seconds) #"application/json; charset=utf-8"
-           empty
-           (list (string->bytes/utf-8 "Success")))))))
+    (when (not (validate review session))
+      (raise-403-not-authorized "You are not authorized to see this page."))
+    (begin
+      (when (not (review:Record-completed review)) (save-rubric class assignment stepName review-id reviewer reviewee data))
+      (response/full
+       200 #"Okay"
+       (current-seconds) #"application/json; charset=utf-8"
+       empty
+       (list (string->bytes/utf-8 "Success"))))))
   
 (define (post->load-rubric session review)
   (let* ((class (ct-session-class session))
@@ -121,23 +126,25 @@
          (reviewer (ct-session-uid session))
          (review-id (review:Record-review-id review))
          (data (retrieve-rubric class assignment stepName review-id reviewer reviewee)))
-    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-        (response/full
-         200 #"Okay"
-         (current-seconds) #"application/json; charset=utf-8"
-         empty
-         (list (string->bytes/utf-8 data))))))
+    (when (not (validate review session))
+      (raise-403-not-authorized "You are not authorized to see this page."))
+    (response/full
+     200 #"Okay"
+     (current-seconds) #"application/json; charset=utf-8"
+     empty
+     (list (string->bytes/utf-8 data)))))
 
 (provide push->file-container)
 (define (push->file-container session post-data rest)
   (define r-hash (car rest))
   (define path (string-join (take (cdr rest) (- (length rest) 2))  "/"))
   (define review (try-select-by-hash r-hash))
-  (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-      (cond 
-        [(equal? (last rest) "save") (push->save session post-data path review)]
-        [(equal? (last rest) "load") (push->load session path review)]
-        [else (error:four-oh-four-response)])))
+  (when (not (validate review session))
+    (raise-403-not-authorized "You are not authorized to see this page."))
+  (cond 
+    [(equal? (last rest) "save") (push->save session post-data path review)]
+    [(equal? (last rest) "load") (push->load session path review)]
+    [else (error:four-oh-four-response)]))
 
 (define (push->save session post-data path review)
   (let ((data (jsexpr->string (bytes->jsexpr post-data)))
@@ -147,14 +154,15 @@
         (reviewee (review:Record-reviewee-id review))
         (reviewer (ct-session-uid session))
         (review-id (review:Record-review-id review)))
-    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-        (begin
-          (when (not (review:Record-completed review)) (save-review-comments class assignment stepName review-id reviewer reviewee path data))
-          (response/full
-           200 #"Okay"
-           (current-seconds) #"application/json; charset=utf-8"
-           empty
-           (list (string->bytes/utf-8 "Success")))))))
+    (when (not (validate review session))
+      (raise-403-not-authorized "You are not authorized to see this page."))
+    (when (not (review:Record-completed review))
+      (save-review-comments class assignment stepName review-id reviewer reviewee path data))
+    (response/full
+     200 #"Okay"
+     (current-seconds) #"application/json; charset=utf-8"
+     empty
+     (list (string->bytes/utf-8 "Success")))))
 
 (define (push->load session path review)
   (let* ((class (ct-session-class session))
@@ -164,12 +172,13 @@
          (reviewer (ct-session-uid session))
          (review-id (review:Record-review-id review))
          (data (load-review-comments class assignment stepName review-id reviewer reviewee path)))
-    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-        (response/full
-         200 #"Okay"
-         (current-seconds) #"application/json; charset=utf-8"
-         empty
-         (list (string->bytes/utf-8 data))))))
+    (when (not (validate review session))
+      (raise-403-not-authorized "You are not authorized to see this page."))
+    (response/full
+     200 #"Okay"
+     (current-seconds) #"application/json; charset=utf-8"
+     empty
+     (list (string->bytes/utf-8 data)))))
 
 (define (push->download session path review)
   (when (not (validate review session))
@@ -206,11 +215,11 @@
          (test-prime (newline))
          (file-path (submission-file-path class assignment reviewee stepName file))
          (contents (if (is-directory? file-path) (render-directory file-path start-url) (render-file file-path))))
-    (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-        (if (not (validate review session)) (XXerror "You are not authorized to see this page.")
-            (string-append (include-template "html/file-container-header.html")
-                           contents
-                           (include-template "html/file-container-footer.html"))))))
+    (when (not (validate review session))
+      (raise-403-not-authorized "You are not authorized to see this page."))
+    (string-append (include-template "html/file-container-header.html")
+                   contents
+                   (include-template "html/file-container-footer.html"))))
 
 (define (determine-mode-from-filename filename)
   (let* ((split (string-split filename "."))

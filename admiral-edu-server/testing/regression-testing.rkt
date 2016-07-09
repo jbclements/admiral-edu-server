@@ -30,10 +30,10 @@
   
   (init-shim)
 
-  (when (directory-exists? (class-name-shim))
+  (when (directory-exists? (build-path (local-storage-path) (class-name-shim)))
     (fprintf (current-error-port)
              "ALERT: DELETING EXISTING CLASS DIRECTORY.\n")
-    (delete-directory/files (class-name-shim)))
+    (delete-directory/files (build-path (local-storage-path) (class-name-shim))))
   
   (let ((result (initialize)))
     (when (Failure? result)

@@ -10,6 +10,7 @@
            racket/match
            racket/runtime-path
            racket/file
+           racket/contract
            net/uri-codec
            web-server/http/response-structs
            web-server/http/request-structs
@@ -24,10 +25,10 @@
 
   (init-shim)
 
-  (when (directory-exists? (class-name-shim))
+  (when (directory-exists? (build-path (local-storage-path) (class-name-shim)))
     (fprintf (current-error-port)
              "ALERT: DELETING EXISTING CLASS DIRECTORY.\n")
-    (delete-directory/files (class-name-shim)))
+    (delete-directory/files (build-path (local-storage-path) (class-name-shim))))
   
   (let ((result (initialize)))
     (when (Failure? result)
@@ -41,18 +42,24 @@
     (match zap-datum
       [(cons #f rest) #f]
       [(list response-code (list #"GET" url))
-       (define spec-path (zap-path->pathlist url))
+       (match-define (list spec-path maybe-bindings)
+         (zap-path->pathlist url))
        (cond [(path-contains-hash? spec-path)
               (list response-code
                     (λ ()
                       (list user
-                            (patch-path spec-path (cons assignment user)))))]
+                            (patch-path spec-path (cons assignment user))
+                            maybe-bindings)))]
              [else
-              `(,response-code (,user ,spec-path))])]
+              `(,response-code (,user ,spec-path ,maybe-bindings))])]
       [(list response-code (list #"POST" url) content-type bytes)
-       (define spec-path (zap-path->pathlist url))
-       (define binding-spec (bytes->binding-spec
-                             content-type bytes))
+       (match-define (list spec-path maybe-bindings)
+         (zap-path->pathlist url))
+       (define binding-spec
+         (append-binding-specs
+          maybe-bindings
+          (bytes->binding-spec
+           content-type bytes)))
        (cond [(path-contains-hash? spec-path)
               `(,response-code
                 ,(λ ()
@@ -76,17 +83,66 @@
 
   
   
-  ;; translate a URL into a list of strings
+  ;; translate a URL into a list of strings and possibly a list of
+  ;; bindings
   (define (zap-path->pathlist url)
     (match (regexp-match
             #px#"^https://www\\.captainteach\\.org/2166-dev/(.*)$"
             url)
       [(list _ rel)
-       (match (regexp-split #px"/" (bytes->string/utf-8 rel))
-         [(list elts ... "") elts]
-         [other other])]
+       (define path-strs
+         (match (regexp-split #px"/" (bytes->string/utf-8 rel))
+           [(list elts ... "") elts]
+           [other other]))
+       (match path-strs
+         [(list strs ... (regexp #px"^\\?(.*)" (list _ l)))
+          (list strs (list 'alist
+                           (form-urlencoded->alist l)))]
+         [other (list other 'empty)])]
       [#f (error 'bad-path "path: ~e\n" url)]))
 
+  (check-equal? (zap-path->pathlist
+                 #"https://www.captainteach.org/2166-dev/feedback/a1-577be86f/")
+                '(("feedback" "a1-577be86f") empty))
+  (check-equal?
+   (zap-path->pathlist
+    #"https://www.captainteach.org/2166-dev/file-container/<HASH2>/<FILE2|0>")
+   '(("file-container" "<HASH2>" "<FILE2|0>") empty))
+  (check-equal?
+   (zap-path->pathlist
+    #"https://www.captainteach.org/2166-dev/assignments/status/a1-577be86f/tests/?sort-by=published&order=desc")
+   '(("assignments" "status" "a1-577be86f" "tests")
+     (alist ((sort-by . "published")
+             (order . "desc")))))
+
+
+  ;; combine two sets of binding specs
+  ;; only has to work for first one being 'empty or 'alist and
+  ;; second one 'alist or 'multipart
+  (define (append-binding-specs a b)
+    (match a
+      ['empty b]
+      [(list 'alist a-bindings)
+       (match b
+         [(list 'alist b-bindings)
+          (list 'alist (append a-bindings b-bindings))]
+         [(list 'multipart b-bindings)
+          (list 'multipart (append (map alistpr->nameandvalue a-bindings)
+                                   b-bindings))]
+         [other (error 'append-binding-specs
+                       "unexpected form for b bindings: ~e"
+                       b)])]
+      [other
+       (error 'append-bindings
+              "unexpected form for a bindings: ~e"
+              a)]))
+
+  (define alistpr->nameandvalue
+    (λ (pr)
+      (list 'nameandvalue
+            (string->bytes/utf-8 (symbol->string (car pr)))
+            (string->bytes/utf-8 (cdr pr)))))
+  
   ;; convert a byte-string into a binding-spec. what a mess.
   (define (bytes->binding-spec content-type bytes)
     (match content-type
@@ -127,7 +183,7 @@
              [(list #"--" #"") #f]
              [other (list 'giving-up lines)])))
        (list 'multipart
-             specs)]
+             (filter (λ (x) x) specs))]
       [#"Content-Type: application/json; charset=UTF-8"
        (list 'json (bytes->string/utf-8 bytes))]))
 
@@ -156,9 +212,15 @@
       [else
        (list 'not-a-response-at-all r)]))
   
-  
+
+  ;; run a request. this is scraped and simplified from
+  ;; dispatch.rkt
   (define (run-request user path [binding-spec 'empty]
                        [post? #f] [post-data #""])
+    (unless ((flat-contract-predicate binding-spec/c) binding-spec)
+      (raise-argument-error 'run-request
+                            "legal binding spec"
+                            2 user path binding-spec post? post-data))
     (let* ([bindings (spec->bindings binding-spec)]
            (raw-bindings (spec->raw-bindings binding-spec))
            (start-rel-url (ensure-trailing-slash (string-append "/" (class-name-shim) "/" (string-join path "/"))))
@@ -173,6 +235,14 @@
   ;; data. We use a binding-spec that can be mapped to both bindings and
   ;; raw-bindings. Also, we just give up on getting the post data right.
   ;; We'll implement that if we need it...
+
+  (define binding-spec/c
+    (or/c 'empty
+          (list/c 'alist (listof (cons/c symbol? string?)))
+          (list/c 'multipart (listof
+                              (or/c (list/c 'nameandvalue bytes? bytes?)
+                                    (list/c 'namefilevalue bytes? bytes? (listof header?) bytes?))))
+          (list/c 'json string?)))
   
   (define (spec->raw-bindings binding-spec)
     (match binding-spec
@@ -205,7 +275,7 @@
     (match binding-spec
       ['empty (list)]
       [(list 'multipart file-bindings)
-       (for/list ([b (in-list (filter (λ (x) x) file-bindings))])
+       (for/list ([b (in-list file-bindings)])
          (match b
            [(list 'namefilevalue label filename headers content)
             (cons (string->symbol (bytes->string/utf-8 label))

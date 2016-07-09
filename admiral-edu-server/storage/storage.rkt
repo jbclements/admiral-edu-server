@@ -1,7 +1,6 @@
 #lang typed/racket/base
 
-(require racket/system
-         racket/file
+(require racket/file
          racket/string
          racket/list
          racket/match
@@ -183,8 +182,8 @@
            (delete-path path)
            
            ;; Write to storage
-           (let ((result (cond [(or (is-zip? file-name)
-                                    (is-tar? file-name)) (do-unarchive-solution class-id user-id assignment-id step-id file-name file-content)]
+           (let ((result (cond [(or (local:is-zip? file-name)
+                                    (local:is-tar? file-name)) (do-unarchive-solution class-id user-id assignment-id step-id file-name file-content)]
                                [else (do-single-file-solution class-id user-id assignment-id step-id file-name file-content)])))
              ;; If necessary, create database entry
              (when (not (submission:exists? assignment-id class-id step-id user-id)) (submission:create-instructor-solution assignment-id class-id step-id user-id))
@@ -208,8 +207,8 @@
                    (delete-path path)
                    
                    ;; Write to storage
-                   (cond [(or (is-zip? file-name)
-                              (is-tar? file-name)) (do-unarchive-solution class-id user-id assignment-id step-id file-name file-content)]
+                   (cond [(or (local:is-zip? file-name)
+                              (local:is-tar? file-name)) (do-unarchive-solution class-id user-id assignment-id step-id file-name file-content)]
                          [else (do-single-file-solution class-id user-id assignment-id step-id file-name file-content)])
                    
                    ;; Create / update record
@@ -222,21 +221,22 @@
 (: do-unarchive-solution (String String String String String (U String Bytes) -> (Result Void)))
 (define (do-unarchive-solution class-id user-id assignment-id step-id file-name file-content)
   (let* ((temp-dir (get-local-temp-directory))
-         (file-path (string-append temp-dir file-name))
+         (file-path (build-path temp-dir file-name))
          (path (submission-path class-id assignment-id user-id step-id)))
     
     ;; Write the file out
     (local:write-file file-path file-content)
     
     ;; Unzip it
-    (unarchive temp-dir file-path)
+    (local:unarchive temp-dir file-path)
     
-           ;; Remove the archive file
-    (system (string-append "rm \"" file-path "\""))
+    ;; Remove the archive file
+    (local:delete-path file-path)
     
     ;; Copy files to storage
     (let* ((file-names (local:list-sub-files temp-dir))
-           (len (string-length temp-dir))
+           ;; FIXME OH MY GOD THIS IS BAD
+           (len (string-length (path->string temp-dir)))
            (submission-file-name (lambda: ([file-name : String]) (string-append path (substring file-name len))))
            (handle-file (lambda: ([file-name : String]) 
                           (let* ((s-name (submission-file-name file-name))
@@ -246,7 +246,7 @@
       (map handle-file file-names))
     
     ;; Remove the temp directory
-    (system (string-append "rm \"" temp-dir "\" -rf"))
+    (local:delete-path temp-dir)
     (Success (void))))
 
       
@@ -256,40 +256,25 @@
     (write-file s-path file-content)
     (Success (void))))
 
-
-(: assignment-path (String String -> String))
-(define (assignment-path class-id assignment-id)
-  (string-append class-id "/" assignment-id "/"))
-
-
 ;; class-id -> assignment-id -> bytes?
 ;; Zips an assignment directory and returns the bytes
 (provide export-assignment)
 (: export-assignment (String String -> Bytes))
 (define (export-assignment class-id assignment-id)
-  (let* ((path (assignment-path class-id assignment-id))
+  (let* ((path (build-path class-id assignment-id))
          (temp-dir (get-local-temp-directory))
          (archive-name (string-append assignment-id ".zip"))
-         (files (list-sub-files path))
+         (files (list-sub-files (path->string path)))
          (store-temp-file (lambda: ([file-name : String])
                             (let ((data (retrieve-file-bytes file-name)))
-                              (local:write-file (string-append temp-dir file-name) data)))))
-
+                              (local:write-file (build-path temp-dir file-name) data)))))
     ;; Store all files locally
     (map store-temp-file files)
-    
-    ;; Create submissions directory
-    (system (string-append "cd \"" temp-dir "/" class-id "/" assignment-id "\"; "
-                           "mkdir submissions; mv */ submissions; "
-                           "cd submissions; mv default-submission* reviews ../"))
-    
-    ;; Archive assignment
-    (system (string-append "cd \"" temp-dir "\"; zip -r \"" archive-name "\" \""  path "\""))
-    
+    (local:rearrange-and-archive temp-dir class-id assignment-id archive-name)
     ;; Convert archive to bytes, delete temporary directory, and return archive's bytes
-    (let ((data (file->bytes (string-append temp-dir "/" archive-name))))
-      (system (string-append "rm " temp-dir " -rf"))
-      data)))
+    (define data (local:retrieve-file-bytes (build-path temp-dir archive-name)))
+    (delete-path (path->string temp-dir))
+    data))
 
 
 (: get-review-path (review:Record -> String))
@@ -338,9 +323,9 @@
 
 
 ;; Creates a directory tmp/some-hash
-(: get-local-temp-directory (-> String))
+(: get-local-temp-directory (-> Path))
 (define (get-local-temp-directory)
-  (string-append "tmp/" (random-hash) "/"))
+  (build-path "tmp" (random-hash)))
 
 
 ;; Creates a random 32 hash
@@ -362,27 +347,4 @@
   (let* ((okay-chars #rx"[a-zA-Z0-9_.\\ ()-]*"))
     (regexp-match-exact? okay-chars file-name)))
 
-
-;; TODO: Eventually we want to detect the archive type and choose the correct program to extract it.
-;; This also needs to be able to handle invalid file types
-(provide unarchive)
-(: unarchive (String String -> Boolean))
-(define (unarchive path file-name)
-  (cond [(is-zip? file-name) (system (string-append "unzip \"" file-name "\" -d \"" path "\""))]
-        [(is-tar? file-name) (system (string-append "tar -xf \"" file-name "\" -C \"" path "\""))]
-        [else (error (format "Could not unarcharve ~a." file-name))]))
-
-(: is-zip? (String -> Boolean))
-(define (is-zip? file)
-  (let* ((clean (string-trim file))
-         (split (string-split clean "."))
-         (ext (last split)))
-    (equal? "zip" (string-downcase ext))))
-
-(: is-tar? (String -> Boolean))
-(define (is-tar? file)
-  (let* ((clean (string-trim file))
-         (split (drop (string-split clean ".") 1)))
-    (not (not (or (member "tar" split string=?)
-                  (member "tgz" split string=?))))))
 

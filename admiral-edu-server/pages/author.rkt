@@ -49,13 +49,13 @@
   (page session role rest message "" (string-append "'" VALIDATE-ACTION "'") "test"))
 
 (define (edit session role rest [message '()])
-  (if (< (length rest) 1) (error:error-xexprs->response
-                           '((p "Invalid URL. Expected /author/edit/assignment-id/"))
-                           400 #"Bad Request")
-      (let ((assignment-id (car rest)))
-        (if (not (assignment:exists? assignment-id (class-name))) (XXerror (string-append "No such assignment: " assignment-id))
-            (let* ((contents (retrieve-assignment-description (class-name) assignment-id)))
-              (page session role rest message contents (string-append "'" VALIDATE-AND-SAVE-ACTION "'") "test"))))))
+  (when (< (length rest) 1)
+    (raise-404-not-found "Invalid URL. Expected /author/edit/assignment-id/"))
+  (let ((assignment-id (car rest)))
+    (when (not (assignment:exists? assignment-id (class-name)))
+      (raise-404-not-found (string-append "No such assignment: " assignment-id)))
+    (let* ((contents (retrieve-assignment-description (class-name) assignment-id)))
+      (page session role rest message contents (string-append "'" VALIDATE-AND-SAVE-ACTION "'") "test"))))
 
 (define (page session role rest message contents validate load)
   (let* ([save-url validate]
