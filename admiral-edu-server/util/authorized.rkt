@@ -15,16 +15,12 @@
          (result (role:select class uid)))
     result))
 
-;; FIXME: I don't really think this function should exist at all....:
-
-; TODO: Eventually this should have the following type
-;(: can-edit (All (a) (-> ct-session (-> a * (Listof (U XExpr Void))) a * (Listof (U XExpr Void)))))
-(provide can-edit)
-;(: can-edit (All (a b) (-> ct-session (-> a * b) a * Any)))
-(define (can-edit session f . args)
-  (cond [(can-edit? session) (apply f args)]
-        [else (error:not-authorized-response)]))
-
+;; if not authorized, signal error.
+(provide check-can-edit)
+;(: check-can-edit (ct-session -> Void))
+(define (check-can-edit session)
+  (when (not (can-edit? session))
+    (raise-403-not-authorized)))
 
 (provide can-edit?)
 ;(: can-edit? (ct-session -> Boolean))

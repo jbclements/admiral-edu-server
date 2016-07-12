@@ -32,8 +32,11 @@
 (define (raise-404-not-found message)
   (raise (exn:user-error message (current-continuation-marks) 404)))
 
-(: raise-403-not-authorized (String -> Nothing))
-(define (raise-403-not-authorized message)
+;; accepts an optional message, 
+(: raise-403-not-authorized (->* () (String) Nothing))
+(define (raise-403-not-authorized
+         [message
+          "You are not authorized to access this page."])
   (raise (exn:user-error message (current-continuation-marks) 403)))
 
 ;; really need the exception monad here...

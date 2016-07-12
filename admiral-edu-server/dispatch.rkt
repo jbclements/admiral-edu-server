@@ -77,18 +77,22 @@
 (define (handlerPrime post? post-data session bindings raw-bindings path)
   (with-handlers ([exn:user-error?
                    (λ (exn)
-                     (error-xexprs->response
-                      `((p ,(exn-message exn))
-                        (p "Try returning to "
-                           (a ((href ,(string-append "https://"
-                                                       (sub-domain) (server-name) "/" (class-name))))
-                              "Class Home")
-                           " and trying again."))
-                      (exn:user-error-code exn)
-                      (match (exn:user-error-code exn)
-                        [400 #"Bad Request"]
-                        [403 #"Not Authorized"]
-                        [404 #"Not Found"])))])
+                     (cond
+                       [(= (exn:user-error-code exn) 403)
+                        (error:not-authorized-response
+                         (exn-message exn))]
+                       [else
+                        (error-xexprs->response
+                         `((p ,(exn-message exn))
+                           (p "Try returning to "
+                              (a ((href ,(string-append "https://"
+                                                        (sub-domain) (server-name) "/" (class-name))))
+                                 "Class Home")
+                              " and trying again."))
+                         (exn:user-error-code exn)
+                         (match (exn:user-error-code exn)
+                           [400 #"Bad Request"]
+                           [404 #"Not Found"]))]))])
   (match path
     ;; "/"
     ['() (X1render session index)]

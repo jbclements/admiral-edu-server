@@ -98,16 +98,18 @@
   (log-ct-error-info "~a - ~a" label srcloc)))
 
 
-(: not-authorized-response (-> Response))
-(define (not-authorized-response)
+;; accepts an xexprs message. Returns a 403 response
+(: not-authorized-response (String -> Response))
+(define (not-authorized-response msg)
   (error-xexprs->response
-   `((p "You are not authorized to access this page. "
-       "You may need to "
+   `((p ,msg)
+     (p "You may need to "
        (a ((href "/authentication/redirect?logout=/logout.html"))
           "log out")
        "and log back in with a different account name."))
    403 #"Forbidden"))
 
+;; FIXME get rid of this, replace with call to raise-400-bad-request
 (: assignment-closed-response (-> Response))
 (define (assignment-closed-response)
   (error-xexprs->400-response

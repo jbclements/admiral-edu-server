@@ -21,12 +21,14 @@
 
 (provide load)
 (define (load session role rest [message '()])
-  (authorized:can-edit session do-load session rest message))
+  (authorized:check-can-edit session)
+  (do-load session rest message))
 
 (provide post)
 (define (post post-data bindings)
   (lambda (session role rest [message '()])
-    (authorized:can-edit session post->do-load post-data bindings session rest message)))
+    (authorized:check-can-edit session)
+    (post->do-load post-data bindings session rest message)))
 
 (define (post->do-load post-data bindings session rest message)
   (let* ((action (if (exists-binding? 'action bindings) (extract-binding/single 'action bindings) ILLEGAL-ACTION))
