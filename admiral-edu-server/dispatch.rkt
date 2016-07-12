@@ -71,65 +71,83 @@
                   (cond [(eq? #\/ last-char) candidate]
                         [else (string-append candidate "/")]))])))
 
+;; given whether this is a POST, the post data, a ct-session, the bindings (should go away),
+;; the raw-bindings, and the path, do the stuff and return a response.
 (provide handlerPrime)
 (define (handlerPrime post? post-data session bindings raw-bindings path)
   (with-handlers ([exn:user-error?
                    (λ (exn)
                      (error-xexprs->response
-                      `((p ,(exn-message exn)))
+                      `((p ,(exn-message exn))
+                        (p "Try returning to "
+                           (a ((href ,(string-append "https://"
+                                                       (sub-domain) (server-name) "/" (class-name))))
+                              "Class Home")
+                           " and trying again."))
                       (exn:user-error-code exn)
                       (match (exn:user-error-code exn)
                         [400 #"Bad Request"]
                         [403 #"Not Authorized"]
                         [404 #"Not Found"])))])
   (match path
+    ;; "/"
     ['() (X1render session index)]
+    ;; also "/" ?
     [(list "")
      (X1render session index)]
-    [(cons "review" rest) (cond [post? (review:post->review session post-data rest)]                                
-                                [else (render session review:load rest)])]
+    ;; "/review/..."
+    [(cons "review" rest)
+     (cond [post? (review:post->review session post-data rest)]                                
+           [else (render session review:load rest)])]
+    ;; "/file-container/..."
     [(cons "file-container" rest) (cond [post? (review:push->file-container session post-data rest)]
                                         [(and (> (length rest) 1)
                                               (string=? "download" (list-ref rest (- (length rest) 2)))) (render session review:check-download rest)]
                                         [(render session review:file-container rest)])]
+    ;; "/su/uid/..."
     [(cons "su" (cons uid rest))
      (with-sudo post? post-data uid session bindings raw-bindings rest)]
+    ;; "/author/..."
     [(cons "author" rest)
      (if post?
          (author:post->validate session post-data rest)
          (render session author:load rest))]
+    ;; "/next/..."
     [(cons "next" rest) (render session next rest)]
+    ;; "/dependencies/..."
     [(cons "dependencies" rest)
      (if post?
          (dep:post session rest bindings raw-bindings)
          (render session dep:dependencies rest))]
+    ;; "/submit/..."
     [(cons "submit" rest)
      (if post?
          (submit:submit session role rest bindings raw-bindings)
-         (error:error-xexprs->400-response
-          `((p "You've accessed this page in an invalid way.")
-            (p "Try returning to "
-               (a ((href . ,(string-append "https://"
-                                           (sub-domain) (server-name) "/" (class-name))))
-                  "Class Home")
-               " and trying again."))))]
+         (raise-400-bad-request "You've accessed this page in an invalid way."))]
+    ;; "/feedback/..."
     [(cons "feedback" rest)
      (if post?
          (feedback:post session role rest bindings post-data)
          (render session feedback:load rest))]
+    ;; "/export/..."
     [(cons "export" rest)
-     ;; no render function here? scary
+     ;; this one does not return a web page, but rather a file:
      (export:load session (role session) rest)]
+    ;; "/exception/..."
+    ;; simulate throwing of a server exception.
     [(cons "exception" rest) (error "Test an exception occurring.")]
+    ;; "/roster/..."
     [(cons "roster" rest)
      (if post?
          (render session (roster:post post-data bindings) rest)
          (render session roster:load rest))]
+    ;; "/browse/..."
     [(cons "browse" rest)
      (cond [(and (> (length rest) 1)
                  (string=? "download" (list-ref rest (- (length rest) 2))))
             (render session browse:download rest)]
            [else (render session browse:load rest)])]
+    ;; looks like a WIP moving all of dispatch to typed racket?
     [else (typed:handlerPrime post? post-data session bindings raw-bindings path)])))
 
 (define (require-auth session f)
@@ -137,6 +155,7 @@
          (can-sudo (if user-role (roles:Record-can-edit user-role) #f)))
     (if can-sudo (f) (error:not-authorized-response))))
 
+;; for superusers: re-issue the request as though it came from user 'uid'
 (define (with-sudo post post-data uid session bindings raw-bindings path)
   (let* ((user-role (role session))
          (can-sudo (if user-role (roles:Record-can-edit user-role) #f))

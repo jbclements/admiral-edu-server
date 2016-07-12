@@ -7,6 +7,9 @@
 ;; here, as it appears that this session is not actually preserved
 ;; across requests.
 
+;; it seems to be an abstraction of certain parts of a request including
+;; url and bindings mostly.
+
 ;; Captain Teach Session information
 (provide (struct-out ct-session))
 (struct: ct-session ((class : String)
@@ -19,7 +22,8 @@
 (define-type Session-Var
   (U 'start-url 'sort-by 'order 'review-hash 'action 'user-id))
 (define-predicate session-var? Session-Var)
-;; start-url : ?
+;; start-url : the relative url of the current page, used to generate
+;;   urls with a lot of 'up 'up 'up... I think this is unnecessary.
 ;; sort-by : the column on which to sort certain table displays
 ;; order : the ordering within that column
 ;; review-hash : ?
