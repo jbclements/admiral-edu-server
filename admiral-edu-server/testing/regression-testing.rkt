@@ -176,11 +176,11 @@ u must add a summative comment at the end.
       (200 (,m ("roster" "new-student")))
       ;; should be a 400, not a 200:
       (400 (,m ("roster" "new-student") () #t))
-      (400 (,m ("roster" "new-student") ((action . "create-student")
+      (200 (,m ("roster" "new-student") ((action . "create-student")
                                          (uid . ,stu1))
                #t))
-      ;; create same student again? (shouldn't be 200 okay)
-      (400 (,m ("roster" "new-student") ((action . "create-student")
+      ;; create same student again?
+      (200 (,m ("roster" "new-student") ((action . "create-student")
                                          (uid . ,stu1))
                #t))
       (200 (,m ("author")))
