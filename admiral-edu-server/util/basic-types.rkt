@@ -1,5 +1,6 @@
 #lang typed/racket/base
 
+;; FIXME: basic-types is no longer a good name for this file...
 
 ;; FIXME: delete the Failure and Success structs and switch to exceptions
 (provide (struct-out Failure))
@@ -28,8 +29,9 @@
 (define (raise-400-bad-request message)
   (raise (exn:user-error message (current-continuation-marks) 400)))
 
-(: raise-404-not-found (String -> Nothing))
-(define (raise-404-not-found message)
+(: raise-404-not-found (->* () (String) Nothing))
+(define (raise-404-not-found
+         [message "Page not found."])
   (raise (exn:user-error message (current-continuation-marks) 404)))
 
 ;; accepts an optional message, 

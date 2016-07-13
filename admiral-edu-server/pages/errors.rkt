@@ -97,7 +97,7 @@
                     (srcloc->string (cdr elem)) "No Source Location")))
   (log-ct-error-info "~a - ~a" label srcloc)))
 
-
+;; FIXME get rid of this function:
 ;; accepts an xexprs message. Returns a 403 response
 (: not-authorized-response (String -> Response))
 (define (not-authorized-response msg)
@@ -115,6 +115,7 @@
   (error-xexprs->400-response
    `((p "The assignment you were attempting to access is currently closed."))))
 
+;; FIXME merge with existing exception model
 (: not-registered-response (ct-session -> Response))
 (define (not-registered-response session)
   (error-xexprs->response
@@ -129,12 +130,13 @@
      (p , (string-append "Class ID: " (ct-session-class session))))
    403 #"Forbidden"))
 
+;; FIXME delete...
 (provide error-invalid-session)
 (define error-invalid-session
   `((h1 "An Error Occurred")
     (p "This session is not valid. Try to log out and then log in again.")))
 
-
+;; FIXME delete...
 (: four-oh-four-response (-> Response))
 (define (four-oh-four-response)
   (error-xexprs->response

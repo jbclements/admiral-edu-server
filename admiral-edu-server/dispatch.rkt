@@ -109,9 +109,11 @@
                                               (string=? "download" (list-ref rest (- (length rest) 2)))) (render session review:check-download rest)]
                                         [(render session review:file-container rest)])]
     ;; "/su/uid/..."
+    ;; interface for executing a command as another user
     [(cons "su" (cons uid rest))
      (with-sudo post? post-data uid session bindings raw-bindings rest)]
     ;; "/author/..."
+    ;; interface for adding assignments
     [(cons "author" rest)
      (if post?
          (author:post->validate session post-data rest)

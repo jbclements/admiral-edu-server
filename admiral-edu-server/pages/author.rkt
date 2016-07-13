@@ -79,8 +79,8 @@
     [(list _ ... (? string? action))
      (cond [(equal? VALIDATE-ACTION action) (validate session post-data #t)]
            [(equal? VALIDATE-AND-SAVE-ACTION action) (validate session post-data #f)]
-           [else (error:four-oh-four-response)])]
-    [else (error:four-oh-four-response)]))
+           [else (raise-404-not-found)])]
+    [else (raise-404-not-found)]))
 
 (define (validate session post-data create?)
   (let ((result (match (yaml-bytes->create-or-save-assignment post-data create?)
