@@ -33,12 +33,16 @@
 (provide (contract-out
           [load (->* (ct-session? any/c any/c) (any/c) (or/c response? xexpr?))]))
 
+;; allow user to create or edit an assignment
 (define (load session role rest [message '()])
-  (if (not (roles:Record-can-edit role)) (error:not-authorized-response)
-      (let* ((len (length rest))
-             (action (if (= 0 len) NEW-ACTION (car rest))))
-        (cond [(equal? NEW-ACTION action) (authoring session role rest "")]
-              [(equal? EDIT-ACTION action) (edit session role (cdr rest) warning-message)]))))
+  (when (not (roles:Record-can-edit role))
+    (raise-403-not-authorized))
+  ;; FIXME ad-hoc url parsing
+  (define len (length rest))
+  (define action (if (= 0 len) NEW-ACTION (car rest)))
+  (cond [(equal? NEW-ACTION action) (authoring session role rest "")]
+        [(equal? EDIT-ACTION action) (edit session role (cdr rest) warning-message)]
+        [else (raise-400-bad-request)]))
 
 (define (authoring session role rest [message '()])
   (page session role rest message "" (string-append "'" VALIDATE-ACTION "'") "test"))
@@ -77,10 +81,13 @@
            [else (raise-404-not-found)])]
     [else (raise-404-not-found)]))
 
+;; ensure the assignment is valid, add or overwrite, indicate
+;; success.
 (define (validate session post-data create?)
   (let ((result (match (yaml-bytes->create-or-save-assignment post-data create?)
                   [(Success _) "Success"]
                   [(Failure msg) msg])))
+    ;; FIXME change strings to xexprs, just return them
     (response/full
      200 #"Okay"
      (current-seconds) #"application/json; charset=utf-8"
