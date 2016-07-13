@@ -1,9 +1,7 @@
 ;; EDITED!
 ((200 (#"GET" #"https://www.captainteach.org/2166-dev/"))
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/roster/"))
- (#f (#"GET" #"https://www.captainteach.org/2166-dev"))
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/roster/new-student/"))
- (#f (#"GET" #"https://www.captainteach.org/2166-dev/roster"))
  (200
   (#"POST" #"https://www.captainteach.org/2166-dev/roster/")
   #"Content-Type: application/x-www-form-urlencoded"
@@ -22,7 +20,6 @@
  (200
   (#"GET"
    #"https://www.captainteach.org/2166-dev/roster/edit/johnbclements@gmail.com/"))
- (#f (#"GET" #"https://www.captainteach.org/2166-dev/roster/edit"))
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/roster/new-student/"))
  (200
   (#"POST" #"https://www.captainteach.org/2166-dev/roster/")
@@ -34,12 +31,6 @@
  (200
   (#"GET"
    #"https://www.captainteach.org/2166-dev/roster/edit/froggy@example.com/change-role/ta-role/"))
- (#f
-  (#"GET"
-   #"https://www.captainteach.org/2166-dev/roster/edit/froggy@example.com"))
- (#f
-  (#"GET"
-   #"https://www.captainteach.org/2166-dev/roster/edit/froggy@example.com/change-role"))
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/roster/"))
  (200
   (#"GET"
@@ -65,11 +56,10 @@
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/"))
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/assignments/"))
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/author/"))
- (200
+ (400
   (#"POST" #"https://www.captainteach.org/2166-dev/author/validate")
   #"Content-Type: application/json; charset=UTF-8"
   #"nthont.h\n.h.h")
- (#f (#"GET" #"https://www.captainteach.org/2166-dev/author"))
  (200
   (#"POST" #"https://www.captainteach.org/2166-dev/author/validate")
   #"Content-Type: application/json; charset=UTF-8"
