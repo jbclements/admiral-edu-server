@@ -103,13 +103,19 @@
                     (string-join valid-step-ids ""))]
                   [else (Success (void))])))]))
 
-
+;; given post bytes representing YAML for a new assignment
+;; and whether this is a create or save (overwrite),
+;; parse and save the assignment.
 (: yaml-bytes->create-or-save-assignment (Bytes Boolean -> (Result Void)))
 (define (yaml-bytes->create-or-save-assignment bytes create?)
-  (let ((yaml-string (bytes->string/utf-8 bytes)))    
-    (sdo [yaml <- (with-handlers ([exn:fail? could-not-parse]) (Success (string->assignment-yaml yaml-string)))]
-         [assignment <- (with-handlers ([exn:fail? invalid-yaml]) (Success (yaml->assignment yaml)))]
-         (create-or-save-assignment assignment create?)
+  (let ((yaml-string (bytes->string/utf-8 bytes)))
+    (define yaml (with-handlers
+                     ([exn:fail? raise-could-not-parse])
+                   (string->assignment-yaml yaml-string)))
+    (define assignment
+      (with-handlers ([exn:fail? raise-invalid-yaml])
+        (yaml->assignment yaml)))
+    (sdo (create-or-save-assignment assignment create?)
          (Success (save-assignment-description (class-name) (Assignment-id assignment) yaml-string))
          (Success (void)))))
 

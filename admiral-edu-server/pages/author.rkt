@@ -17,11 +17,6 @@
          "../authoring/assignment.rkt"
          "../temporary-hacks.rkt")
 
-(define (repeat val n)
-  (cond
-    [(<= n 0) '()]
-    [else (cons val (repeat val (- n 1)))]))
-
 (define NEW-ACTION "new")
 (define EDIT-ACTION "edit")
 (define VALIDATE-ACTION "validate")

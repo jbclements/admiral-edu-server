@@ -93,6 +93,7 @@
                          (match (exn:user-error-code exn)
                            [400 #"Bad Request"]
                            [404 #"Not Found"]))]))])
+    ;; FIXME compute the role up here. make sure this doesn't break things...
   (match path
     ;; "/"
     ['() (X1render session index)]
@@ -113,10 +114,12 @@
     [(cons "su" (cons uid rest))
      (with-sudo post? post-data uid session bindings raw-bindings rest)]
     ;; "/author/..."
-    ;; interface for adding assignments
+    ;; interface for adding, editing assignments
     [(cons "author" rest)
      (if post?
+         ;; POST
          (author:post->validate session post-data rest)
+         ;; GET
          (render session author:load rest))]
     ;; "/next/..."
     [(cons "next" rest) (render session next rest)]
@@ -191,7 +194,12 @@
     [#f (error:not-registered-response session)]
     [role (response/xexpr (page session role))]))
 
-
+;; given a session and a page generation function
+;; and the remainder of the path, check that the user
+;; is registered and then call the given
+;; function with the session, the role, and the path
+;; remainder.
+;; FIXME: should be two separate functions, I believe.
 (define (render session page rest)
   (match (role session)
     [#f (error:not-registered-response session)]

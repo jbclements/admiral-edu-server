@@ -344,12 +344,12 @@
                 [(likert? el) (likert->json el)]
                 [(free-form? el) (free-form->json el)])]))
 
-(provide could-not-parse)
-(: could-not-parse (Any -> Failure))
-(define (could-not-parse exn)
-  (failure (format "Could not parse as YAML: ~a" exn)))
+(provide raise-could-not-parse)
+(: raise-could-not-parse (Any -> Nothing))
+(define (raise-could-not-parse exn)
+  (raise-400-bad-request (format "Could not parse as YAML: ~a" exn)))
 
-(provide invalid-yaml)
-(: invalid-yaml (Any -> Failure))
-(define (invalid-yaml exn)
-  (failure (format "YAML did not contain a valid assignment description: ~a" exn)))
+(provide raise-invalid-yaml)
+(: raise-invalid-yaml (Any -> Nothing))
+(define (raise-invalid-yaml exn)
+  (raise-400-bad-request (format "YAML did not contain a valid assignment description: ~a" exn)))
