@@ -14,9 +14,15 @@
          "three-condition-study.rkt"
          racket/file
          racket/set
+         racket/runtime-path
          yaml
          db
          rackunit)
+
+  (define-runtime-path SAMPLE-YAML "./sample-yaml")
+
+  (define (file-contents filename)
+    (file->string (build-path SAMPLE-YAML filename)))
 
 (define (make-student id)
     (user:create id)
@@ -59,8 +65,10 @@
 
   (map make-student (list ACE AMY ART ALF JOE JAN JIM JON SAL SAM STU SUE SID))
   (create-or-save-assignment three-test-assignment #t)
-  (write-file (dependency-file-name "test-assignment") (file->string "sample-yaml/test-assignment.yaml"))
-  (save-assignment-description (class-name) "test-assignment" (file->string "sample-yaml/test-assignment-description.yaml")))
+  (write-file (dependency-file-name "test-assignment")
+              (file-contents "test-assignment.yaml"))
+  (save-assignment-description (class-name) "test-assignment"
+                               (file-contents "test-assignment-description.yaml")))
 
   ;; refresh, create assignment 2
 (define (init-tests2)
@@ -73,10 +81,15 @@
 
   (map make-student (list ACE AMY ART ALF JOE JAN JIM JON SAL SAM STU SUE SID))
   (create-or-save-assignment three-test-assignment2 #t)
-  (write-file (dependency-file-name "test-assignment2") (file->string "sample-yaml/test-assignment2.yaml"))
-  (save-assignment-description (class-name) "test-assignment2" (file->string "sample-yaml/test-assignment-description2.yaml")))
+  (write-file (dependency-file-name "test-assignment2")
+              (file-contents "test-assignment2.yaml"))
+  (save-assignment-description (class-name) "test-assignment2"
+                               (file-contents "test-assignment-description2.yaml")))
 
-(define three-test-assignment (yaml->assignment (string->yaml (file->string "sample-yaml/test-assignment-description.yaml"))))
+(define three-test-assignment
+  (yaml->assignment
+   (string->yaml
+    (file-contents "test-assignment-description.yaml"))))
 (define three-test-assignment-tests-step
   (let* ((steps (Assignment-steps three-test-assignment))
          (step (filter (lambda (step) (string=? (Step-id step) "tests")) steps)))
@@ -88,7 +101,7 @@
     (car step)))
 
 
-(define three-test-assignment2 (yaml->assignment (string->yaml (file->string "sample-yaml/test-assignment-description2.yaml"))))
+(define three-test-assignment2 (yaml->assignment (string->yaml (file-contents "test-assignment-description2.yaml"))))
 (define three-test-assignment2-tests-step
   (let* ((steps (Assignment-steps three-test-assignment2))
          (step (filter (lambda (step) (string=? (Step-id step) "tests")) steps)))
@@ -114,7 +127,7 @@
 ; no-review: SAL SAM STU SUE SID
 
 (define useless-tar-file
-  (file->string "sample-yaml/empty.tar"))
+  (file-contents "empty.tar"))
 
 (define (test-submit-order-submit user)
   ;; NOTE(joe): this seems to be enough to get different timestamps so our
