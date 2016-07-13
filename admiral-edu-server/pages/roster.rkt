@@ -19,27 +19,31 @@
 (define CHANGE-ROLE "change-role")
 (define DROP-USER "drop")
 
+;; show the roster, allow an instructor to edit it
 (provide load)
 (define (load session role rest [message '()])
   (authorized:check-can-edit session)
   (do-load session rest message))
 
+;; add a user or users to the roster (?)
 (provide post)
 (define (post post-data bindings)
   (lambda (session role rest [message '()])
     (authorized:check-can-edit session)
     (post->do-load post-data bindings session rest message)))
 
+;; update the roster, then show the /roster page again
 (define (post->do-load post-data bindings session rest message)
-  (let* ((action (if (exists-binding? 'action bindings) (extract-binding/single 'action bindings) ILLEGAL-ACTION))
-         (message (do-post action post-data bindings)))
-    (do-load session rest message)))
+  (unless (exists-binding? 'action bindings)
+    (raise-400-bad-request "The action you took could not be processed."))
+  (define action (extract-binding/single 'action bindings))
+  (define message (do-post action post-data bindings))
+  (do-load session rest message))
 
 (define (do-post action post-data bindings)
   (cond [(equal? action CREATE-STUDENT) (post->create-student bindings)]
         [(equal? action PROCESS-ROSTER) (post->process-roster bindings)]
-        ;;> should not be a 200-okay.
-        [(equal? action ILLEGAL-ACTION) "<p>The action you took could not be processed.</p>"]
+        ;;> FIXME what the heck is going on here?
         [else ""]))
 
 (define (post->create-student bindings)

@@ -143,6 +143,7 @@
     ;; "/roster/..."
     [(cons "roster" rest)
      (if post?
+         ;; must include "action" binding:
          (render session (roster:post post-data bindings) rest)
          (render session roster:load rest))]
     ;; "/browse/..."
