@@ -244,7 +244,10 @@ u must add a summative comment at the end.
       (200 (,m ("roster" "new-student") ((action . "create-student")
                                          (uid . ,stu1))
                #t))
+      ;; wait... who's in the roster?
+      (200 (,m ("roster")))
       ;; that student submits:
+      ;; YAGG... this works!??
       (200 (,stu2 ("submit" "test-with-html" "tests")
                   (multipart/file
                    ((file "a-third-file" "zzz\n\nzzz\nzzz\n")))

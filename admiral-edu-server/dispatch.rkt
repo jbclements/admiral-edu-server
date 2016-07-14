@@ -134,6 +134,7 @@
          (submit:submit session role rest bindings raw-bindings)
          (raise-400-bad-request "You've accessed this page in an invalid way."))]
     ;; "/feedback/..."
+    ;; viewing and submitting feedback?
     [(cons "feedback" rest)
      (if post?
          (feedback:post session role rest bindings post-data)
