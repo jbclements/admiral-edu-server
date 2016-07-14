@@ -252,10 +252,8 @@ u must add a summative comment at the end.
            stranger-submit)
       ;; create another student
       (200 (,m ("roster" "new-student") ((action . "create-student")
-                                         (uid . ,stu1))
+                                         (uid . ,stu2))
                #t))
-      ;; wait... who's in the roster?
-      (200 (,m ("roster")))
       
       ;; that student submits:
       ;; YAGG... this works!??
