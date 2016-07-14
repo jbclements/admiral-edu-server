@@ -195,7 +195,9 @@ u must add a summative comment at the end.
       ;; bad YAML
       (400 (,m ("author" "validate") () #t #"ziggy stardust"))
       ;; bogus path piece
-      (404 (,m ("author" "boguspath" "validate") () #t ,assignment-yaml))
+      ;; holding off on fixing this until we have a handle on paths...
+      (404 (,m ("author" "boguspath" "validate") () #t ,assignment-yaml)
+           boguspath-validate)
       (200 (,m ("author" "validate") () #t ,assignment-yaml))
       (200 (,m ("author" "validate") () #t ,yaml-with-html))
       (200 (,m ("assignments")))
@@ -244,7 +246,8 @@ u must add a summative comment at the end.
       (403 (,stu9 ("submit" "test-with-html" "tests")
                   (multipart/file
                    ((file "file-from-stranger" "anotuh\n1234\n3")))
-                  #t))
+                  #t)
+           stranger-submit)
       ;; create another student
       (200 (,m ("roster" "new-student") ((action . "create-student")
                                          (uid . ,stu1))
@@ -288,7 +291,10 @@ u must add a summative comment at the end.
       (λ (r-port)
         (for ([test (in-list tests)]
               [i (in-naturals)])
-          (match-define (list expected request-args-or-thunk) test)
+          (define-values (expected request-args-or-thunk testname)
+            (match test
+              [(list a b) (values a b "")]
+              [(list a b c) (values a b (symbol->string c))]))
           (define request-args
             ;; !@#$ request hashes... can't extract until earlier tests have been
             ;; run.
@@ -296,7 +302,7 @@ u must add a summative comment at the end.
                   [else request-args-or-thunk]))
           (define result (apply run-request request-args))
           (test-case
-           (format "~s" (list i request-args))
+           (format "~s" (list i testname request-args))
            (match expected
             [(? number? code)
              (check-equal? (first result) code)]
@@ -304,7 +310,7 @@ u must add a summative comment at the end.
                    (? procedure? test-proc))
              (begin (check-equal? (first result) code)
                     (test-proc result))]))
-          (define output-val (list i request-args result))
+          (define output-val (list i testname request-args result))
           (fprintf r-port "~s\n" output-val)
           (printf "~s\n" output-val))))))
 
