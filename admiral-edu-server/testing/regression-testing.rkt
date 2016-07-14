@@ -220,6 +220,8 @@ u must add a summative comment at the end.
       ;; student navigation:
       (200 (,stu1 ()))
       (200 (,stu1 ("assignments")))
+      (403 (,stu9 ("feedback" "test-with-html"))
+           stranger-feedback)
       (200 (,stu1 ("feedback" "test-with-html")))
       ;; XSS attack: html in assignment description:
       ((200 ,no-italics) (,stu1 ("next" "test-with-html")))
