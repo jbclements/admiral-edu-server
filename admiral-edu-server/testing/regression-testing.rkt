@@ -115,6 +115,8 @@
   (define m (master-user-shim))
   (define stu1 "frogstar@example.com")
   (define stu2 "mf2@example.com")
+  ;; not in the class, ever:
+  (define stu9 "stu9@example.com")
 
   (define assignment-yaml #"name: Assignment 1 Captain Teach
 id: a1-ct
@@ -240,12 +242,18 @@ u must add a summative comment at the end.
       (200 (,stu1 ("browse" "test-with-html" "tests")))
       ;; the file (gosh I hope you can't see others' submissions...
       (200 (,stu1 ("browse" "test-with-html" "tests" "my-different-file")))
+      ;; wait... random strangers can submit???
+      (403 (,stu9 ("submit" "test-with-html" "tests")
+                  (multipart/file
+                   ((file "file-from-stranger" "anotuh\n1234\n3")))
+                  #t))
       ;; create another student
       (200 (,m ("roster" "new-student") ((action . "create-student")
                                          (uid . ,stu1))
                #t))
       ;; wait... who's in the roster?
       (200 (,m ("roster")))
+      
       ;; that student submits:
       ;; YAGG... this works!??
       (200 (,stu2 ("submit" "test-with-html" "tests")
