@@ -5,15 +5,21 @@
 ;; of requests and prints out the results, but it also checks that the
 ;; status codes are what they should be.
 
+;; there are also a few tests that look for specific XSS attacks, by
+;; checking to see whether the given tag can be made to appear in
+;; the output.
+
 (module+ test
   (require racket/string
            racket/struct
            racket/list
            racket/match
+           racket/file
            web-server/servlet-dispatch
            web-server/http/response-structs
            web-server/web-server
            web-server/http/request-structs
+           xml
            rackunit
            rackunit/text-ui
            "../dispatch.rkt"
@@ -22,9 +28,12 @@
            "../storage/storage-basic.rkt"
            "../util/config-file-reader.rkt"
            net/url
-           "testing-shim.rkt")
+           "testing-shim.rkt"
+           "testing-back-doors.rkt")
   
   (init-shim)
+
+  (delete-local-files-shim)
   
   (let ((result (initialize)))
     (when (Failure? result)
@@ -94,9 +103,16 @@
                      (handlerPrime post? post-data session bindings raw-bindings path))))
       (explode-response result)))
 
+  ;; quick hack to speed test case entry: replace slashes with spaces, turn into list:
+  (define (path2list p)
+    (regexp-split #px"/" p))
+
 
   (define m (master-user-shim))
   (define stu1 "frogstar@example.com")
+  (define stu2 "mf2@example.com")
+  ;; not in the class, ever:
+  (define stu9 "stu9@example.com")
 
   (define assignment-yaml #"name: Assignment 1 Captain Teach
 id: a1-ct
@@ -109,7 +125,9 @@ steps:
             id: student-reviews
             amount: 2
             rubric:
-              - instruction: Click on the line number to add inline comments to the code to indicate missing tests, or unclear or poorly organized code. Also, use comments to indicate particularly well-organized or clear tests. You must add a summative comment at the end.
+              - instruction: Click on the line number to add inline comments to the code to indicate missing tests, \
+or unclear or poorly organized code. Also, use comments to indicate particularly well-organized or clear tests. You \
+must add a summative comment at the end.
               - likert:
                   id: correctness
                   text: These tests are complete, correct, and easy to read.
@@ -131,7 +149,10 @@ steps:
             id: student-reviews
             amount: 2
             rubric:
-              - instruction: Click on the line </i>number<i> to add inline comments to the code to indicate missing tests, or unclear or poorly organized code. Also, use comments to indicate particularly well-organized or clear tests. You must add a summative comment at the end.
+              - instruction: Click on the line </i>number<i> to add inline comm\
+ents to the code to indicate missing tests, or unclear or poorly organized code\
+. Also, use comments to indicate particularly well-organized or clear tests. Yo\
+u must add a summative comment at the end.
               - likert:
                   id: correctness
                   text: These tests are <i>complete</i>, correct, and easy to read.
@@ -147,6 +168,9 @@ steps:
   ;; a test (currently) consists of a list
   ;; containing the expected status code and the
   ;; arguments to pass to run-request.
+  ;; GRR! In order to allow hashes to be extracted
+  ;; from earlier requests, must allow request args
+  ;; to be thunked. 
   (define tests
     `((200 (,m ()))
       (200 (,m ("assignments")))
@@ -154,11 +178,11 @@ steps:
       (200 (,m ("roster" "new-student")))
       ;; should be a 400, not a 200:
       (400 (,m ("roster" "new-student") () #t))
-      (400 (,m ("roster" "new-student") ((action . "create-student")
+      (200 (,m ("roster" "new-student") ((action . "create-student")
                                          (uid . ,stu1))
                #t))
-      ;; create same student again? (shouldn't be 200 okay)
-      (400 (,m ("roster" "new-student") ((action . "create-student")
+      ;; create same student again?
+      (200 (,m ("roster" "new-student") ((action . "create-student")
                                          (uid . ,stu1))
                #t))
       (200 (,m ("author")))
@@ -176,6 +200,8 @@ steps:
       (200 (,m ("assignments" "dashboard" "test-with-html")))
       (200 (,m ("dependencies" "test-with-html")))
       (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews")))
+      ;; fix this bug by rewriting to use raw bindings everywhere and fail nicely
+      ;; on line 197 of authoring/next-action.rkt
       (400 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload") () #t #""))
       (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload")
                (multipart/file
@@ -185,16 +211,71 @@ steps:
       (200 (,m ("assignments" "dashboard" "test-with-html")))
       ;; not open yet:
       (400 (,stu1 ("next" "test-with-html")))
+      ;; open the assignment
       (200 (,m ("assignments" "open" "test-with-html")))
+      ;; student navigation:
       (200 (,stu1 ()))
       (200 (,stu1 ("assignments")))
       (200 (,stu1 ("feedback" "test-with-html")))
+      ;; XSS attack: html in assignment description:
       ((200 ,no-italics) (,stu1 ("next" "test-with-html")))
       (200 (,stu1 ("submit" "test-with-html" "tests")
                   (multipart/file
                    ((file "my-file" "oh.... \n two lines!\n")))
                   #t))
-      ((200 ,no-italics) (,stu1 ("next" "test-with-html")))))
+      ((200 ,no-italics) (,stu1 ("next" "test-with-html")))
+      ;; re-submit
+      (200 (,stu1 ("submit" "test-with-html" "tests")
+                  (multipart/file
+                   ((file "my-file" "oops... \n two different lines\n")))
+                  #t))
+      ;; re-submit with different file name
+      (200 (,stu1 ("submit" "test-with-html" "tests")
+                  (multipart/file
+                   ((file "my-different-file" "oops... \n two different lines\n")))
+                  #t))
+      ;; content of the iframe:
+      (200 (,stu1 ("browse" "test-with-html" "tests")))
+      ;; the file (gosh I hope you can't see others' submissions...
+      (200 (,stu1 ("browse" "test-with-html" "tests" "my-different-file")))
+      ;; wait... random strangers can submit???
+      (403 (,stu9 ("submit" "test-with-html" "tests")
+                  (multipart/file
+                   ((file "file-from-stranger" "anotuh\n1234\n3")))
+                  #t)
+           stranger-submit)
+      ;; create another student
+      (200 (,m ("roster" "new-student") ((action . "create-student")
+                                         (uid . ,stu1))
+               #t))
+      ;; wait... who's in the roster?
+      (200 (,m ("roster")))
+      
+      ;; that student submits:
+      ;; YAGG... this works!??
+      (200 (,stu2 ("submit" "test-with-html" "tests")
+                  (multipart/file
+                   ((file "a-third-file" "zzz\n\nzzz\nzzz\n")))
+                  #t))
+      ;; can stu2 read stu1's file? No. Good.
+      (403 (,stu2 ("browse" "test-with-html" "tests" "my-different-file")))
+      ;; stu1 completes submit:
+      (200 (,stu1 ,(path2list "submit/test-with-html/tests")
+                  ((action . "submit"))
+                  #t))
+      (200 (,stu1 ,(path2list "feedback/test-with-html")))
+      ;; bogus hash:
+      (403 (,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")))
+      ;; thunk to delay extraction of hash:
+      (200 ,(λ () (list stu1 (list "review" (lastreview)))))
+      ;; the iframe...
+      (200 ,(λ () (list stu1 (list "file-container" (lastreview)))))
+      ;; viewing a bogus feedback
+      (403 (,stu1 ("feedback" "file-container" "BOGUSSS" "ALSOBAD" "load")))))
+
+  ;; return the last pending review for student 1 on "test-with-html"
+  (define (lastreview)
+    (last (pending-review-hashes (cons "test-with-html" stu1))))
 
   (define REGRESSION-FILE-PATH
     (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))
@@ -204,19 +285,32 @@ steps:
     "generate regression & a few tests"
     (call-with-output-file REGRESSION-FILE-PATH
       (λ (r-port)
-        (for ([test (in-list tests)])
-          (match-define (list expected request-args) test)
+        (for ([test (in-list tests)]
+              [i (in-naturals)])
+          (define-values (expected request-args-or-thunk testname)
+            (match test
+              [(list a b) (values a b "")]
+              [(list a b c) (values a b (symbol->string c))]))
+          (define request-args
+            ;; !@#$ request hashes... can't extract until earlier tests have been
+            ;; run.
+            (cond [(procedure? request-args-or-thunk) (request-args-or-thunk)]
+                  [else request-args-or-thunk]))
           (define result (apply run-request request-args))
-          (match expected
-            [(? number? code) (check-equal? (first result) code)]
+          (test-case
+           (format "~s" (list i testname request-args))
+           (match expected
+            [(? number? code)
+             (check-equal? (first result) code)]
             [(list (? number? code)
                    (? procedure? test-proc))
              (begin (check-equal? (first result) code)
-                    (test-proc result))])
-          (define output-val (list request-args result))
+                    (test-proc result))]))
+          (define output-val (list i testname request-args result))
           (fprintf r-port "~s\n" output-val)
           (printf "~s\n" output-val))))))
 
+  
   (sleep 1)
   )
 
