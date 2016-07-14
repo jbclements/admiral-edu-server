@@ -13,7 +13,7 @@
          "../authoring/assignment.rkt"
          "next.rkt")
 
-;; handles an incoming submission.
+;; handles an incoming submission.... or publication of a submission?
 (provide (contract-out
           [submit (-> ct-session? (listof string?) (listof (cons/c symbol? (or/c string? bytes?)))
                       (listof binding?) xexpr?)]))

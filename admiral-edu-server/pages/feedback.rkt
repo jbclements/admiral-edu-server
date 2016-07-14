@@ -22,6 +22,7 @@
 
 (provide load)
 ;; handles a GET to /feedback/...
+;; FIXME message is never passed?
 (define (load session role rest [message '()])
   (when (empty? rest)
     (raise-404-not-found "Path not found."))
@@ -149,6 +150,7 @@
              (hash (review:Record-hash review))
              (step (review:Record-step-id review))
              (rest (cdr reviews)))
+        ;; FIXME XSS
         (string-append "<li><a href='" start-url "../view/" hash "/'>Review #" (number->string cur) ": " step "</a></li>" (gen-reviews-helper rest (+ 1 cur) start-url)))))
          
 ;; show review, allow feedback.
