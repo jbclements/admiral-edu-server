@@ -33,12 +33,14 @@
 (provide post)
 ;; handles a POST to /feedback/...
 (define (post session role rest bindings post-data)
+  ;; FIXME if there's no rest...? URL patterns please
   (let ((action (car rest))
         (submit? (exists-binding? 'feedback bindings)))
     (cond [submit? (post->do-feedback-submit session (cadr rest) bindings )]
           [(equal? "file-container" action) (post->do-file-container session role (cdr rest) post-data)]
           [(equal? "view" action) (post->do-view session (cdr rest) post-data)]
-          [else (error "You are not authorized to perform this action.")])))
+          [else (raise-403-not-authorized
+                 "You are not authorized to perform this action.")])))
 
 (define (post->do-feedback-submit session review-hash bindings)
   (let* ((review (review:select-by-hash review-hash))
@@ -149,12 +151,14 @@
              (rest (cdr reviews)))
         (string-append "<li><a href='" start-url "../view/" hash "/'>Review #" (number->string cur) ": " step "</a></li>" (gen-reviews-helper rest (+ 1 cur) start-url)))))
          
+;; show review, allow feedback.
 (define (do-view session rest message)
   (let* ((start-url (hash-ref (ct-session-table session) 'start-url))
          (r-hash (car rest))
          (review (review:select-by-hash r-hash))
          (assignment (review:Record-assignment-id review))
          (step (review:Record-step-id review))
+         ;; FIXME these urls are silly, I believe.
          (updir (apply string-append (repeat "../" (+ (length rest) 1))))
          (root-url updir)
          [display-message message]

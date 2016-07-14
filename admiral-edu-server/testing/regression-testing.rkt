@@ -5,6 +5,10 @@
 ;; of requests and prints out the results, but it also checks that the
 ;; status codes are what they should be.
 
+;; there are also a few tests that look for specific XSS attacks, by
+;; checking to see whether the given tag can be made to appear in
+;; the output.
+
 (module+ test
   (require racket/string
            racket/struct
@@ -215,6 +219,7 @@ u must add a summative comment at the end.
       (200 (,stu1 ()))
       (200 (,stu1 ("assignments")))
       (200 (,stu1 ("feedback" "test-with-html")))
+      ;; XSS attack: html in assignment description:
       ((200 ,no-italics) (,stu1 ("next" "test-with-html")))
       (200 (,stu1 ("submit" "test-with-html" "tests")
                   (multipart/file
@@ -253,7 +258,7 @@ u must add a summative comment at the end.
       (200 (,stu1 ,(path2list "feedback/test-with-html")))
       ;; bogus hash:
       (403 (,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")))
-      ;; thunk to delay extraction of saved html:
+      ;; thunk to delay extraction of hash:
       (200 ,(λ () (list stu1 (list "review" (lastreview)))))
       ;; the iframe...
       (200 ,(λ () (list stu1 (list "file-container" (lastreview)))))
