@@ -3,10 +3,10 @@
 ;; this file exists to deal with the API differences between
 ;; old and new server.
 
-(require "../configuration.rkt"
-         "./test-configuration.rkt"
+(require "./test-configuration.rkt"
          "../pages/errors.rkt"
-         "../base.rkt")
+         "../base.rkt"
+         racket/file)
 
 (provide (all-defined-out))
 
@@ -24,4 +24,10 @@
 
   ;; start with a fresh database
   (db-init))
+
+(define (delete-local-files-shim)
+  (when (directory-exists? (build-path (local-storage-path) (class-name-shim)))
+    (fprintf (current-error-port)
+             "ALERT: DELETING EXISTING CLASS DIRECTORY.\n")
+    (delete-directory/files (build-path (local-storage-path) (class-name-shim)))))
  
