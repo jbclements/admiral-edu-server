@@ -256,7 +256,6 @@ u must add a summative comment at the end.
                #t))
       
       ;; that student submits:
-      ;; YAGG... this works!??
       (200 (,stu2 ("submit" "test-with-html" "tests")
                   (multipart/file
                    ((file "a-third-file" "zzz\n\nzzz\nzzz\n")))
