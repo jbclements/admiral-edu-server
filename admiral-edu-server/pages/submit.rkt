@@ -22,10 +22,12 @@
         (uid (ct-session-uid session))
         (assignment (car rest))
         (step (cadr rest)))
-    ;; FIXME not clear what situations the 'else' case arises in...
     (cond [(and (hash-has-key? table 'action)
+                ;; the string "submit" should probably actually be "publish", as it
+                ;; appears to indicate publication. 
                 (string=? (hash-ref table 'action) "submit"))
            (handle-submit session uid assignment step)]
+          ;; submit a file:
           [else
            (let* ((data (extract-binding/single 'file bindings))
                   (filename (bytes->string/utf-8 (binding:file-filename (car raw-bindings)))))

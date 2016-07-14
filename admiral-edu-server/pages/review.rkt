@@ -20,6 +20,8 @@
     [(<= n 0) '()]
     [else (cons val (repeat val (- n 1)))]))
 
+;; displays page for performing review, but also handles
+;; click on submit review link.
 (provide load)
 (define (load session role rest [message '()])
   (let ((submit? (equal? "submit" (car rest))))
@@ -64,10 +66,13 @@
         (reviewer (review:Record-reviewer-id review)))
     (equal? uid reviewer)))
 
+;; user clicked on the "submit" button for the review.
+;; note that 
 (define (do-submit-review session role rest message)
   (define start-url (hash-ref (ct-session-table session) 'start-url))
   (define r-hash (cadr rest))
   (define review (try-select-by-hash r-hash))
+  ;; FIXME needs attention: use xexprs, raise errors, etc. etc.
   (let* ((assignment (review:Record-assignment-id review))
          (step (review:Record-step-id review))
          (updir (apply string-append (repeat "../" (+ (length rest) 1))))
@@ -87,8 +92,10 @@
          [access-url (string-append "https://" (sub-domain) (server-name) "/" (class-name) "/feedback/" assignment-id "/")]
          (message (include-template "../email/templates/review-ready.txt")))
     (send-email uid "Someone has completed a review of your work." message)))
-    
 
+;; submits JSON for a review.
+;; called by codemirror save. Not sure what triggers it. hooks into click on
+;; submit button?
 (provide post->review)
 (define (post->review session post-data rest)
   (let* ((r-hash (car rest))

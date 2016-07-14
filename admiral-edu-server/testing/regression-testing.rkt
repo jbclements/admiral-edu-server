@@ -239,7 +239,8 @@ u must add a summative comment at the end.
       (200 (,stu1 ("submit" "test-with-html" "tests")
                   (multipart/file
                    ((file "my-different-file" "oops... \n two different lines\n")))
-                  #t))
+                  #t)
+           stu1-resubmits)
       ;; content of the iframe:
       (200 (,stu1 ("browse" "test-with-html" "tests")))
       ;; the file (gosh I hope you can't see others' submissions...
@@ -262,23 +263,38 @@ u must add a summative comment at the end.
                   #t))
       ;; can stu2 read stu1's file? No. Good.
       (403 (,stu2 ("browse" "test-with-html" "tests" "my-different-file")))
-      ;; stu1 completes submit:
+      ;; stu1 publishes:
       (200 (,stu1 ,(path2list "submit/test-with-html/tests")
                   ((action . "submit"))
-                  #t))
+                  #t)
+           stu1-publishes)
       (200 (,stu1 ,(path2list "feedback/test-with-html")))
       ;; bogus hash:
       (403 (,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")))
-      ;; thunk to delay extraction of hash:
-      (200 ,(λ () (list stu1 (list "review" (lastreview)))))
-      ;; the iframe...
-      (200 ,(λ () (list stu1 (list "file-container" (lastreview)))))
       ;; viewing a bogus feedback
-      (403 (,stu1 ("feedback" "file-container" "BOGUSSS" "ALSOBAD" "load")))))
+      (403 (,stu1 ("feedback" "file-container" "BOGUSSS" "ALSOBAD" "load")))
+      ;; thunk to delay extraction of hash:
+      (200 ,(λ () (list stu1 (list "review" (lastreview stu1)))))
+      ;; the iframe...
+      (200 ,(λ () (list stu1 (list "file-container" (lastreview stu1)))))
+      ;; stu2 logs in:
+      (200 (,stu2 ()))
+      ;; clicks on assignments
+      (200 (,stu2 ("assignments")))
+      ;; stu2 publishes:
+      (200 (,stu2 ,(path2list "submit/test-with-html/tests")
+                  ((action . "submit"))
+                  #t)
+           stu2-publishes)
+      (200 (,stu2 ("feedback" "test-with-html")))
+      ;; stu2 clicks on last review
+      (200 ,(λ () (list stu2 (list "review" (lastreview stu2)))))
+      ;; evil haxxor sends get to submit button without prior json submit:
+      (404 ,(λ () (list stu2 (list "review" "submit" (lastreview stu2)))))))
 
-  ;; return the last pending review for student 1 on "test-with-html"
-  (define (lastreview)
-    (last (pending-review-hashes (cons "test-with-html" stu1))))
+  ;; return the last pending review for given student on "test-with-html"
+  (define (lastreview uid)
+    (last (pending-review-hashes (cons "test-with-html" uid))))
 
   (define REGRESSION-FILE-PATH
     (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))

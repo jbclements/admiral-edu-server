@@ -102,7 +102,11 @@
           [(or '() '("")) (response/xexpr (index session user-role))]
           ;; "/review/..."
           [(cons "review" rest)
-           (cond [post? (review:post->review session post-data rest)]                                
+           ;; POST:
+           ;; codemirror callback, saves review JSON:
+           (cond [post? (review:post->review session post-data rest)]
+                 ;; GET
+                 ;; presents review screen, also handles click on review submit button
                  [else (render-hack (review:load session user-role rest))])]
           ;; "/file-container/..."
           [(cons "file-container" rest)
@@ -134,7 +138,9 @@
                (dep:post session rest bindings raw-bindings)
                (render-hack (dep:dependencies session user-role rest)))]
           ;; "/submit/..."
-          ;; used to submit files (POST only)
+          ;; used to submit files and to publish them (POST only)
+          ;; FIXME I think the "action" binding should instead just be
+          ;; implemented using a different URL.
           [(cons "submit" rest)
            (if post?
                ;; POST
@@ -142,6 +148,7 @@
                (raise-400-bad-request "You've accessed this page in an invalid way."))]
           ;; "/feedback/..."
           ;; viewing and submitting feedback? And other stuff? confused.
+          ;; seems to be the main entry point to an assignment.
           [(cons "feedback" rest)
            (if post?
                (feedback:post session user-role rest bindings post-data)
