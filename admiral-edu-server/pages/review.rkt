@@ -13,7 +13,8 @@
          "../email/email.rkt"
          "../util/file-extension-type.rkt"
          (prefix-in error: "errors.rkt")
-         "../temporary-hacks.rkt")
+         "../temporary-hacks.rkt"
+         "templates.rkt")
 
 (define (repeat val n)
   (cond
@@ -50,8 +51,10 @@
          (completed (review:Record-completed review))
          (updir (apply string-append (repeat "../" (+ (length rest) 1))))
          (root-url updir)
-         [no-modifications (if completed "<p>This review has already been submitted. Modifications will not be saved.</p>" "")]
-         [submit-hidden (if completed "hidden" "")]
+         [no-modifications
+          (if completed
+              `((p "This review has already been submitted. Modifications will not be saved."))
+              `())]
          [submit-url (if completed "#" (string-append start-url root-url "review/submit/" r-hash "/"))]
          (updir-rubric (apply string-append (repeat "../" (- (length rest) 1))))
          [file-container (string-append start-url updir "file-container/" (to-path rest))]
@@ -59,7 +62,7 @@
          [load-url (xexpr->string (string-append "\"" start-url updir-rubric step "/load\""))])
     (when (not (validate review session))
       (raise-403-not-authorized "You are not authorized to see this page."))
-    (include-template "html/review.html")))
+    (review-page save-url load-url file-container no-modifications completed submit-url)))
 
 (define (validate review session)
   (let ((uid (ct-session-uid session))

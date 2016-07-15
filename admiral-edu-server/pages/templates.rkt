@@ -41,6 +41,10 @@
   (apply string-append
          (add-between (map xexpr->string xexprs) "\n")))
 
+;; this is a simple way of ensuring that certain templates
+;; are included only in this context:
+(define bogusbinding "")
+
 ;; given a URL specification, return a URL.
 ;; currently the identity.
 ;; FIXME come up with an abstract representation of a
@@ -48,6 +52,9 @@
 (define (urlgen url)
   url)
 (define ct-url? string?)
+
+(define (maybe-hidden-class hidden?)
+  (if hidden? "hidden" ""))
 
 ;; given a boolean indicating whether a checkbox is
 ;; checked, return a string to be placed inside the
@@ -60,12 +67,21 @@
 (define (xexprs->string xexprs)
   (apply string-append (map xexpr->string xexprs)))
 
+;; FIXME return responses rather than strings!
+
 ;; given values for the fields, construct the feedback
 ;; page using the template
 (provide (contract-out
           [feedback-page (-> ct-url? ct-url? (listof xexpr?) boolean? xexpr? string?)]))
 (define (feedback-page load-url file-container display-message review-flagged? review-feedback)
   (include-template "html/feedback.html"))
+
+;; given values for the fields, construct the review
+;; page using the template
+(provide (contract-out
+          [review-page (-> ct-url? ct-url? ct-url? (listof xexpr?) boolean? ct-url? string?)]))
+(define (review-page save-url load-url file-container no-modifications submit-hidden? submit-url)
+  (include-template "html/review.html"))
 
 (module+ test
   (require rackunit)
