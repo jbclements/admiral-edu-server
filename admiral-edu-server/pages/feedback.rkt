@@ -43,6 +43,7 @@
           [else (raise-403-not-authorized
                  "You are not authorized to perform this action.")])))
 
+;; save feedback and/or flag on a review
 (define (post->do-feedback-submit session review-hash bindings)
   (let* ((review (review:select-by-hash review-hash))
          (uid (ct-session-uid session))
@@ -50,11 +51,12 @@
          (match (equal? uid reviewee))
          (feedback (if (exists-binding? 'feedback bindings) (extract-binding/single 'feedback bindings) ""))
          (flag (if (exists-binding? 'flag bindings) #t #f)))
-    (cond [(not match) (error:not-authorized-response)]
-          [else (begin
-                  (review:set-flagged review-hash flag)
-                  (save-review-feedback review feedback)
-                  (string->response (do-view session (list review-hash) "<p>Feedback submitted.</p>")))])))
+    (when (not match)
+      (raise-403-not-authorized))
+    (review:set-flagged review-hash flag)
+    (save-review-feedback review feedback)
+    ;; FIXME nasty strings
+    (string->response (do-view session (list review-hash) "<p>Feedback submitted.</p>"))))
 
 (define (do-default session role rest message)
   (let* ((uid (ct-session-uid session))
@@ -173,9 +175,9 @@
          (reviewer (ct-session-uid session))
          (class (ct-session-class session)))
     (review:mark-feedback-viewed r-hash)
-    (if (not (validate review session))
-        (error:not-authorized-response)
-        (include-template "html/feedback.html"))))
+    (when (not (validate review session))
+      (raise-403-not-authorized))
+    (include-template "html/feedback.html")))
 
 (define (validate review session)
   (let ((uid (ct-session-uid session))

@@ -154,10 +154,14 @@
           ;; viewing and submitting feedback? And other stuff? confused.
           ;; seems to be the main entry point to an assignment. More of
           ;; a dashboard?
-          ;; GET /feedback/view/<hash> : for viewing a review
           [(cons "feedback" rest)
            (if post?
+               ;; POST /feedback/*/<hash>/... ((feedback . *) ...) : submit feedback
+               ;; POST /feedback/file-container/... (!feedback) ?
+               ;; POST /feedback/view/... (!feedback) ?
                (feedback:post session user-role rest bindings post-data)
+               ;; GET /feedback/ : assignment dashboard ?
+               ;; GET /feedback/view/<hash> : viewing a review
                (render-hack (feedback:load session user-role rest)))]
           ;; "/export/..."
           [(cons "export" rest)
