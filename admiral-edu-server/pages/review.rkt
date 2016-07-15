@@ -150,9 +150,11 @@
      empty
      (list (string->bytes/utf-8 data)))))
 
+;; load or save review comments
 (provide push->file-container)
 (define (push->file-container session post-data rest)
   (define r-hash (car rest))
+  ;; FIXME icky path generation
   (define path (string-join (take (cdr rest) (- (length rest) 2))  "/"))
   (define review (try-select-by-hash r-hash))
   (when (not (validate review session))
@@ -160,9 +162,10 @@
   (cond 
     [(equal? (last rest) "save") (push->save session post-data path review)]
     [(equal? (last rest) "load") (push->load session path review)]
-    [else (error:four-oh-four-response)]))
+    [else (raise-404-not-found)]))
 
-;; save a json object representing review comments.
+;; save a json object representing review comments. silently discard
+;; data if review is already complete.
 (define (push->save session post-data path review)
   (let ((data (jsexpr->string (bytes->jsexpr post-data)))
         (class (ct-session-class session))

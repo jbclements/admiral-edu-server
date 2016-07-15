@@ -111,8 +111,11 @@
                  [else (render-hack (review:load session user-role rest))])]
           ;; "/file-container/..."
           [(cons "file-container" rest)
-           (cond [post? (review:push->file-container session post-data rest)]
+           (cond [post?
+                  ;; save or load contents of review. bit of an abuse of POST.
+                  (review:push->file-container session post-data rest)]
                  [(and (> (length rest) 1)
+                       ;; FIXME icky path hacking
                        (string=? "download" (list-ref rest (- (length rest) 2))))
                   (render-hack
                    (review:check-download session user-role rest))]
