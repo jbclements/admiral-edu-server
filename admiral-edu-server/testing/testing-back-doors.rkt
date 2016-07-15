@@ -11,6 +11,7 @@
                [class-name-shim (-> String)])
 
 (provide pending-review-hashes
+         feedback-hashes
          patch-path)
 
 (: pending-review-hashes ((Pair String String) -> (Listof String)))

@@ -279,15 +279,35 @@ u must add a summative comment at the end.
       (200 (,stu2 ("feedback" "test-with-html")))
       ;; stu2 clicks on last review
       (200 ,(λ () (list stu2 (list "review" (lastreview stu2)))))
+      ;; should it be an error to submit bogus rubric json?
       (200 ,(λ () (list stu2 (list "review" (lastreview stu2) "tests" "save")
                         (list 'json #"\"abcd\"")
-                        #t)
-              ))
-      #;(200 ,(λ () (list stu2 (list "review" "submit" (lastreview stu2)))))))
+                        #t)))
+      (200 ,(λ () (list stu2 (list "review" "submit" (lastreview stu2))))
+           stu2-submits-review1)
+      ;; must do both reviews, to be sure that we covered stu1's submission
+      (200 ,(λ () (list stu2 (list "review" (lastreview stu2) "tests" "save")
+                        (list 'json #"\"abcde\"")
+                        #t)))
+      (200 ,(λ () (list stu2 (list "review" "submit" (lastreview stu2))))
+           stu2-submits-review2)
+      (200 ,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))))
+           stu1-views-review)
+      ((200 ,no-italics)
+       ,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))
+                      ((feedback . "feedback with <i>italics</i>.")
+                       (flag . "goronsky"))
+                      #t))
+           stu1-submits-feedback)
+      (200 (,stu2 ("feedback" "test-with-html")))))
 
   ;; return the last pending review for given student on "test-with-html"
   (define (lastreview uid)
     (last (pending-review-hashes (cons "test-with-html" uid))))
+
+  ;; return the feedback for given student on "test-with-html"
+  (define (firstfeedback uid)
+    (first (feedback-hashes (cons "test-with-html" uid))))
 
   (define REGRESSION-FILE-PATH
     (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))
