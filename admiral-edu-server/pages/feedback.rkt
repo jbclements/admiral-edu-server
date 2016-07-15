@@ -12,6 +12,7 @@
          "../base.rkt"
          (prefix-in error: "errors.rkt")
          "responses.rkt"
+         "templates.rkt"
          "../util/file-extension-type.rkt"
          "../authoring/assignment.rkt")
 
@@ -56,7 +57,7 @@
     (review:set-flagged review-hash flag)
     (save-review-feedback review feedback)
     ;; FIXME nasty strings
-    (string->response (do-view session (list review-hash) "<p>Feedback submitted.</p>"))))
+    (string->response (do-view session (list review-hash) `((p "Feedback submitted."))))))
 
 (define (do-default session role rest message)
   (let* ((uid (ct-session-uid session))
@@ -167,7 +168,7 @@
          (root-url updir)
          [display-message message]
          [review-feedback (load-review-feedback review)]
-         [review-flagged (if (review:Record-flagged review) "CHECKED" "")]
+         [review-flagged? (review:Record-flagged review)]
          [submit-url (string-append start-url root-url "review/submit/" r-hash "/")]
          (updir-rubric (apply string-append (repeat "../" (- (length rest) 1))))
          [file-container (string-append start-url updir "file-container/" (to-path rest))]
@@ -177,7 +178,7 @@
     (review:mark-feedback-viewed r-hash)
     (when (not (validate review session))
       (raise-403-not-authorized))
-    (include-template "html/feedback.html")))
+    (feedback-page load-url file-container display-message review-flagged? review-feedback)))
 
 (define (validate review session)
   (let ((uid (ct-session-uid session))

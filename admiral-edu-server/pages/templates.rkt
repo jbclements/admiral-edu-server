@@ -6,7 +6,8 @@
 
 (require racket/list
          web-server/templates
-         xml)
+         xml
+         racket/contract)
 
 (provide ;; FIXME get rid of this one:
          string->plain-page-html
@@ -40,6 +41,31 @@
   (apply string-append
          (add-between (map xexpr->string xexprs) "\n")))
 
+;; given a URL specification, return a URL.
+;; currently the identity.
+;; FIXME come up with an abstract representation of a
+;; captain teach URL that fences out weird errors
+(define (urlgen url)
+  url)
+(define ct-url? string?)
+
+;; given a boolean indicating whether a checkbox is
+;; checked, return a string to be placed inside the
+;; 'input' tag.
+(define (checkbox-checked c)
+  (if c "CHECKED" ""))
+
+;; given a list of xexprs, convert them to strings
+;; for use in a template
+(define (xexprs->string xexprs)
+  (apply string-append (map xexpr->string xexprs)))
+
+;; given values for the fields, construct the feedback
+;; page using the template
+(provide (contract-out
+          [feedback-page (-> ct-url? ct-url? (listof xexpr?) boolean? xexpr? string?)]))
+(define (feedback-page load-url file-container display-message review-flagged? review-feedback)
+  (include-template "html/feedback.html"))
 
 (module+ test
   (require rackunit)
