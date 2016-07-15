@@ -97,8 +97,8 @@
 
 ;; save part of a review.
 ;; called by codemirror autosave, and also triggered by changes
-;; to review elements. Many of these will happen before the user
-;; clicks the submit button.
+;; to review elements. There will be a bunch of these, and then a single
+;; GET request made by a click on the "submit" button.
 ;; the result of this will not be seen as a page by the user.
 (provide post->review)
 (define (post->review session post-data rest)
@@ -124,9 +124,9 @@
         (reviewee (review:Record-reviewee-id review))
         (reviewer (ct-session-uid session))
         (review-id (review:Record-review-id review)))
-    (when (not (validate review session))
-      (raise-403-not-authorized "You are not authorized to see this page."))
     (when (not (review:Record-completed review))
+      ;; FIXME no validation of rubric form... I'm guessing
+      ;; this will mess up the viewing later.
       (save-rubric class assignment stepName review-id reviewer reviewee data))
     (response/full
      200 #"Okay"
@@ -162,6 +162,7 @@
     [(equal? (last rest) "load") (push->load session path review)]
     [else (error:four-oh-four-response)]))
 
+;; save a json object representing review comments.
 (define (push->save session post-data path review)
   (let ((data (jsexpr->string (bytes->jsexpr post-data)))
         (class (ct-session-class session))
@@ -170,8 +171,6 @@
         (reviewee (review:Record-reviewee-id review))
         (reviewer (ct-session-uid session))
         (review-id (review:Record-review-id review)))
-    (when (not (validate review session))
-      (raise-403-not-authorized "You are not authorized to see this page."))
     (when (not (review:Record-completed review))
       (save-review-comments class assignment stepName review-id reviewer reviewee path data))
     (response/full
