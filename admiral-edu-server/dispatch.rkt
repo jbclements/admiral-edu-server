@@ -152,7 +152,9 @@
                (raise-400-bad-request "You've accessed this page in an invalid way."))]
           ;; "/feedback/..."
           ;; viewing and submitting feedback? And other stuff? confused.
-          ;; seems to be the main entry point to an assignment.
+          ;; seems to be the main entry point to an assignment. More of
+          ;; a dashboard?
+          ;; GET /feedback/view/<hash> : for viewing a review
           [(cons "feedback" rest)
            (if post?
                (feedback:post session user-role rest bindings post-data)

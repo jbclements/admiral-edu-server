@@ -126,6 +126,7 @@
 ;; class-id -> assignment-id -> step-id -> review-id -> reviewer-id -> reviewee-id -> file-path -> string
 (: review-comments-path (String String String String String String String -> String))
 (define (review-comments-path class-id assignment-id step-id review-id reviewer-id reviewee-id file-path)
+  ;; FIXME icky path hacking
   (string-append class-id "/" assignment-id "/reviews/" step-id "/" review-id "/" reviewer-id "/" reviewee-id "/" (remove-leading-slash file-path) ".comments.json"))
 
 
@@ -133,6 +134,7 @@
 (provide save-review-comments)
 (: save-review-comments (String String String String String String String String -> Void))
 (define (save-review-comments class assignment step-id review-id reviewer reviewee file-path data)
+  ;; FIXME no validation of json shape
   (let ((path (review-comments-path class assignment step-id review-id reviewer reviewee file-path)))
     (write-file path data)))
 
