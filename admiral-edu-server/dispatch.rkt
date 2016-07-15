@@ -103,7 +103,8 @@
           ;; "/review/..."
           [(cons "review" rest)
            ;; POST:
-           ;; codemirror callback, saves review JSON:
+           ;; used by codemirror autosave and review elements
+           ;; to save review.
            (cond [post? (review:post->review session post-data rest)]
                  ;; GET
                  ;; presents review screen, also handles click on review submit button

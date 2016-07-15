@@ -41,7 +41,7 @@
     (define file-path (string-join (append (take path (- len 2)) (list (last path))) "/"))
     (push->download session file-path review))) 
 
-;; whoa... this function had a heck of a lot of dead code in it... worried.
+;; display the review page
 (define (do-load session role rest message)
   (define start-url (hash-ref (ct-session-table session) 'start-url))
   (define r-hash (car rest))
@@ -67,7 +67,9 @@
     (equal? uid reviewer)))
 
 ;; user clicked on the "submit" button for the review.
-;; note that 
+;; note that the data is already saved by this point; this
+;; call just marks the review as submitted and prevents
+;; later changes to the review.
 (define (do-submit-review session role rest message)
   (define start-url (hash-ref (ct-session-table session) 'start-url))
   (define r-hash (cadr rest))
@@ -93,9 +95,11 @@
          (message (include-template "../email/templates/review-ready.txt")))
     (send-email uid "Someone has completed a review of your work." message)))
 
-;; submits JSON for a review.
-;; called by codemirror save. Not sure what triggers it. hooks into click on
-;; submit button?
+;; save part of a review.
+;; called by codemirror autosave, and also triggered by changes
+;; to review elements. Many of these will happen before the user
+;; clicks the submit button.
+;; the result of this will not be seen as a page by the user.
 (provide post->review)
 (define (post->review session post-data rest)
   (let* ((r-hash (car rest))
@@ -107,6 +111,11 @@
       [(equal? (last rest) "load") (post->load-rubric session review)]
       [else (raise-404-not-found "Bad path")])))
 
+;; given session, post data for either rubric or textual comments,
+;; and hash of review, save data.
+;; NOTE: silently discards data if the review has already been
+;; finalized. I'm guessing this is because observing this
+;; would require more front-end code to handle the AJAX response.
 (define (post->save-rubric session post-data review)
   (let ((data (jsexpr->string (bytes->jsexpr post-data)))
         (class (ct-session-class session))
@@ -117,13 +126,13 @@
         (review-id (review:Record-review-id review)))
     (when (not (validate review session))
       (raise-403-not-authorized "You are not authorized to see this page."))
-    (begin
-      (when (not (review:Record-completed review)) (save-rubric class assignment stepName review-id reviewer reviewee data))
-      (response/full
-       200 #"Okay"
-       (current-seconds) #"application/json; charset=utf-8"
-       empty
-       (list (string->bytes/utf-8 "Success"))))))
+    (when (not (review:Record-completed review))
+      (save-rubric class assignment stepName review-id reviewer reviewee data))
+    (response/full
+     200 #"Okay"
+     (current-seconds) #"application/json; charset=utf-8"
+     empty
+     (list (string->bytes/utf-8 "Success")))))
   
 (define (post->load-rubric session review)
   (let* ((class (ct-session-class session))
