@@ -19,7 +19,8 @@
            "../dispatch.rkt"
            "../base.rkt"
            "testing-shim.rkt"
-           "testing-back-doors.rkt")
+           "testing-back-doors.rkt"
+           "testing-support.rkt")
 
   (define-runtime-path here ".")
 
@@ -116,32 +117,7 @@
              (order . "desc")))))
 
 
-  ;; combine two sets of binding specs
-  ;; only has to work for first one being 'empty or 'alist and
-  ;; second one 'alist or 'multipart
-  (define (append-binding-specs a b)
-    (match a
-      ['empty b]
-      [(list 'alist a-bindings)
-       (match b
-         [(list 'alist b-bindings)
-          (list 'alist (append a-bindings b-bindings))]
-         [(list 'multipart b-bindings)
-          (list 'multipart (append (map alistpr->nameandvalue a-bindings)
-                                   b-bindings))]
-         [other (error 'append-binding-specs
-                       "unexpected form for b bindings: ~e"
-                       b)])]
-      [other
-       (error 'append-bindings
-              "unexpected form for a bindings: ~e"
-              a)]))
 
-  (define alistpr->nameandvalue
-    (λ (pr)
-      (list 'nameandvalue
-            (string->bytes/utf-8 (symbol->string (car pr)))
-            (string->bytes/utf-8 (cdr pr)))))
   
   ;; convert a byte-string into a binding-spec. what a mess.
   (define (bytes->binding-spec content-type bytes)
@@ -185,7 +161,7 @@
        (list 'multipart
              (filter (λ (x) x) specs))]
       [#"Content-Type: application/json; charset=UTF-8"
-       (list 'json (bytes->string/utf-8 bytes))]))
+       (list 'json bytes)]))
 
 
 
@@ -230,67 +206,7 @@
       (explode-response result)))
   
   
-  ;; there are some fairly complex invariants relating the raw bindings,
-  ;; the bindings (though we shouldn't be using these at all), and the post
-  ;; data. We use a binding-spec that can be mapped to both bindings and
-  ;; raw-bindings. Also, we just give up on getting the post data right.
-  ;; We'll implement that if we need it...
-
-  (define binding-spec/c
-    (or/c 'empty
-          (list/c 'alist (listof (cons/c symbol? string?)))
-          (list/c 'multipart (listof
-                              (or/c (list/c 'nameandvalue bytes? bytes?)
-                                    (list/c 'namefilevalue bytes? bytes? (listof header?) bytes?))))
-          (list/c 'json string?)))
   
-  (define (spec->raw-bindings binding-spec)
-    (match binding-spec
-      ['empty (list)]
-      [(list 'multipart file-bindings)
-       (for/list ([b (in-list (filter (λ (x) x) file-bindings))])
-         (match b
-           [(list 'namefilevalue label filename headers content)
-            (binding:file label
-                          filename
-                          headers
-                          content)]
-           [(list 'nameandvalue name value)
-            (binding:form name value)]))]
-      [(list 'alist alist)
-       (for/list ([b (in-list alist)])
-         (binding:form (string->bytes/utf-8 (symbol->string (car b)))
-                       (string->bytes/utf-8 (cdr b))))]
-      [(list 'json bytes)
-       ;; bindings are ignored for these
-       '()]
-      [other
-       (error 'unexpected-spec-shape
-              "~e" other)]))
-  
-  
-  
-  ;; SHOULDN'T USE ORDINARY BINDINGS AT ALL....
-  (define (spec->bindings binding-spec)
-    (match binding-spec
-      ['empty (list)]
-      [(list 'multipart file-bindings)
-       (for/list ([b (in-list file-bindings)])
-         (match b
-           [(list 'namefilevalue label filename headers content)
-            (cons (string->symbol (bytes->string/utf-8 label))
-                  content)]
-           [(list 'nameandvalue name value)
-            (cons (string->symbol (bytes->string/utf-8 name))
-                  (bytes->string/utf-8 value))]))]
-      [(list 'alist alist)
-       alist]
-      [(list 'json bytes)
-       ;; bindings are ignored for these
-       '()]
-      [other
-       (error 'unexpected-spec-shape
-              "~e" other)]))
   
   
   (define m (master-user-shim))
