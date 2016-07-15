@@ -9,7 +9,10 @@
           [spec->bindings
            (-> binding-spec/c (listof (cons/c symbol?
                                               (or/c string?
-                                                    bytes?))))]))
+                                                    bytes?))))]
+          [append-binding-specs
+           (-> binding-spec/c binding-spec/c binding-spec/c)])
+         binding-spec/c)
 
 ;; there are some fairly complex invariants relating the raw bindings,
 ;; the bindings (though we shouldn't be using these at all), and the post
