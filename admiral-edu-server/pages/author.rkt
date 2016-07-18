@@ -31,23 +31,24 @@
        "assignment data.")))
 
 (provide (contract-out
-          [load (->* (ct-session? any/c any/c) (any/c) (or/c response? xexpr?))]))
+          [load (->* (ct-session? any/c any/c) (any/c) response?)]))
 
-;; allow user to create or edit an assignment
+;; allow user to create or edit an assignment. returns response
 (define (load session role rest [message '()])
   (when (not (roles:Record-can-edit role))
     (raise-403-not-authorized))
   ;; FIXME ad-hoc url parsing
   (define len (length rest))
   (define action (if (= 0 len) NEW-ACTION (car rest)))
-  (cond [(equal? NEW-ACTION action) (authoring session role rest '())]
-        [(equal? EDIT-ACTION action) (edit session role (cdr rest) warning-message)]
+  (cond [(equal? NEW-ACTION action) (authoring '())]
+        [(equal? EDIT-ACTION action) (edit (cdr rest) warning-message)]
         [else (raise-400-bad-request)]))
 
-(define (authoring session role rest message)
-  (page session role rest message (list) (string-append "'" VALIDATE-ACTION "'") "test"))
+(define (authoring message)
+  (page message (list) (string-append "'" VALIDATE-ACTION "'")))
 
-(define (edit session role rest [message '()])
+;; returns response
+(define (edit rest [message '()])
   (when (< (length rest) 1)
     (raise-404-not-found "Invalid URL. Expected /author/edit/assignment-id/"))
   (define assignment-id (car rest))
@@ -56,10 +57,9 @@
   (define contents (list
                     (retrieve-assignment-description
                      (class-name) assignment-id)))
-  (page session role rest message contents (string-append "'" VALIDATE-AND-SAVE-ACTION "'") "test"))
+  (page message contents (string-append "'" VALIDATE-AND-SAVE-ACTION "'")))
 
-;; FIXME unused arguments?
-(define (page session role rest message contents validate load)
+(define (page message contents validate)
   (authoring-page (class-name) validate contents message))
 
 

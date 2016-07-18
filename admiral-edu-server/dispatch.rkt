@@ -132,7 +132,7 @@
                ;; POST
                (author:post->validate session post-data rest)
                ;; GET
-               (render-hack (author:load session user-role rest)))]
+               (author:load session user-role rest))]
           ;; "/next/..."
           [(cons "next" rest)
            (render-hack (next session user-role rest))]

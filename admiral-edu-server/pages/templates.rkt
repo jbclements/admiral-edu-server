@@ -102,11 +102,16 @@
 
 ;; given the values for the fields, construct the authoring page
 ;; using the template
-
 (provide (contract-out
-          [authoring-page (-> class-name? ct-url? (listof xexpr?) (listof xexpr?) string?)]))
+          [authoring-page (-> class-name? ct-url? (listof xexpr?) (listof xexpr?) response?)]))
 (define (authoring-page class-name save-url content message)
-  (include-template "html/authoring.html"))
+  (response-200
+   (include-template "html/authoring.html")))
+
+;; given values for the fields, construct the file-container page
+;; using the template
+#;(provide (contract-out
+          [file-container-page (-> )]))
 
 ;; wrap a string as a 200 Okay response. The idea is to use
 ;; this only directly on the result of a template
