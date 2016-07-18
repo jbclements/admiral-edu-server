@@ -13,7 +13,6 @@
          "../email/email.rkt"
          "../util/file-extension-type.rkt"
          (prefix-in error: "errors.rkt")
-         "../temporary-hacks.rkt"
          "templates.rkt")
 
 (define (repeat val n)
@@ -28,6 +27,7 @@
   (let ((submit? (equal? "submit" (car rest))))
     (if submit? 
         (do-submit-review session role rest message)
+        ;; now returns a response:
         (do-load session role rest message))))
 
 (provide check-download)

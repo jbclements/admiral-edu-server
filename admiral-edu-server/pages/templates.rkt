@@ -82,9 +82,10 @@
 ;; given values for the fields, construct the review
 ;; page using the template
 (provide (contract-out
-          [review-page (-> ct-url? ct-url? ct-url? (listof xexpr?) boolean? ct-url? string?)]))
+          [review-page (-> ct-url? ct-url? ct-url? (listof xexpr?) boolean? ct-url? response?)]))
 (define (review-page save-url load-url file-container no-modifications submit-hidden? submit-url)
-  (include-template "html/review.html"))
+  (response-200
+   (include-template "html/review.html")))
 
 ;; wrap a string as a 200 Okay response. The idea is to use
 ;; this only directly on the result of a template
