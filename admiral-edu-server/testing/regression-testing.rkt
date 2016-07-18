@@ -23,6 +23,13 @@
            "testing-support.rkt"
            "testing-back-doors.rkt")
 
+  ;; this one is persistent
+  (define REGRESSION-FILE-PATH-PERSISTENT
+    (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))
+  ;; this one gets overwritten every time
+  (define REGRESSION-FILE-PATH-TEMP
+    (string-append "/tmp/regression-results-tmp.rktd"))
+
   ;; delete everything in the database
   (init-shim)
 
@@ -309,39 +316,41 @@ u must add a summative comment at the end.
   (define (firstfeedback uid)
     (first (feedback-hashes (cons "test-with-html" uid))))
 
-  (define REGRESSION-FILE-PATH
-    (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))
 
 
   (run-tests
    (test-suite
     "generate regression & a few tests"
-    (call-with-output-file REGRESSION-FILE-PATH
+    (call-with-output-file REGRESSION-FILE-PATH-PERSISTENT
       (λ (r-port)
-        (for ([test (in-list tests)]
-              [i (in-naturals)])
-          (define-values (expected request-args-or-thunk testname)
-            (match test
-              [(list a b) (values a b "")]
-              [(list a b c) (values a b (symbol->string c))]))
-          (define request-args
-            ;; !@#$ request hashes... can't extract until earlier tests have been
-            ;; run.
-            (cond [(procedure? request-args-or-thunk) (request-args-or-thunk)]
-                  [else request-args-or-thunk]))
-          (define result (apply run-request request-args))
-          (test-case
-           (format "~s" (list i testname request-args))
-           (match expected
-            [(? number? code)
-             (check-equal? (first result) code)]
-            [(list (? number? code)
-                   (? procedure? test-proc))
-             (begin (check-equal? (first result) code)
-                    (test-proc result))]))
-          (define output-val (list i testname request-args result))
-          (fprintf r-port "~s\n" output-val)
-          (printf "~s\n" output-val))))))
+        (call-with-output-file REGRESSION-FILE-PATH-TEMP
+          #:exists 'truncate
+          (λ (rt-port)
+            (for ([test (in-list tests)]
+                  [i (in-naturals)])
+              (define-values (expected request-args-or-thunk testname)
+                (match test
+                  [(list a b) (values a b "")]
+                  [(list a b c) (values a b (symbol->string c))]))
+              (define request-args
+                ;; !@#$ request hashes... can't extract until earlier tests have been
+                ;; run.
+                (cond [(procedure? request-args-or-thunk) (request-args-or-thunk)]
+                      [else request-args-or-thunk]))
+              (define result (apply run-request request-args))
+              (test-case
+               (format "~s" (list i testname request-args))
+               (match expected
+                 [(? number? code)
+                  (check-equal? (first result) code)]
+                 [(list (? number? code)
+                        (? procedure? test-proc))
+                  (begin (check-equal? (first result) code)
+                         (test-proc result))]))
+              (define output-val (list i testname request-args result))
+              (fprintf r-port "~s\n" output-val)
+              (fprintf rt-port "~s\n" output-val)
+              #;(printf "~s\n" output-val))))))))
 
   
   (sleep 1)
