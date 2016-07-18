@@ -7,7 +7,8 @@
 (require racket/list
          web-server/templates
          xml
-         racket/contract)
+         racket/contract
+         web-server/servlet)
 
 (provide ;; FIXME get rid of this one:
          string->plain-page-html
@@ -72,9 +73,11 @@
 ;; given values for the fields, construct the feedback
 ;; page using the template
 (provide (contract-out
-          [feedback-page (-> ct-url? ct-url? (listof xexpr?) boolean? xexpr? string?)]))
+          [feedback-page (-> ct-url? ct-url? (listof xexpr?) boolean? xexpr?
+                             response?)]))
 (define (feedback-page load-url file-container display-message review-flagged? review-feedback)
-  (include-template "html/feedback.html"))
+  (response-200
+   (include-template "html/feedback.html")))
 
 ;; given values for the fields, construct the review
 ;; page using the template
@@ -82,6 +85,15 @@
           [review-page (-> ct-url? ct-url? ct-url? (listof xexpr?) boolean? ct-url? string?)]))
 (define (review-page save-url load-url file-container no-modifications submit-hidden? submit-url)
   (include-template "html/review.html"))
+
+;; wrap a string as a 200 Okay response. The idea is to use
+;; this only directly on the result of a template
+(define (response-200 str)
+  (response/full
+   200 #"Okay"
+   (current-seconds) TEXT/HTML-MIME-TYPE
+   '()
+   (list (string->bytes/utf-8 str))))
 
 (module+ test
   (require rackunit)

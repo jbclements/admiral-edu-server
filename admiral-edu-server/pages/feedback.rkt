@@ -28,6 +28,7 @@
   (when (empty? rest)
     (raise-404-not-found "Path not found."))
   (let ((action (car rest)))
+    ;; this one returns a response:
     (cond [(equal? "view" action) (do-view session (cdr rest) message)]
           [(equal? "file-container" action) (do-file-container session role (cdr rest) message)]
           [else (do-default session role rest message)])))
@@ -56,8 +57,7 @@
       (raise-403-not-authorized))
     (review:set-flagged review-hash flag)
     (save-review-feedback review feedback)
-    ;; FIXME nasty strings
-    (string->response (do-view session (list review-hash) `((p "Feedback submitted."))))))
+    (do-view session (list review-hash) `((p "Feedback submitted.")))))
 
 (define (do-default session role rest message)
   (let* ((uid (ct-session-uid session))
@@ -156,7 +156,7 @@
         ;; FIXME XSS
         (string-append "<li><a href='" start-url "../view/" hash "/'>Review #" (number->string cur) ": " step "</a></li>" (gen-reviews-helper rest (+ 1 cur) start-url)))))
          
-;; show review, allow feedback.
+;; show review, allow feedback. returns response
 (define (do-view session rest message)
   (let* ((start-url (hash-ref (ct-session-table session) 'start-url))
          (r-hash (car rest))
