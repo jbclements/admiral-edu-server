@@ -87,6 +87,14 @@
   (response-200
    (include-template "html/review.html")))
 
+;; given the values for the fields, construct the dependencies
+;; page using the template
+(provide (contract-out
+          [dependencies-page (-> ct-url? (listof xexpr?) response?)]))
+(define (dependencies-page load-url dependency-form)
+  (response-200
+   (include-template "html/dependency.html")))
+
 ;; wrap a string as a 200 Okay response. The idea is to use
 ;; this only directly on the result of a template
 (define (response-200 str)

@@ -14,22 +14,19 @@
          (only-in "templates.rkt"
                   xexpr->error-page-html)
          (prefix-in assign: "../authoring/assignment.rkt")
-         (prefix-in error: "errors.rkt"))
+         (prefix-in error: "errors.rkt")
+         "templates.rkt")
 
 (define THREE-STUDY-ACTION "three-study")
 (define LIST-DEPENDENCIES "list-dependencies")
 (define (base-url) (string-append "/" (class-name) "/dependencies/"))
-
-(define (repeat val n)
-  (cond
-    [(<= n 0) '()]
-    [else (cons val (repeat val (- n 1)))]))
 
 (provide dependencies)
 (define (dependencies session role rest [message '()])
   (let* ((len (length rest)))
     (cond [(= len 1) (assignment-dependencies (car rest))]
           [(and (= len 2) (string=? THREE-STUDY-ACTION (cadr rest))) (three-study-form (car rest))]
+          ;; returns response
           [(> len 2) (dependencies-form (car rest) (cadr rest) (caddr rest) rest)])))
 
 (define (assignment-dependencies assignment-id [message ""])
@@ -89,13 +86,18 @@
                                                                           "</li>")))]
 
           [else (raise "Unknown dependency")])))
-  
+
+;; return the upload-dependencies form page. returns response
 (define (dependencies-form assignment step review-id rest)
-  (let* ((dep (car (assign:find-dependencies assignment step review-id)))
-         (met (assign:dependency-met dep))
-         [load-url (xexpr->string (string-append "\"" (base-url) (string-join rest "/") "/load\""))]
-         [dependency-form (generate-dependency-form assignment step review-id)]) ;;(if met (dependency-met assignment step review-id) (generate-dependency-form assignment step review-id))])
-    (include-template "html/dependency.html")))
+  (define dep (car (assign:find-dependencies assignment step review-id)))
+  (define met (assign:dependency-met dep))
+  (define
+    load-url (xexpr->string (string-append "\"" (base-url) (string-join rest "/") "/load\"")))
+  (define dependency-form
+    (generate-dependency-form assignment step review-id))
+  ;; what is this commented-out code for?
+  ;;(if met (dependency-met assignment step review-id) (generate-dependency-form assignment step review-id))])
+  (dependencies-page load-url dependency-form))
 
 (provide post)
 (define (post session rest bindings raw-bindings)
@@ -154,30 +156,28 @@
          (amount (if (assign:student-submission-dependency? dep) (assign:student-submission-dependency-amount dep) 1))
          (instructor-solution (assign:instructor-solution-dependency? dep)))
     ;; FIXME urg strings bad bad
-    (string-append "<p>Assignment id:" assignment-id "</p>"
-                   "<p>Submission Step id:" step-id "</p>"
-                   "<p>Review id:" review-id "</p>"
-                   "<p>This review step requires " (number->string amount) " default solution(s).</p>"
-                   "<form action='" 
-                   (string-append (base-url) assignment-id "/" step-id "/" review-id "/upload/")
-                   "' method='post' enctype='multipart/form-data'>"
-                   (generate-form-string amount)
-                   "<input type='submit' value='Upload'>"
-                   "</form>")))
+    `((p "Assignment id:" ,assignment-id)
+      (p "Submission Step id:" ,step-id)
+      (p "Review id:" ,review-id)
+      (p "This review step requires " ,(number->string amount) " default solution(s).")
+      (form ((action ,(string-append (base-url) assignment-id "/" step-id "/" review-id "/upload/"))
+             (method "post")
+             (enctype "multipart/form-data"))
+            ,@(generate-form-string amount)
+            (input ((type "submit") (value "Upload")))))))
 
+;; generate the file entry elements of the dependency upload form
+;; returns a list of xexprs
 (define (generate-form-string n)
-  (letrec ((helper (lambda (acc n)
-                     (let ((ns (number->string n)))
-                       (cond 
-                         [(<= n 0) (apply string-append acc)]
-                         [else (helper 
-                                (cons 
-                                 (string-append "<p style='font-weight:bold;'>Solution #" ns "</p>"
-                                                "<p style='margin-left:10px;'>"
-                                                "<input name='file-" ns "' type='file' id='file-" ns "'>"
-                                                "</p>\n") acc)
-                                (- n 1))])))))
-    (helper '() n)))
+  (apply
+   append
+   (for/list ([i (in-range n)])
+     (define ns (number->string (add1 i)))
+     `((p ((style "font-weight:bold")) "Solution #" ,ns)
+       (p ((style "margin-left:10px"))
+          (input ((name ,(string-append "file-"ns))
+                  (type "file")
+                  (id ,(string-append "file-"ns)))))))))
 
 
 (define (assignment-not-found-response assignment-id)
