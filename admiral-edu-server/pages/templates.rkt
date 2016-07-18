@@ -63,6 +63,11 @@
 (define (checkbox-checked c)
   (if c "CHECKED" ""))
 
+;; this contract should probably be somewhere much more
+;; global
+(define (class-name? c)
+  (and (string? c) (regexp-match #px"[-_a-zA-Z0-9]" c)))
+
 ;; given a list of xexprs, convert them to strings
 ;; for use in a template
 (define (xexprs->string xexprs)
@@ -94,6 +99,14 @@
 (define (dependencies-page load-url dependency-form)
   (response-200
    (include-template "html/dependency.html")))
+
+;; given the values for the fields, construct the authoring page
+;; using the template
+
+(provide (contract-out
+          [authoring-page (-> class-name? ct-url? (listof xexpr?) (listof xexpr?) string?)]))
+(define (authoring-page class-name save-url content message)
+  (include-template "html/authoring.html"))
 
 ;; wrap a string as a 200 Okay response. The idea is to use
 ;; this only directly on the result of a template

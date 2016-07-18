@@ -11,11 +11,12 @@
          json
          yaml)
 
+;; FIXME looks like it could easily be converted to typed racket...
+
 (require "../storage/storage.rkt"
          "../base.rkt"
-         (prefix-in error: "errors.rkt")
          "../authoring/assignment.rkt"
-         "../temporary-hacks.rkt")
+         "templates.rkt")
 
 (define NEW-ACTION "new")
 (define EDIT-ACTION "edit")
@@ -23,12 +24,11 @@
 (define VALIDATE-AND-SAVE-ACTION "validate-save")
 
 (define warning-message
-  (string-join 
-   '("<p><b>Warning:</b> You are editing an existing assignment."
-     "In general it is safe to change instructions and add steps."
-     "However, if students have started this assignment, changing ids"
-     "and rubric structures may cause inconsistencies in the exported"
-     "assignment data.</p>")))
+  '((p (b "Warning:" ) " You are editing an existing assignment."
+       "In general it is safe to change instructions and add steps."
+       "However, if students have started this assignment, changing ids"
+       "and rubric structures may cause inconsistencies in the exported"
+       "assignment data.")))
 
 (provide (contract-out
           [load (->* (ct-session? any/c any/c) (any/c) (or/c response? xexpr?))]))
@@ -40,29 +40,27 @@
   ;; FIXME ad-hoc url parsing
   (define len (length rest))
   (define action (if (= 0 len) NEW-ACTION (car rest)))
-  (cond [(equal? NEW-ACTION action) (authoring session role rest "")]
+  (cond [(equal? NEW-ACTION action) (authoring session role rest '())]
         [(equal? EDIT-ACTION action) (edit session role (cdr rest) warning-message)]
         [else (raise-400-bad-request)]))
 
-(define (authoring session role rest [message '()])
-  (page session role rest message "" (string-append "'" VALIDATE-ACTION "'") "test"))
+(define (authoring session role rest message)
+  (page session role rest message (list) (string-append "'" VALIDATE-ACTION "'") "test"))
 
 (define (edit session role rest [message '()])
   (when (< (length rest) 1)
     (raise-404-not-found "Invalid URL. Expected /author/edit/assignment-id/"))
-  (let ((assignment-id (car rest)))
-    (when (not (assignment:exists? assignment-id (class-name)))
-      (raise-404-not-found (string-append "No such assignment: " assignment-id)))
-    (let* ((contents (retrieve-assignment-description (class-name) assignment-id)))
-      (page session role rest message contents (string-append "'" VALIDATE-AND-SAVE-ACTION "'") "test"))))
+  (define assignment-id (car rest))
+  (when (not (assignment:exists? assignment-id (class-name)))
+    (raise-404-not-found (string-append "No such assignment: " assignment-id)))
+  (define contents (list
+                    (retrieve-assignment-description
+                     (class-name) assignment-id)))
+  (page session role rest message contents (string-append "'" VALIDATE-AND-SAVE-ACTION "'") "test"))
 
+;; FIXME unused arguments?
 (define (page session role rest message contents validate load)
-  (let* ([save-url validate]
-         [load-url load]
-         [class-name (class-name)])
-    (string-append (include-template "html/authoring-header.html")
-                   contents
-                   (include-template "html/authoring-footer.html"))))
+  (authoring-page (class-name) validate contents message))
 
 
 
