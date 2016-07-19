@@ -20,7 +20,6 @@
          (prefix-in error: "pages/errors.rkt")
          (prefix-in author: "pages/author.rkt")
          "pages/next.rkt"
-         (prefix-in assignments: "pages/assignments.rkt")
          (prefix-in export: "pages/export.rkt")
          (prefix-in submit: "pages/submit.rkt")
          (prefix-in dep: "pages/dependencies.rkt")
