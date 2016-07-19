@@ -11,28 +11,29 @@
 
 (module+ test
   (require racket/string
-           racket/struct
            racket/list
            racket/match
-           racket/file
-           web-server/servlet-dispatch
            web-server/http/response-structs
-           web-server/web-server
            web-server/http/request-structs
-           xml
            rackunit
            rackunit/text-ui
            "../dispatch.rkt"
-           (prefix-in error: "../pages/errors.rkt")
            "../base.rkt"
-           "../storage/storage-basic.rkt"
-           "../util/config-file-reader.rkt"
-           net/url
            "testing-shim.rkt"
+           "testing-support.rkt"
            "testing-back-doors.rkt")
-  
+
+  ;; this one is persistent
+  (define REGRESSION-FILE-PATH-PERSISTENT
+    (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))
+  ;; this one gets overwritten every time
+  (define REGRESSION-FILE-PATH-TEMP
+    (string-append "/tmp/regression-results-tmp.rktd"))
+
+  ;; delete everything in the database
   (init-shim)
 
+  ;; delete local files
   (delete-local-files-shim)
   
   (let ((result (initialize)))
@@ -64,44 +65,33 @@
       [else
        (list 'not-a-response-at-all r)]))
 
-  ;; there are some fairly complex invariants relating the raw bindings,
-  ;; the bindings (though we shouldn't be using these at all), and the post
-  ;; data. We use a binding-spec that can be mapped to both bindings and
-  ;; raw-bindings. Also, we just give up on getting the post data right.
-  ;; We'll implement that if we need it...
-  
-  (define (spec->raw-bindings binding-spec)
+  ;; we probably only care about the bytes in the case
+  ;; of JSON arguments
+  (define (spec->bytes binding-spec)
     (match binding-spec
-      [(list 'multipart/file file-bindings)
-       (for/list ([b (in-list file-bindings)])
-         (match-define (list label filename content) b)
-         (binding:file (string->bytes/utf-8 (symbol->string label))
-                       (string->bytes/utf-8 filename)
-                       '()
-                       (string->bytes/utf-8 content)))]
-      [else
-       (for/list ([b (in-list binding-spec)])
-         (binding:form (string->bytes/utf-8 (symbol->string (car b)))
-                       (string->bytes/utf-8 (cdr b))))]))
-
-  ;; SHOULDN'T USE ORDINARY BINDINGS AT ALL....
-  (define (spec->bindings binding-spec)
-    (match binding-spec
-      [(list 'multipart/file file-bindings)
-       (for/list ([b (in-list file-bindings)])
-         (match-define (list label filename content) b)
-         (cons label content))]
-      [else
-       binding-spec]))
+      [(list 'json (? bytes? s))
+       s]
+      [other #""]))
   
-  (define (run-request user path [binding-spec '()] [post? #f] [post-data #""])
-    (let* ([bindings (spec->bindings binding-spec)]
-           (raw-bindings (spec->raw-bindings binding-spec))
-           (start-rel-url (ensure-trailing-slash (string-append "/" (class-name-shim) "/" (string-join path "/"))))
-           (session (ct-session (class-name-shim) user (make-table start-rel-url bindings)))
-           (result (with-handlers ([(λ (x) #t) server-error-shim])
-                     (handlerPrime post? post-data session bindings raw-bindings path))))
-      (explode-response result)))
+  (define (run-request user path [binding-spec '()] [post? #f] [post-data-given #""])
+    ;; a shortcut to avoid having to write 'alist everywhere
+    (define spec (match binding-spec
+                   [(cons (or 'multipart 'json) _) binding-spec]
+                   [other (list 'alist other)]))
+    [define bindings (spec->bindings spec)]
+    (define raw-bindings (spec->raw-bindings spec))
+    (define post-data-from-bindings (spec->bytes spec))
+    ;; one or the other but not both...
+    (define post-data
+      (cond [(equal? post-data-given #"") post-data-from-bindings]
+            [(equal? post-data-from-bindings #"") post-data-given]
+            [else (error 'run-request "post data from bindings and optional arg: ~e and ~e"
+                         post-data-from-bindings post-data-given)]))
+    (define start-rel-url (ensure-trailing-slash (string-append "/" (class-name-shim) "/" (string-join path "/"))))
+    (define session (ct-session (class-name-shim) user (make-table start-rel-url bindings)))
+    (define result (with-handlers ([(λ (x) #t) server-error-shim])
+              (handlerPrime post? post-data session bindings raw-bindings path)))
+    (explode-response result))
 
   ;; quick hack to speed test case entry: replace slashes with spaces, turn into list:
   (define (path2list p)
@@ -193,7 +183,9 @@ u must add a summative comment at the end.
       ;; bad YAML
       (400 (,m ("author" "validate") () #t #"ziggy stardust"))
       ;; bogus path piece
-      (404 (,m ("author" "boguspath" "validate") () #t ,assignment-yaml))
+      ;; holding off on fixing this until we have a handle on paths...
+      (404 (,m ("author" "boguspath" "validate") () #t ,assignment-yaml)
+           boguspath-validate)
       (200 (,m ("author" "validate") () #t ,assignment-yaml))
       (200 (,m ("author" "validate") () #t ,yaml-with-html))
       (200 (,m ("assignments")))
@@ -204,9 +196,10 @@ u must add a summative comment at the end.
       ;; on line 197 of authoring/next-action.rkt
       (400 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload") () #t #""))
       (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload")
-               (multipart/file
-                ((file-1 "file-1" "abcd")
-                 (file-2 "grogra-2" "efgh"))) #t))
+               (multipart
+                ((namefilevalue #"file-1" #"file-1" () #"abcd")
+                 (namefilevalue #"file-2" #"grogra-2" () #"efgh")))
+               #t))
       (200 (,m ("assignments")))
       (200 (,m ("assignments" "dashboard" "test-with-html")))
       ;; not open yet:
@@ -216,99 +209,148 @@ u must add a summative comment at the end.
       ;; student navigation:
       (200 (,stu1 ()))
       (200 (,stu1 ("assignments")))
+      (403 (,stu9 ("feedback" "test-with-html"))
+           stranger-feedback)
       (200 (,stu1 ("feedback" "test-with-html")))
       ;; XSS attack: html in assignment description:
       ((200 ,no-italics) (,stu1 ("next" "test-with-html")))
       (200 (,stu1 ("submit" "test-with-html" "tests")
-                  (multipart/file
-                   ((file "my-file" "oh.... \n two lines!\n")))
+                  (multipart
+                   ((namefilevalue #"file" #"my-file" ()
+                                      #"oh.... \n two lines!\n")))
                   #t))
       ((200 ,no-italics) (,stu1 ("next" "test-with-html")))
       ;; re-submit
       (200 (,stu1 ("submit" "test-with-html" "tests")
-                  (multipart/file
-                   ((file "my-file" "oops... \n two different lines\n")))
+                  (multipart
+                   ((namefilevalue
+                     #"file" #"my-file" () #"oops... \n two different lines\n")))
                   #t))
       ;; re-submit with different file name
       (200 (,stu1 ("submit" "test-with-html" "tests")
-                  (multipart/file
-                   ((file "my-different-file" "oops... \n two different lines\n")))
-                  #t))
+                  (multipart
+                   ((namefilevalue #"file"
+                                      #"my-different-file"
+                                      ()
+                                      #"oops... \n two different lines\n")))
+                  #t)
+           stu1-resubmits)
       ;; content of the iframe:
       (200 (,stu1 ("browse" "test-with-html" "tests")))
       ;; the file (gosh I hope you can't see others' submissions...
       (200 (,stu1 ("browse" "test-with-html" "tests" "my-different-file")))
       ;; wait... random strangers can submit???
       (403 (,stu9 ("submit" "test-with-html" "tests")
-                  (multipart/file
-                   ((file "file-from-stranger" "anotuh\n1234\n3")))
+                  (multipart
+                   ((namefilevalue #"file"
+                                      #"file-from-stranger" ()
+                                      #"anotuh\n1234\n3")))
                   #t)
            stranger-submit)
       ;; create another student
       (200 (,m ("roster" "new-student") ((action . "create-student")
-                                         (uid . ,stu1))
+                                         (uid . ,stu2))
                #t))
-      ;; wait... who's in the roster?
-      (200 (,m ("roster")))
       
       ;; that student submits:
-      ;; YAGG... this works!??
       (200 (,stu2 ("submit" "test-with-html" "tests")
-                  (multipart/file
-                   ((file "a-third-file" "zzz\n\nzzz\nzzz\n")))
+                  (multipart
+                   ((namefilevalue
+                     #"file" #"a-third-file" () #"zzz\n\nzzz\nzzz\n")))
                   #t))
       ;; can stu2 read stu1's file? No. Good.
       (403 (,stu2 ("browse" "test-with-html" "tests" "my-different-file")))
-      ;; stu1 completes submit:
+      ;; stu1 publishes:
       (200 (,stu1 ,(path2list "submit/test-with-html/tests")
                   ((action . "submit"))
-                  #t))
+                  #t)
+           stu1-publishes)
       (200 (,stu1 ,(path2list "feedback/test-with-html")))
       ;; bogus hash:
       (403 (,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")))
-      ;; thunk to delay extraction of hash:
-      (200 ,(λ () (list stu1 (list "review" (lastreview)))))
-      ;; the iframe...
-      (200 ,(λ () (list stu1 (list "file-container" (lastreview)))))
       ;; viewing a bogus feedback
-      (403 (,stu1 ("feedback" "file-container" "BOGUSSS" "ALSOBAD" "load")))))
+      (403 (,stu1 ("feedback" "file-container" "BOGUSSS" "ALSOBAD" "load")))
+      ;; thunk to delay extraction of hash:
+      (200 ,(λ () (list stu1 (list "review" (lastreview stu1)))))
+      ;; the iframe...
+      (200 ,(λ () (list stu1 (list "file-container" (lastreview stu1)))))
+      ;; stu2 logs in:
+      (200 (,stu2 ()))
+      ;; clicks on assignments
+      (200 (,stu2 ("assignments")))
+      ;; stu2 publishes:
+      (200 (,stu2 ,(path2list "submit/test-with-html/tests")
+                  ((action . "submit"))
+                  #t)
+           stu2-publishes)
+      (200 (,stu2 ("feedback" "test-with-html")))
+      ;; stu2 clicks on last review
+      (200 ,(λ () (list stu2 (list "review" (lastreview stu2)))))
+      ;; should it be an error to submit bogus rubric json?
+      (200 ,(λ () (list stu2 (list "review" (lastreview stu2) "tests" "save")
+                        (list 'json #"\"abcd\"")
+                        #t)))
+      (200 ,(λ () (list stu2 (list "review" "submit" (lastreview stu2))))
+           stu2-submits-review1)
+      ;; must do both reviews, to be sure that we covered stu1's submission
+      (200 ,(λ () (list stu2 (list "review" (lastreview stu2) "tests" "save")
+                        (list 'json #"\"abcde\"")
+                        #t)))
+      (200 ,(λ () (list stu2 (list "review" "submit" (lastreview stu2))))
+           stu2-submits-review2)
+      (200 ,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))))
+           stu1-views-review)
+      ((200 ,no-italics)
+       ,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))
+                      ((feedback . "feedback with <i>italics</i>.")
+                       (flag . "goronsky"))
+                      #t))
+           stu1-submits-feedback)
+      (200 (,stu2 ("feedback" "test-with-html")))))
 
-  ;; return the last pending review for student 1 on "test-with-html"
-  (define (lastreview)
-    (last (pending-review-hashes (cons "test-with-html" stu1))))
+  ;; return the last pending review for given student on "test-with-html"
+  (define (lastreview uid)
+    (last (pending-review-hashes (cons "test-with-html" uid))))
 
-  (define REGRESSION-FILE-PATH
-    (string-append "/tmp/regression-results-"(number->string (current-seconds))".rktd"))
+  ;; return the feedback for given student on "test-with-html"
+  (define (firstfeedback uid)
+    (first (feedback-hashes (cons "test-with-html" uid))))
+
+
 
   (run-tests
    (test-suite
     "generate regression & a few tests"
-    (call-with-output-file REGRESSION-FILE-PATH
+    (call-with-output-file REGRESSION-FILE-PATH-PERSISTENT
       (λ (r-port)
-        (for ([test (in-list tests)]
-              [i (in-naturals)])
-          (define-values (expected request-args-or-thunk testname)
-            (match test
-              [(list a b) (values a b "")]
-              [(list a b c) (values a b (symbol->string c))]))
-          (define request-args
-            ;; !@#$ request hashes... can't extract until earlier tests have been
-            ;; run.
-            (cond [(procedure? request-args-or-thunk) (request-args-or-thunk)]
-                  [else request-args-or-thunk]))
-          (define result (apply run-request request-args))
-          (test-case
-           (format "~s" (list i testname request-args))
-           (match expected
-            [(? number? code)
-             (check-equal? (first result) code)]
-            [(list (? number? code)
-                   (? procedure? test-proc))
-             (begin (check-equal? (first result) code)
-                    (test-proc result))]))
-          (define output-val (list i testname request-args result))
-          (fprintf r-port "~s\n" output-val)
-          (printf "~s\n" output-val))))))
+        (call-with-output-file REGRESSION-FILE-PATH-TEMP
+          #:exists 'truncate
+          (λ (rt-port)
+            (for ([test (in-list tests)]
+                  [i (in-naturals)])
+              (define-values (expected request-args-or-thunk testname)
+                (match test
+                  [(list a b) (values a b "")]
+                  [(list a b c) (values a b (symbol->string c))]))
+              (define request-args
+                ;; !@#$ request hashes... can't extract until earlier tests have been
+                ;; run.
+                (cond [(procedure? request-args-or-thunk) (request-args-or-thunk)]
+                      [else request-args-or-thunk]))
+              (define result (apply run-request request-args))
+              (test-case
+               (format "~s" (list i testname request-args))
+               (match expected
+                 [(? number? code)
+                  (check-equal? (first result) code)]
+                 [(list (? number? code)
+                        (? procedure? test-proc))
+                  (begin (check-equal? (first result) code)
+                         (test-proc result))]))
+              (define output-val (list i testname request-args result))
+              (fprintf r-port "~s\n" output-val)
+              (fprintf rt-port "~s\n" output-val)
+              #;(printf "~s\n" output-val))))))))
 
   
   (sleep 1)
