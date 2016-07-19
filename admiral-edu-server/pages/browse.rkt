@@ -12,7 +12,7 @@
          (prefix-in error: "errors.rkt")
          "../util/file-extension-type.rkt"
          "../authoring/assignment.rkt"
-         (prefix-in authorized: "../util/authorized.rkt"))
+         "templates.rkt")
 
 (define (repeat val n)
   (cond
@@ -36,9 +36,10 @@
          (file (to-path url))
          (file-path (submission-file-path class assignment user-id stepName file))
          (contents (if (is-directory? file-path) (render-directory file-path start-url) (render-file file-path))))
-        (string-append (include-template "html/browse-file-container-header.html")
+    (string-append (include-template "html/browse-file-container-header.html")
                        contents
                        (include-template "html/file-container-footer.html"))))
+
 
 (provide download)
 (define (download session role url)

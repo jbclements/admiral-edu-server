@@ -235,12 +235,13 @@
          (file (to-path (cdr rest)))
          (test-prime (newline))
          (file-path (submission-file-path class assignment reviewee stepName file))
-         (contents (if (is-directory? file-path) (render-directory file-path start-url) (render-file file-path))))
+         (contents (if (is-directory? file-path)
+                       (render-directory file-path start-url)
+                       (render-file file-path))))
     (when (not (validate review session))
       (raise-403-not-authorized "You are not authorized to see this page."))
-    (string-append (include-template "html/file-container-header.html")
-                   contents
-                   (include-template "html/file-container-footer.html"))))
+    ;; FIXME AAAAAAAAAAAAAHHHHHHHHHHHHHH!!!!!!!!!!!!
+    (file-container-page default-mode save-url load-url assignment step path contents)))
 
 (define (determine-mode-from-filename filename)
   (let* ((split (string-split filename "."))
@@ -283,6 +284,7 @@
                    "</span>"
                    "</li>")))
 
+;; FIXME : OH. MY. GOD.
 (define (render-file file-path)
   (unless (eq? (path-info file-path) 'file)
     (raise-403-not-authorized "You are not allowed to see this page."))

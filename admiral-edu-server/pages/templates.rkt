@@ -65,15 +65,38 @@
 
 ;; this contract should probably be somewhere much more
 ;; global
-(define (class-name? c)
-  (and (string? c) (regexp-match #px"[-_a-zA-Z0-9]" c)))
+(define (safe-id? c)
+  (and (string? c) (regexp-match #px"^[-_a-zA-Z0-9]+$" c)))
+
+(define (safe-id s)
+  (unless (safe-id s)
+    (raise-argument-error 'safe-id "simple alphanumeric id" 0 s))
+  s)
+
+;; FIXME the set of safe filenames should *definitely* be checked
+;; further upstream.
+(define (filename? f)
+  (and (string? f) (regexp-match #px"^[-_a-zA-Z0-9\\.]+$" f)))
+
+(define (filename f)
+  (unless (filename? f)
+    (raise-argument-error 'filename "legal filename" 0 f))
+  f)
 
 ;; given a list of xexprs, convert them to strings
 ;; for use in a template
 (define (xexprs->string xexprs)
   (apply string-append (map xexpr->string xexprs)))
 
-;; FIXME return responses rather than strings!
+;; given a string, ensure that it doesn't contain
+;; backslashes, single- or double-quotes
+(define (js-str? s)
+  (and (string? s) (regexp-match #px"^[^\\\\\"']+$" s)))
+
+(define (js-str s)
+  (unless (js-str? s)
+    (raise-argument-error 'js-str "javascript string piece" 0 s))
+  s)
 
 ;; given values for the fields, construct the feedback
 ;; page using the template
@@ -103,15 +126,17 @@
 ;; given the values for the fields, construct the authoring page
 ;; using the template
 (provide (contract-out
-          [authoring-page (-> class-name? ct-url? (listof xexpr?) (listof xexpr?) response?)]))
+          [authoring-page (-> safe-id? ct-url? (listof xexpr?) (listof xexpr?) response?)]))
 (define (authoring-page class-name save-url content message)
   (response-200
    (include-template "html/authoring.html")))
 
 ;; given values for the fields, construct the file-container page
 ;; using the template
-#;(provide (contract-out
-          [file-container-page (-> )]))
+(provide (contract-out
+          [file-container-page (-> js-str? ct-url? ct-url? safe-id? safe-id? filename? (listof xexpr?) string?)]))
+(define (file-container-page default-mode save-url load-url assignment step path content)
+  (include-template "html/file-container.html"))
 
 ;; wrap a string as a 200 Okay response. The idea is to use
 ;; this only directly on the result of a template
