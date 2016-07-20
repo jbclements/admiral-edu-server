@@ -62,6 +62,10 @@
              (let ([os (open-output-string)])
                ((response-output r) os)
                (get-output-string os)))]
+      ;; need to special-case this, because #<void> can't be
+      ;; read by 'read'
+      [(void? r)
+       (list 'web-server-returned-void 'void-value)]
       [else
        (list 'not-a-response-at-all r)]))
 
@@ -163,9 +167,11 @@ u must add a summative comment at the end.
   ;; to be thunked. 
   (define tests
     `((200 (,m ()))
+      ;; REGRESSION: changed title
       (200 (,m ("assignments")))
       (200 (,m ("roster")))
       (200 (,m ("roster" "new-student")))
+      ;; REGRESSION: error feedback less useful than old
       ;; should be a 400, not a 200:
       (400 (,m ("roster" "new-student") () #t))
       (200 (,m ("roster" "new-student") ((action . "create-student")
@@ -176,24 +182,26 @@ u must add a summative comment at the end.
                                          (uid . ,stu1))
                #t))
       (200 (,m ("author")))
-      ;; ouch internal error!
+      ;; NON-REGRESSION: new version better than old
       (404 (,m ("author") () #t #"assignment-id : zzz1"))
       ;; ouch! another internal error!
       (404 (,m ("author" "bogwater") () #t #"assignment-id : zzz1"))
       ;; bad YAML
-      (400 (,m ("author" "validate") () #t #"ziggy stardust"))
+      ;; NON-REGRESSION: new version better than old
+      (400 (,m ("author" "validate") () #t #"ziggy stardust")) ;; 10
       ;; bogus path piece
       ;; holding off on fixing this until we have a handle on paths...
       (404 (,m ("author" "boguspath" "validate") () #t ,assignment-yaml)
            boguspath-validate)
       (200 (,m ("author" "validate") () #t ,assignment-yaml))
       (200 (,m ("author" "validate") () #t ,yaml-with-html))
+      ;; REGRESSION: missing title
       (200 (,m ("assignments")))
-      (200 (,m ("assignments" "dashboard" "test-with-html")))
+      ;; REGRESSION: missing title
+      (200 (,m ("assignments" "dashboard" "test-with-html"))) ;; 15
       (200 (,m ("dependencies" "test-with-html")))
       (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews")))
-      ;; fix this bug by rewriting to use raw bindings everywhere and fail nicely
-      ;; on line 197 of authoring/next-action.rkt
+      ;; NON-REGRESSION: fixed bug
       (400 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload") () #t #""))
       (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload")
                (multipart
