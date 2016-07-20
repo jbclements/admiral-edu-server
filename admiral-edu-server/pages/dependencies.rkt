@@ -173,8 +173,8 @@
    append
    (for/list ([i (in-range n)])
      (define ns (number->string (add1 i)))
-     `((p ((style "font-weight:bold")) "Solution #" ,ns)
-       (p ((style "margin-left:10px"))
+     `((p ((style "font-weight:bold;")) "Solution #" ,ns)
+       (p ((style "margin-left:10px;"))
           (input ((name ,(string-append "file-"ns))
                   (type "file")
                   (id ,(string-append "file-"ns)))))))))
