@@ -2,6 +2,9 @@
 
 (define collection 'multi)
 
+(define compile-omit-paths '("testing/regression-comparison.rkt"))
+(define test-omit-paths '("testing/regression-comparison.rkt"))
+
 (define deps
   (list "base"
         "db-lib"
