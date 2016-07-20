@@ -27,32 +27,7 @@
       <!-- HOLY XXXXX, BATMAN... THE FILE CONTENTS ARE INCLUDED NAKED HERE... -->
       @content
     </div>
-    <script>
-
-      var defaultMode = "@(js-str default-mode)";
-
-      function save(json, callback){
-	  var xhr = new XMLHttpRequest();
-	  xhr.open("POST", @(urlgen save-url), true);
-	  xhr.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
-	  xhr.send(json);
-	  xhr.onloadend = callback;
-      }
-
-      function load(callback){
-        
-	  var xhr = new XMLHttpRequest();
-          xhr.open("POST", @(urlgen load-url), true);
-	  xhr.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
-          xhr.send();
-          xhr.onreadystatechange = function () {
-	      if (xhr.readyState == 4) {
-		  callback(xhr.responseText);
-	      };
-	  }; 
-      }
-    </script>
-
+    <script src="/bin/filecontainer.js"></script>
     <script src="/bin/review.js"></script>
   </body>
 
