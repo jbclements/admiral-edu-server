@@ -3,34 +3,11 @@
   <head>
     <title>Captain Teach - File Container</title>
 
-    <script>
-
-      var defaultMode = "@(js-str default-mode)";
-
-      function save(json, callback){
-	  var xhr = new XMLHttpRequest();
-	  xhr.open("POST", @(urlgen save-url), true);
-	  xhr.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
-	  xhr.send(json);
-	  xhr.onloadend = callback;
-      }
-
-      function load(callback){
-	  var xhr = new XMLHttpRequest();
-          xhr.open("POST", @(urlgen load-url), true);
-	  xhr.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
-          xhr.send();
-          xhr.onreadystatechange = function () {
-	      if (xhr.readyState == 4) {
-		  callback(xhr.responseText);
-	      };
-	  }; 
-      }
-    </script>
-
     <script src="/lib/codemirror.js"></script>
-    <script type="text/javascript" src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.10.1.min.js"></script>
-    <script src="/bin/review.js"></script>
+    <script
+       src="https://code.jquery.com/jquery-3.1.0.min.js"
+       integrity="sha256-cCueBR6CsyA4/9szpPfrX3s49M9vUU5BgtiJj06wt/s="
+       crossorigin="anonymous"></script>
     <link rel="stylesheet" href="/lib/codemirror.css">
     <link rel="stylesheet" href="/css/file-container.css">
   </head>
@@ -50,6 +27,33 @@
       <!-- HOLY XXXXX, BATMAN... THE FILE CONTENTS ARE INCLUDED NAKED HERE... -->
       @content
     </div>
+    <script>
+
+      var defaultMode = "@(js-str default-mode)";
+
+      function save(json, callback){
+	  var xhr = new XMLHttpRequest();
+	  xhr.open("POST", @(urlgen save-url), true);
+	  xhr.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+	  xhr.send(json);
+	  xhr.onloadend = callback;
+      }
+
+      function load(callback){
+        
+	  var xhr = new XMLHttpRequest();
+          xhr.open("POST", @(urlgen load-url), true);
+	  xhr.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+          xhr.send();
+          xhr.onreadystatechange = function () {
+	      if (xhr.readyState == 4) {
+		  callback(xhr.responseText);
+	      };
+	  }; 
+      }
+    </script>
+
+    <script src="/bin/review.js"></script>
   </body>
 
 </html>
