@@ -69,7 +69,7 @@
   (and (string? c) (regexp-match #px"^[-_a-zA-Z0-9]+$" c)))
 
 (define (safe-id s)
-  (unless (safe-id s)
+  (unless (safe-id? s)
     (raise-argument-error 'safe-id "simple alphanumeric id" 0 s))
   s)
 
@@ -81,6 +81,15 @@
 (define (filename f)
   (unless (filename? f)
     (raise-argument-error 'filename "legal filename" 0 f))
+  f)
+
+;; blecch...
+(define (filename-or-empty? f)
+  (or (equal? f "") (filename? f)))
+
+(define (filename-or-empty f)
+  #;(unless (filename-or-empty? f)
+    (raise-argument-error 'filename-or-empty "legal filename" 0 f))
   f)
 
 ;; given a list of xexprs, convert them to strings
@@ -134,9 +143,17 @@
 ;; given values for the fields, construct the file-container page
 ;; using the template
 (provide (contract-out
-          [file-container-page (-> js-str? ct-url? ct-url? safe-id? safe-id? filename? (listof xexpr?) string?)]))
+          ;; FIXME content should be a list of xexprs, not a string...
+          [file-container-page (-> js-str? ct-url? ct-url? safe-id? safe-id? filename-or-empty? string? string?)]))
 (define (file-container-page default-mode save-url load-url assignment step path content)
+  ;; FIXME need to wrap with response-200
   (include-template "html/file-container.html"))
+
+;; given values for the fields, construct the browse-file-container page
+(provide (contract-out
+          [browse-file-container-page (-> safe-id? xexpr? filename-or-empty? js-str? string? string?)]))
+(define (browse-file-container-page assignment step path default-mode content)
+  (include-template "html/browse-file-container.html"))
 
 ;; wrap a string as a 200 Okay response. The idea is to use
 ;; this only directly on the result of a template
@@ -150,6 +167,10 @@
 (module+ test
   (require rackunit)
 
+  (check-not-exn
+   (λ ()
+     (browse-file-container-page "abc" "def" "ghi.def" "abcd" "contenty")))
+  
   (check-match
    (xexpr->error-page-html "abc<i>wow</i>tag")
    (regexp #px"&lt;i&gt;wow&lt;/i&gt;"))

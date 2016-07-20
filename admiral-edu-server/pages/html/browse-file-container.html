@@ -3,6 +3,8 @@
   <head>
     <title>Captain Teach - File Container</title>
 
+    <link rel="stylesheet" href="/lib/codemirror.css">
+    <link rel="stylesheet" href="/css/file-container.css">
   </head>
   
   
@@ -11,30 +13,29 @@
       <div id="file-header" class="file-header">
 	<h1>
 	  @(safe-id assignment) /
-	  @(safe-id step) / 
+	  @(xexpr->string step) / 
 	  @(filename-or-empty path)
 	</h1>
 	<div id="syntax-menu" class="syntax-menu">
 	</div>
+        
       </div>
-      <!-- HOLY XXXXX, BATMAN... THE FILE CONTENTS ARE INCLUDED NAKED HERE... -->
+      <!--- MAJOR PROBLEM TO FIXME NAKED STRING HERE --->
       @content
     </div>
-
+    
     <script src="/lib/codemirror.js"></script>
     <script
        src="https://code.jquery.com/jquery-3.1.0.min.js"
        integrity="sha256-cCueBR6CsyA4/9szpPfrX3s49M9vUU5BgtiJj06wt/s="
        crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="/lib/codemirror.css">
-    <link rel="stylesheet" href="/css/file-container.css">
     <script>
       var defaultMode = "@(js-str default-mode)";
-      var saveURL = @(urlgen save-url);
-      var loadURL = @(urlgen load-url);
     </script>
-    <script src="/bin/filecontainer.js"></script>
+    <script src="/bin/browse-filecontainer.js"></script>
     <script src="/bin/review.js"></script>
+
+
   </body>
 
 </html>

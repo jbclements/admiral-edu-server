@@ -1,5 +1,9 @@
-#lang racket
-(require web-server/http/bindings
+#lang racket/base
+
+(require racket/list
+         racket/string
+         racket/match
+         web-server/http/bindings
          web-server/templates
          web-server/http/response-structs
          xml
@@ -35,10 +39,9 @@
          [path (to-path-html url)]
          (file (to-path url))
          (file-path (submission-file-path class assignment user-id stepName file))
+         ;; FIXME should not be a string
          (contents (if (is-directory? file-path) (render-directory file-path start-url) (render-file file-path))))
-    (string-append (include-template "html/browse-file-container-header.html")
-                       contents
-                       (include-template "html/file-container-footer.html"))))
+    (browse-file-container-page assignment step path default-mode contents)))
 
 
 (provide download)
@@ -48,6 +51,7 @@
          (assignment (first url))
          (step (second url))
          (path (drop url 2))
+         ;; FIXME don't use strings here
          (file-path (string-join (append (take path (- (length path) 2)) (list (last path))) "/"))
          (temp (printf "file-path: ~a\n" file-path))
          (data (maybe-get-file-bytes class assignment step user file-path)))
