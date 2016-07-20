@@ -203,12 +203,14 @@ u must add a summative comment at the end.
       (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews")))
       ;; NON-REGRESSION: fixed bug
       (400 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload") () #t #""))
+      ;; upload file dependencies
       (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload")
                (multipart
                 ((namefilevalue #"file-1" #"file-1" () #"abcd")
                  (namefilevalue #"file-2" #"grogra-2" () #"efgh")))
                #t))
-      (200 (,m ("assignments")))
+      ;; REGRESSION missing title yet again... why do we keep hitting this URL?
+      (200 (,m ("assignments"))) ;; 20
       (200 (,m ("assignments" "dashboard" "test-with-html")))
       ;; not open yet:
       (400 (,stu1 ("next" "test-with-html")))
