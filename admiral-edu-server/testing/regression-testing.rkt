@@ -203,14 +203,12 @@ u must add a summative comment at the end.
       (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews")))
       ;; NON-REGRESSION: fixed bug
       (400 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload") () #t #""))
-      ;; upload file dependencies
       (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload")
                (multipart
                 ((namefilevalue #"file-1" #"file-1" () #"abcd")
                  (namefilevalue #"file-2" #"grogra-2" () #"efgh")))
                #t))
-      ;; REGRESSION missing title yet again... why do we keep hitting this URL?
-      (200 (,m ("assignments"))) ;; 20
+      (200 (,m ("assignments")))
       (200 (,m ("assignments" "dashboard" "test-with-html")))
       ;; not open yet:
       (400 (,stu1 ("next" "test-with-html")))
@@ -229,7 +227,7 @@ u must add a summative comment at the end.
                    ((namefilevalue #"file" #"my-file" ()
                                       #"oh.... \n two lines!\n")))
                   #t))
-      ((200 ,no-italics) (,stu1 ("next" "test-with-html")))
+      ((200 ,no-italics) (,stu1 ("next" "test-with-html"))) ;; 30
       ;; re-submit
       (200 (,stu1 ("submit" "test-with-html" "tests")
                   (multipart
