@@ -29,6 +29,8 @@
 (define (load session role url [message '()])
   (do-file-container session (ct-session-uid session) (first url) (second url) (drop url 2) message))
 
+;; render a "file-container" page (used exclusively I believe in an iframe for listing
+;; a directory or editing a file using CodeMirror
 (define (do-file-container session user-id assignment-id stepName url [message '()])
   (let* ((start-url (hash-ref (ct-session-table session) 'start-url))
          (class (ct-session-class session))
