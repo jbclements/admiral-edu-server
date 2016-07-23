@@ -73,6 +73,23 @@
     (raise-argument-error 'safe-id "simple alphanumeric id" 0 s))
   s)
 
+(define (string-or-false s)
+  (cond [(false? s) "false"]
+        ;; FIXME not sure about the definition of javascript
+        ;; string quoting
+        [(string? s)
+         (string-append
+          "'"
+          (regexp-replace* #px"'"
+                           (regexp-replace* #px"\\\\" s "\\\\\\\\")
+                           "\\\\'")
+          "'")]))
+
+(define (false? s)
+  (eq? s #f))
+
+
+
 ;; FIXME the set of safe filenames should *definitely* be checked
 ;; further upstream.
 (define (filename? f)
@@ -151,8 +168,8 @@
 
 ;; given values for the fields, construct the browse-file-container page
 (provide (contract-out
-          [browse-file-container-page (-> safe-id? xexpr? filename-or-empty? js-str? string? string?)]))
-(define (browse-file-container-page assignment step path default-mode content)
+          [browse-file-container-page (-> safe-id? xexpr? filename-or-empty? js-str? string? (or/c string? false?) string?)]))
+(define (browse-file-container-page assignment step path default-mode content file-url)
   (include-template "html/browse-file-container.html"))
 
 ;; wrap a string as a 200 Okay response. The idea is to use
@@ -169,7 +186,15 @@
 
   (check-not-exn
    (λ ()
-     (browse-file-container-page "abc" "def" "ghi.def" "abcd" "contenty")))
+     (browse-file-container-page
+      "abc" "def" "ghi.def" "abcd" "contenty"
+      "waffle-house/abc.txt")))
+
+  (check-not-exn
+   (λ ()
+     (browse-file-container-page
+      "abc" "def" "ghi.def" "abcd" "contenty"
+      #f)))
   
   (check-match
    (xexpr->error-page-html "abc<i>wow</i>tag")
@@ -181,4 +206,10 @@
 
   (check-match
    (xexprs->plain-page-html "Quadra!" '((p "goofy")))
-   (regexp #px"Quadra!.*<p>goofy</p>")))
+   (regexp #px"Quadra!.*<p>goofy</p>"))
+
+  (check-equal? (string-or-false #t) "true")
+  (check-equal? (string-or-false #f) "false")
+  (check-equal? (string-or-false "abc") "'abc'")
+  (check-equal? (string-or-false "abc'de'\\n\\" )
+                "'abc\\'de\\'\\\\n\\\\'"))

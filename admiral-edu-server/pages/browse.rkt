@@ -43,7 +43,7 @@
          (file-path (submission-file-path class assignment user-id stepName file))
          ;; FIXME should not be a string
          (contents (if (is-directory? file-path) (render-directory file-path start-url) (render-file file-path))))
-    (browse-file-container-page assignment step path default-mode contents)))
+    (browse-file-container-page assignment step path default-mode contents #f)))
 
 
 (provide download)
@@ -118,6 +118,7 @@
 (define (render-directory dir-path start-url)
   (let ((dirs (list-dirs dir-path))
         (files (list-files dir-path)))
+    ;; FIXME AAAH MORE STRINGS
     (string-append
      "<div id=\"directory\" class=\"browser\">"
      "<ul>"
@@ -128,6 +129,7 @@
 
 (define (html-directory start-url)
   (lambda (dir)
+    #;`(li ((class "directory")))
     (string-append "<li class=\"directory\"><a href=\"" start-url dir "\">" dir "</a></li>")))
 
 (define (html-file start-url)
