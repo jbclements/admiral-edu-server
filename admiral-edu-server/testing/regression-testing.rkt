@@ -245,8 +245,12 @@ u must add a summative comment at the end.
            stu1-resubmits)
       ;; content of the iframe:
       (200 (,stu1 ("browse" "test-with-html" "tests")))
-      ;; the file (gosh I hope you can't see others' submissions...
+      ;; the file 
       (200 (,stu1 ("browse" "test-with-html" "tests" "my-different-file")))
+      ;; let's see what the download content looks like
+      (200 (,stu1 ("browse" "test-with-html" "tests" "download" "my-different-file"))
+           download)
+      
       ;; wait... random strangers can submit???
       (403 (,stu9 ("submit" "test-with-html" "tests")
                   (multipart
