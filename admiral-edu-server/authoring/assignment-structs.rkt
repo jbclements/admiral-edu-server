@@ -154,6 +154,12 @@
 ;; instructor-solution: If this is an instructor solution dependency
 ;; met: #t if this dependency has been met and #f otherwise.
 
+;; FIXME: I don't believe "met" should be a field; if you hold on to a
+;; dependency structure, its "met" may become stale.
+
+;; FIXME: looks like there shouldn't be more than one dependency for an
+;; assignment/step/review tuple.
+
 (provide Dependency)
 (define-type Dependency dependency)
 

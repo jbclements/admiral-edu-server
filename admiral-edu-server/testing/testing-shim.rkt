@@ -19,12 +19,14 @@
 (define (class-name-shim)
   (class-name))
 
+;; loads the testing configuration and initializes the database
 (define (init-shim)
   (current-configuration test-conf)
-
   ;; start with a fresh database
   (db-init))
 
+;; deletes the "local storage" directory and everything in it.
+;; FIXME just call this from init-shim.
 (define (delete-local-files-shim)
   (when (directory-exists? (build-path (local-storage-path) (class-name-shim)))
     (fprintf (current-error-port)

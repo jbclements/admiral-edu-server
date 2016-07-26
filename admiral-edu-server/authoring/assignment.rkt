@@ -215,7 +215,7 @@
          (get-deps-f (AssignmentHandler-get-dependencies handler)))
     (get-deps-f assignment)))
 
-
+;; upload a dependency
 (: handle-dependency (String Dependency (Listof (Pairof Symbol (U String Bytes))) (Listof Any) -> (Result String)))
 (define (handle-dependency assignment-id dependency bindings raw-bindings)
   (let* ((assignment (assignment-id->assignment assignment-id))
@@ -223,7 +223,7 @@
          (take-dependency (AssignmentHandler-take-dependency handler)))
     (take-dependency assignment-id dependency bindings raw-bindings)))
          
-
+;; return the dependencies associated with an assignment/step/review
 (: find-dependencies (String String String -> (Listof Dependency)))
 (define (find-dependencies assignment-id step-id review-id)
   (let ((deps (assignment-id->assignment-dependencies assignment-id))
@@ -239,7 +239,7 @@
         (filter-function (lambda ([dep : Dependency]) (not (dependency-met dep)))))
     (if (null? (filter filter-function deps)) (assignment:mark-ready assignment-id (class-name)) #f)))
 
-
+;; given an assignment id, read the YAML and construct an Assignment structure
 (: assignment-id->assignment (String -> Assignment))
 (define (assignment-id->assignment id)
   (yaml->assignment (string->assignment-yaml (retrieve-assignment-description (class-name) id))))
@@ -257,7 +257,7 @@
     (car result)))
 
 
-;; this is really a hack; this cast fail could happen much later. The
+;; FIXME this is really a hack; this cast fail could happen much later. The
 ;; problem is that since there's no ImmutableHashTable type, you can't
 ;; formulate this as a flat predicate.
 (: string->assignment-yaml (String -> Assignment-YAML))
