@@ -14,7 +14,6 @@
            racket/list
            racket/match
            web-server/http/response-structs
-           web-server/http/request-structs
            rackunit
            rackunit/text-ui
            "../dispatch.rkt"
