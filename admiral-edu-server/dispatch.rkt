@@ -32,35 +32,66 @@
   #t)
 
 ;; Defines how to process incoming requests
+;; FIXME this is totally not using dispatch rules in any useful way...
+;; this would be a great way to actually tighten up the URL handling.
+;; FIXME arrgh! this can handle URL generation as well...
 (provide ct-rules)
 (define-values (ct-rules mk-url)
   (dispatch-rules
-   [((string-arg) ...) (handler #f)]
-   [((string-arg) ...) #:method "post" (handler #t)]
+   [((string-arg) ...) handler]
+   [((string-arg) ...) #:method "post" handler]
    [else error:four-oh-four-response]))
 
-;; given whether this is a POST, handles an incoming request, returns a response
-(define (handler post?)
-  (lambda (req path)
-    (log-ct-access-info/nomacro
-     (format
-      "[~a] ~a - ~a ~a" (date->string (current-date) #t)
-      (class-name) (if post? "POST" "GET") path))
-    (match (req->uid req)
-      [(? string? uid-str)
-       (let* ((raw-bindings (request-bindings/raw req))
-              (bindings (request-bindings req))
-              (post-data (request-post-data/raw req))
-              (clean-path (filter (lambda (x) (not (equal? "" x))) path))
-              (start-rel-url (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/"))))
-              (session (ct-session (class-name) uid-str (make-table start-rel-url bindings))))
-         (with-handlers ([any? error:server-error-response])
-                        (handlerPrime post? post-data session
-                                      bindings raw-bindings clean-path)))]
-      [else
-       (error:error-xexprs->response
-        `((p "missing authentication headers."))
-        400 #"Bad Request")])))
+;; FIXME transitioning very gradually...
+;; initially using this only for interactive testing server...
+;; I'm aware of the danger that the interactive server may not
+;; share as much code as possible with the production one.
+;; the goal is to eliminate the classname-trimming done by the
+;; apache forwarding rules, to make the testing env more like
+;; the real one, and to allow use of the url-maker.
+(provide ct-rules-2)
+(define-values (ct-rules-2 mk-url-2)
+  (dispatch-rules
+   ;; FIXME REAL RULES HERE!
+   [((string-arg) (string-arg) ...) handler2]
+   [((string-arg) (string-arg) ...) #:method "post" handler2]
+   ;; no else clause to allow serving of static files
+   ))
+
+(define (handler req path)
+  (handler2 req #f path))
+
+;; should replace handler eventually. Too much to fix!
+;; given request, classname (ignored, but inserted by dispatch interface), and
+;; list of path strings, handle a request
+(define (handler2 req classname path)
+  (define method (request-method req))
+  (log-ct-access-info/nomacro
+   (format
+    "[~a] ~a - ~a ~a" (date->string (current-date) #t)
+    (class-name) method path))
+  (define post?
+    (match method
+      [(or #"POST" #"post") #t]
+      [(or #"GET" "get") #f]
+      [other (error:error-xexprs->response
+              `((p "expected GET or POST"))
+              400 #"Bad Request")]))
+  (match (req->uid req)
+    [(? string? uid-str)
+     (let* ((raw-bindings (request-bindings/raw req))
+            (bindings (request-bindings req))
+            (post-data (request-post-data/raw req))
+            (clean-path (filter (lambda (x) (not (equal? "" x))) path))
+            (start-rel-url (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/"))))
+            (session (ct-session (class-name) uid-str (make-table start-rel-url bindings))))
+       (with-handlers ([any? error:server-error-response])
+         (handlerPrime post? post-data session
+                       bindings raw-bindings clean-path)))]
+    [else
+     (error:error-xexprs->response
+      `((p "missing authentication headers."))
+      400 #"Bad Request")]))
 
 
 (define (ensure-trailing-slash candidate)
@@ -201,3 +232,19 @@
     (cond [(role:exists? class uid) (role:select class uid)]
           [else #f])))
 
+(module+ test
+  (require rackunit
+           racket/promise
+           "testing/test-configuration.rkt")
+
+  (current-configuration test-conf)
+
+  ;; copied from docs.
+  (define (url->request method u)
+    (make-request method (string->url u) empty
+                  (delay empty) #f "1.2.3.4" 80 "4.3.2.1"))
+
+  (check-not-exn
+   (λ () (ct-rules-2 (url->request #"GET" "http://example.com/"))))
+  (check-not-exn
+   (λ () (ct-rules-2 (url->request #"POST" "http://example.com/")))))
