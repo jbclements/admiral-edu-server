@@ -40,6 +40,8 @@
   (define message (do-post action post-data bindings))
   (do-load session rest message))
 
+;; add the student or roster, return a string containing a message
+;; FIXME should be an xexpr
 (define (do-post action post-data bindings)
   (cond [(equal? action CREATE-STUDENT) (post->create-student bindings)]
         [(equal? action PROCESS-ROSTER) (post->process-roster bindings)]
@@ -47,7 +49,9 @@
         [else ""]))
 
 (define (post->create-student bindings)
+  ;; FIXME check much earlier?
   (cond [(not (exists-binding? 'uid bindings)) "<p>Missing User ID.</p>"]
+        ;; FIXME use raw bindings
         [else (let* ((uid (extract-binding/single 'uid bindings))
                      (result (register-uid uid)))
                 (cond [(Failure? result) (Failure-message result)]

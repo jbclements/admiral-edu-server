@@ -99,6 +99,7 @@
   ;;(if met (dependency-met assignment step review-id) (generate-dependency-form assignment step review-id))])
   (dependencies-page load-url dependency-form))
 
+;; handle a post to /dependencies
 (provide post)
 (define (post session rest bindings raw-bindings)
   (let* ((class (class-name))
@@ -112,7 +113,7 @@
            ;; FIXME: check for existence of these!
            (let ((stepName (cadr rest))
                  (review-id (caddr rest)))
-             (upload-submissions class assignment stepName review-id bindings raw-bindings))]
+             (upload-dependencies class assignment stepName review-id bindings raw-bindings))]
           [(string=? action THREE-STUDY-ACTION) (upload-three-condition assignment bindings raw-bindings)])))
 
 (define (load-rubric class assignment stepName review-id)
@@ -133,7 +134,9 @@
      empty
      (list (string->bytes/utf-8 (render-result assignment-id result))))))
 
-(define (upload-submissions class assignment-id step-id review-id bindings raw-bindings)
+;; upload review dependencies, return a response. should be a list of xexprs?
+(define (upload-dependencies class assignment-id step-id review-id bindings raw-bindings)
+  ;; FIXME what's up with the car here? alarming.
   (let* ((dep (car (assign:find-dependencies assignment-id step-id review-id)))
          (result (assign:handle-dependency assignment-id dep bindings raw-bindings)))
     (assign:check-ready assignment-id)
