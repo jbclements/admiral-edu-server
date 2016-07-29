@@ -240,6 +240,7 @@
                        (render-file file-path))))
     (when (not (validate review session))
       (raise-403-not-authorized "You are not authorized to see this page."))
+    ;; FIXME updates to browse page must be brought across here, too.
     ;; FIXME AAAAAAAAAAAAAHHHHHHHHHHHHHH!!!!!!!!!!!!
     (file-container-page default-mode save-url load-url assignment step path contents)))
 

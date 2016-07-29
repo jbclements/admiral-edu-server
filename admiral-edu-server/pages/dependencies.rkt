@@ -136,7 +136,8 @@
 
 ;; upload review dependencies, return a response. should be a list of xexprs?
 (define (upload-dependencies class assignment-id step-id review-id bindings raw-bindings)
-  ;; FIXME what's up with the car here? alarming.
+  ;; FIXME what's up with the car here? alarming. cf fixme on enforcing exactly one
+  ;; dependency in assignment-structs.rkt
   (let* ((dep (car (assign:find-dependencies assignment-id step-id review-id)))
          (result (assign:handle-dependency assignment-id dep bindings raw-bindings)))
     (assign:check-ready assignment-id)

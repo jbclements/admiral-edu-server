@@ -30,6 +30,7 @@
               (p () ,(action:export assignment-id "Export Assignment Data"))
               (p () ,(action:delete assignment-id "Delete Assignment")))))))
 
+;; open an assignment
 (provide open)
 (: open (->* (ct-session (Listof String) (U XExpr #f)) (Boolean)
              Response))
