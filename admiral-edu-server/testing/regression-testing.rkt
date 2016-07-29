@@ -246,6 +246,11 @@ u must add a summative comment at the end.
       (200 (,stu1 ("browse" "test-with-html" "tests")))
       ;; the file 
       (200 (,stu1 ("browse" "test-with-html" "tests" "my-different-file")))
+      ;; ouch, what about this:
+      (404 (,stu1
+            ("browse" "test-with-html" "tests" "my-different-file" "download" "test-class"
+                      "test-with-html" ,stu1 "tests" "my-different-file"))
+           accidental-trainwreck)
       ;; let's see what the download content looks like
       (200 (,stu1 ("browse" "test-with-html" "tests" "download" "my-different-file"))
            download)
