@@ -12,20 +12,20 @@
 	<h1>
 	  @(safe-id assignment) /
 	  @(safe-id step) / 
-	  @(filename-or-empty path)
+	  @(xexprs->string path)
 	</h1>
 	<div id="syntax-menu" class="syntax-menu">
 	</div>
       </div>
-      <!-- HOLY XXXXX, BATMAN... THE FILE CONTENTS ARE INCLUDED NAKED HERE... -->
-      @content
+      @(xexprs->string content)
     </div>
 
     <script src="/lib/codemirror.js"></script>
     <script
-       src="https://code.jquery.com/jquery-3.1.0.min.js"
+       src="/lib/jquery-3.1.0.min.js"
        integrity="sha256-cCueBR6CsyA4/9szpPfrX3s49M9vUU5BgtiJj06wt/s="
        crossorigin="anonymous"></script>
+    <!-- "https://code.jquery.com/jquery-3.1.0.min.js" -->
     <link rel="stylesheet" href="/lib/codemirror.css">
     <link rel="stylesheet" href="/css/file-container.css">
     <script>

@@ -168,7 +168,7 @@
 
 ;; given values for the fields, construct the browse-file-container page
 (provide (contract-out
-          [browse-file-container-page (-> safe-id? xexpr? filename-or-empty? js-str? string? (or/c string? false?) string?)]))
+          [browse-file-container-page (-> safe-id? xexpr? (listof xexpr?) js-str? (listof xexpr?) (or/c string? false?) string?)]))
 (define (browse-file-container-page assignment step path default-mode content file-url)
   (include-template "html/browse-file-container.html"))
 
