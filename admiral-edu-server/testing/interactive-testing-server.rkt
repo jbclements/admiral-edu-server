@@ -89,9 +89,13 @@ must add a summative comment at the end.
    "default-submission-student-reviews-2"
    ASSIGNMENT-ID STEP-ID "zigzag"
    #"a\nb\nc\n\nd")
-  
-  
-  
+  (printf "Opening assignment.\n")
+  (require (only-in "../database/mysql/assignment.rkt"
+                    open))
+  (open "a1-ct" (class-name))
+
+  (printf "Setting user.\n")
+  (fixed-user "user1@example.com")
   (printf "Finished setup.\n")
   
   
