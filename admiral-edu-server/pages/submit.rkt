@@ -26,7 +26,7 @@
                 ;; the string "submit" should probably actually be "publish", as it
                 ;; appears to indicate publication. 
                 (string=? (hash-ref table 'action) "submit"))
-           (handle-submit session uid assignment step)]
+           (handle-publish session uid assignment step)]
           ;; submit a file:
           [else
            (let* ((data (extract-binding/single 'file bindings))
@@ -62,9 +62,9 @@
                 (p (a ((href ,(string-append start-url "../../../next/" assignment "/")))
                       "Back")))))])))
 
-;; FIXME this appears to handle both publication and submission... parts may
-;; be unreachable?
-(define (handle-submit session uid assignment step)
+;; publishes an existing submission
+(define (handle-publish session uid assignment step)
+  ;; FIXME submit-step does some ... interesting things.
   (let ((result (submit-step assignment step uid))
         (start-url (hash-ref (ct-session-table session) 'start-url)))
     (cond [(Success? result) 
