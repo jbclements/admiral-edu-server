@@ -161,7 +161,7 @@
 ;; using the template
 (provide (contract-out
           ;; FIXME content should be a list of xexprs, not a string...
-          [file-container-page (-> js-str? ct-url? ct-url? safe-id? safe-id? filename-or-empty? string? string?)]))
+          [file-container-page (-> js-str? ct-url? ct-url? safe-id? safe-id? (listof xexpr?) (listof xexpr?) string?)]))
 (define (file-container-page default-mode save-url load-url assignment step path content)
   ;; FIXME need to wrap with response-200
   (include-template "html/file-container.html"))

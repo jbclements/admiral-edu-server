@@ -2,6 +2,7 @@
 
 (require racket/string
          racket/list
+         racket/contract
          racket/match
          web-server/templates
          web-server/http/response-structs
@@ -13,7 +14,8 @@
          "../email/email.rkt"
          "../util/file-extension-type.rkt"
          (prefix-in error: "errors.rkt")
-         "templates.rkt")
+         "templates.rkt"
+         "file-container-helpers.rkt")
 
 (define (repeat val n)
   (cond
@@ -217,11 +219,15 @@
    empty
    (list data)))
   
-(provide file-container)
-(define (file-container session role rest [message '()])
+(provide (contract-out
+          [file-container
+           (-> ct-session? any/c (listof string?) any)]))
+(define (file-container session role rest)
   (define start-url (hash-ref (ct-session-table session) 'start-url))
   (define r-hash (car rest))
   (define review (try-select-by-hash r-hash))
+  (when (not (validate review session))
+      (raise-403-not-authorized "You are not authorized to see this page."))
   (let* ((class (ct-session-class session))
          [assignment (review:Record-assignment-id review)]
          [default-mode (determine-mode-from-filename (last rest))]
@@ -238,10 +244,7 @@
          (contents (if (is-directory? file-path)
                        (render-directory file-path start-url)
                        (render-file file-path))))
-    (when (not (validate review session))
-      (raise-403-not-authorized "You are not authorized to see this page."))
-    ;; FIXME updates to browse page must be brought across here, too.
-    ;; FIXME AAAAAAAAAAAAAHHHHHHHHHHHHHH!!!!!!!!!!!!
+    ;; FIXME easy fix here, but first create a test case to cover this code.
     (file-container-page default-mode save-url load-url assignment step path contents)))
 
 (define (determine-mode-from-filename filename)
@@ -259,42 +262,24 @@
 
 (define (prepare-save-url rest)
   (prepare-url "save" rest))
-   
 
-(define (render-directory dir-path start-url)
-  (let ((dirs (list-dirs dir-path))
-        (files (list-files dir-path)))
-    (string-append
-     "<div id=\"directory\" class=\"browser\">"
-     "<ul>"
-     (apply string-append (map (html-directory start-url) dirs))
-     (apply string-append (map (html-file start-url) files))
-     "</ul>"
-     "</div>")))
-
-(define (html-directory start-url)
-  (lambda (dir)
-    (string-append "<li class=\"directory\"><a href=\"" start-url dir "\">" dir "</a></li>")))
-
-(define (html-file start-url)
-  (lambda (file)
-    (string-append "<li class=\"file\">"
-                   "<a href=\"" start-url file "\">" file "</a>"
-                   "<span style='float: right'>"
-                   "<a href=\"" start-url "download/" file "\">Download File</a>"
-                   "</span>"
-                   "</li>")))
-
-;; FIXME : OH. MY. GOD.
+;; generate a textarea to be replaced by the codemirror instance
 (define (render-file file-path)
   (unless (eq? (path-info file-path) 'file)
     (raise-403-not-authorized "You are not allowed to see this page."))
-  (string-append "<textarea id=\"file\" class=\"file\">" (retrieve-file file-path) "</textarea>"))
+  '((textarea ((id "file") (class "file")) "")))
 
 (define (to-step-link step depth)
   (if (< depth 0) (xexpr->string step)
+      ;; FIXME yucky paths
       (let ((updepth (string-append (apply string-append (repeat "../" depth)) "./")))
-        (string-append "<a href=\"" updepth "\">" (xexpr->string step) "</a>"))))
+        `(a ((href ,updepth)) ,step))))
+
+(module+ test
+  (require rackunit)
+  ;; DERIVED FROM REGRESSION
+  (check-equal? (to-step-link "argwarg" 4)
+                '(a ((href "../../../.././")) "argwarg")))
 
 (define (to-path ls)
   (letrec ((helper (lambda (acc ls)
@@ -307,18 +292,6 @@
                                            
                                            (helper new-acc tail))]))))
     (helper '() ls)))
-
-(define (to-path-html input)
-  (letrec ((helper (lambda (acc ls)
-                     (match ls
-                       ['() (apply string-append (reverse acc))]
-                       [(cons head '()) (let ((new-acc (cons head acc)))
-                                          (helper new-acc '()))]
-                       [(cons head tail) (let* ((url (string-append (apply string-append (repeat "../" (- (length input) (+ (length acc) 1)))) (xexpr->string head)))
-                                                (link (string-append " <a href=\"" url "\">" (xexpr->string head) "</a> / "))
-                                                (new-acc (cons link acc)))
-                                           (helper new-acc tail))]))))
-    (helper '() input)))
 
 ;; given a user-supplied hash, try to retrieve the review.
 ;; signal a 404 if nothing is found.

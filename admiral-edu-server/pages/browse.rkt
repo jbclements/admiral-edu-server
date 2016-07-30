@@ -17,7 +17,8 @@
          (prefix-in error: "errors.rkt")
          "../util/file-extension-type.rkt"
          "../authoring/assignment.rkt"
-         "templates.rkt")
+         "templates.rkt"
+         "file-container-helpers.rkt")
 
 (define (repeat val n)
   (cond
@@ -85,38 +86,7 @@
                 (ext (if (null? split) "" (last split))))
            (extension->file-type ext))]))
 
-;; given a list of strings corresponding to a local-file
-;; path, construct a list of xexprs displaying that path,
-;; where each element other than the last is a link to
-;; a super-directory
-(define (to-path-html input)
-  (define input-len (length input))
-  (define path-xexprs
-    (for/list ([i (in-naturals)]
-               [path-elt (in-list input)])
-      (cond
-        ;; last one gets no up-link
-        [(= i (- input-len 1))
-         path-elt]
-        [else
-         (define dotdots (for/list ([i (in-range (- input-len i 1))])
-                           ".."))
-         `(a ((href ,(path->string
-                      ;; FIXME need general conversion convention
-                      (apply build-path/convention-type
-                             'unix
-                             (append dotdots (list path-elt))))))
-             ,path-elt)])))
-  (add-between path-xexprs " / "))
 
-(module+ test
-  (require rackunit)
-  (check-equal? (to-path-html '("a" "b" "c"))
-                '((a ((href "../../a")) "a")
-                  " / "
-                  (a ((href "../b")) "b")
-                  " / "
-                  "c")))
 
 (define (to-step-link step depth)
   (if (<= depth 0) (xexpr->string step)
@@ -148,51 +118,6 @@
                                            (helper new-acc tail))]))))
     (helper '() ls)))
 
-;; generate the xexprs representing the directory
-;; browser
-(define (render-directory dir-path start-url)
-  (let ((dirs (list-dirs dir-path))
-        (files (list-files dir-path)))
-    `((div ((id "directory") (class "browser"))
-          (ul
-           ,@(append (map (html-directory start-url) dirs)
-                     (map (html-file start-url) files)))))))
 
-;; returns an xexpr representing a subdirectory in the directory listing
-(define (html-directory start-url)
-  (lambda (dir)
-    `(li ((class "directory"))
-         (a ((href ,(string-append start-url dir)))
-            ,dir))))
-
-;; returns an xexpr representing a file in the directory listing
-(define (html-file start-url)
-  (lambda (file)
-    `(li ((class "file"))
-         (a ((href ,(string-append start-url file))) ,file)
-         (span ((style "float: right"))
-               (a ((href ,(download-url start-url file)))
-                  "Download File")))))
-
-;; the link for a file download. Oh, ugh, hack for
-;; file paths. The real fix is
-;; - improve path handling (start-url always ends with slash?), and
-;; - don't put the download token in this weird position
-(define (download-url start-url file #:dotdot-hack [add-dotdot? #f])
-  (define dotdot-hack-path (cond [add-dotdot? '(up)]
-                                 [else '()]))
-  (define rel-path (apply build-path/convention-type
-                          'unix
-                          (append dotdot-hack-path
-                                  (list "download"
-                                        file))))
-  (string-append start-url (path->string rel-path)))
-
-(module+ test
-  (check-equal? (download-url "http://example.com/foo/bar/baz/" "quux")
-                "http://example.com/foo/bar/baz/download/quux")
-  (check-equal? (download-url "http://example.com/foo/bar/baz/quux/" "quux"
-                              #:dotdot-hack #t)
-                "http://example.com/foo/bar/baz/quux/../download/quux"))
 
 
