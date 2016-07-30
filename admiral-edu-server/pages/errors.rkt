@@ -106,7 +106,7 @@
      (p "You may need to "
        (a ((href "/authentication/redirect?logout=/logout.html"))
           "log out")
-       "and log back in with a different account name."))
+       " and log back in with a different account name."))
    403 #"Forbidden"))
 
 ;; FIXME get rid of this, replace with call to raise-400-bad-request
