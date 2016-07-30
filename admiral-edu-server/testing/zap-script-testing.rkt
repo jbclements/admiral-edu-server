@@ -24,12 +24,11 @@
 
   (define-runtime-path here ".")
 
+  ;; delete existing files
   (init-shim)
 
-  (when (directory-exists? (build-path (local-storage-path) (class-name-shim)))
-    (fprintf (current-error-port)
-             "ALERT: DELETING EXISTING CLASS DIRECTORY.\n")
-    (delete-directory/files (build-path (local-storage-path) (class-name-shim))))
+  ;; delete local files
+  (delete-local-files-shim)
   
   (let ((result (initialize)))
     (when (Failure? result)
@@ -259,7 +258,7 @@
                      (test-proc result))]))
           (define output-val (list i request-args result))
           (fprintf r-port "~s\n" output-val)
-          (printf "~s\n" output-val))))))
+          #;(printf "~s\n" output-val))))))
   
   
   

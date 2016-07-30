@@ -94,8 +94,12 @@ must add a summative comment at the end.
                     open))
   (open "a1-ct" (class-name))
 
-  (printf "Setting user.\n")
-  (fixed-user "user1@example.com")
+  (printf "Submitting text for user 1\n")
+  (upload-submission "test-class" "user1@example.com" "a1-ct" "tests" "my-file"
+                     #"foo </textarea> bar <textarea> baz")
+  
+  ;; stop here if you want to see the user 1 submission
+  ;; in the codemirror window.
   (printf "Finished setup.\n")
   
   
