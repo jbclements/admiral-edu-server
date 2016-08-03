@@ -222,6 +222,7 @@
 (provide (contract-out
           [file-container
            (-> ct-session? any/c (listof string?) any)]))
+;; FIXME huge amount of shared code with 'do-file-container' in browse
 (define (file-container session role rest)
   (define start-url (hash-ref (ct-session-table session) 'start-url))
   (define r-hash (car rest))
@@ -240,12 +241,15 @@
          [path (to-path-html (cdr rest))]
          (file (to-path (cdr rest)))
          (test-prime (newline))
-         (file-path (submission-file-path class assignment reviewee stepName file))
-         (contents (if (is-directory? file-path)
-                       (render-directory file-path start-url)
-                       (render-file file-path))))
-    ;; FIXME easy fix here, but first create a test case to cover this code.
-    (file-container-page default-mode save-url load-url assignment step path contents)))
+         (file-path (submission-file-path class assignment reviewee stepName file)))
+    (define is-dir (is-directory? file-path))
+    (define contents (if (is-directory? file-path)
+                         (render-directory file-path start-url)
+                         (render-file file-path)))
+    (define maybe-file-url
+      (if is-dir #f (download-url start-url file #:dotdot-hack #t)))
+    (file-container-page default-mode save-url load-url assignment step path contents
+                         maybe-file-url)))
 
 (define (determine-mode-from-filename filename)
   (let* ((split (string-split filename "."))

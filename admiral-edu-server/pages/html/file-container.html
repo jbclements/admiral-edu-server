@@ -30,8 +30,13 @@
     <link rel="stylesheet" href="/css/file-container.css">
     <script>
       var defaultMode = "@(js-str default-mode)";
+      // for loading and saving json containing line comments:
       var saveURL = @(urlgen save-url);
       var loadURL = @(urlgen load-url);
+      // url for loading text of file to be reviewed:
+      // for directories, this is set to false.
+      var maybeFileUrl = @(string-or-false file-url);
+
     </script>
     <script src="/bin/filecontainer.js"></script>
     <script src="/bin/review.js"></script>

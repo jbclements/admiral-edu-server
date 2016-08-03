@@ -159,16 +159,21 @@
 
 ;; given values for the fields, construct the file-container page
 ;; using the template
-(provide (contract-out
-          ;; FIXME content should be a list of xexprs, not a string...
-          [file-container-page (-> js-str? ct-url? ct-url? safe-id? xexpr? (listof xexpr?) (listof xexpr?) string?)]))
-(define (file-container-page default-mode save-url load-url assignment step path content)
+(provide
+ (contract-out
+  [file-container-page
+   (-> js-str? ct-url? ct-url? safe-id? xexpr? (listof xexpr?) (listof xexpr?)
+       (or/c string? false?) string?)]))
+(define (file-container-page default-mode save-url load-url assignment step path content file-url)
   ;; FIXME need to wrap with response-200
   (include-template "html/file-container.html"))
 
 ;; given values for the fields, construct the browse-file-container page
-(provide (contract-out
-          [browse-file-container-page (-> safe-id? xexpr? (listof xexpr?) js-str? (listof xexpr?) (or/c string? false?) string?)]))
+(provide
+ (contract-out
+  [browse-file-container-page
+   (-> safe-id? xexpr? (listof xexpr?) js-str? (listof xexpr?)
+       (or/c string? false?) string?)]))
 (define (browse-file-container-page assignment step path default-mode content file-url)
   (include-template "html/browse-file-container.html"))
 

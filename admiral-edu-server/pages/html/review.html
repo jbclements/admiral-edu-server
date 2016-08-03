@@ -3,6 +3,19 @@
   <head>
     <title>Captain Teach - Review</title>
 
+    <link rel="stylesheet" href="/lib/codemirror.css">
+    <link rel="stylesheet" href="/css/review.css">
+  </head>
+
+<body>
+  <div class="container">
+    <iframe src="@(urlgen file-container) " scrolling="no" class="file-frame"></iframe>
+  </div>
+  <div id="rubric" class="rubric">
+  </div>
+  @(xexprs->string no-modifications)
+  <div class="submit-button @(maybe-hidden-class submit-hidden?) "><a href="@(urlgen submit-url) ">Submit</a></div>
+  <!-- FIXME move this js code out, leave just the live-generated urls in here -->
     <script>
       function save(json, callback){
           console.log("Attempting to save to " + @(urlgen save-url));
@@ -23,26 +36,13 @@
 	      if (xhr.readyState == 4) {
 		  callback(JSON.parse(xhr.responseText));
 	      };
-	  };       
+	  };
       }
     </script>
-    
     <script src="/lib/codemirror.js"></script>
     <script src="/mode/clike/clike.js"></script>
     <script src="/mode/markdown/markdown.js"></script>
     <script src="/bin/rubric.js"></script>
-    <link rel="stylesheet" href="/lib/codemirror.css">
-    <link rel="stylesheet" href="/css/review.css">
-  </head>
-  
-  
-<body>
-  <div class="container">
-    <iframe src="@(urlgen file-container) " scrolling="no" class="file-frame"></iframe>
-  </div>
-  <div id="rubric" class="rubric"> 
-  </div>
-  @(xexprs->string no-modifications)
-  <div class="submit-button @(maybe-hidden-class submit-hidden?) "><a href="@(urlgen submit-url) ">Submit</a></div>
+
 </body>
 </html>
