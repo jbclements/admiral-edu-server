@@ -273,6 +273,9 @@
     (raise-403-not-authorized "You are not allowed to see this page."))
   '((textarea ((id "file") (class "file")) "")))
 
+;; given a step-id and a depth, generate an xexpr for a link
+;; with the name of the step and a path with the given number of
+;; dotdots. CF test case.
 (define (to-step-link step depth)
   (if (< depth 0) (xexpr->string step)
       ;; FIXME yucky paths
