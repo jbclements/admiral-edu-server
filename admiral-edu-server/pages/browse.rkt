@@ -52,7 +52,7 @@
   (define is-dir (is-directory? file-path))
   (define contents (if is-dir
                        (render-directory file-path start-url)
-                       '((textarea ((id "file") (class "file")) ""))))
+                       render-file))
   (define maybe-file-url
     (if is-dir #f (download-url start-url file #:dotdot-hack #t)))
   (browse-file-container-page assignment step path-html default-mode

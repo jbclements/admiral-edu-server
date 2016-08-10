@@ -32,6 +32,8 @@
         ;; now returns a response:
         (do-load session role rest message))))
 
+;; FIXME call download.rkt fn
+;; perform a download
 (provide check-download)
 (define (check-download session role rest)
   ;; FIXME rest check needed
@@ -41,6 +43,7 @@
       (raise-403-not-authorized "You are not authorized to see this page."))
     (define path (cdr rest))
     (define len (length path))
+    ;; FIXME icky path manipulation to remove 'download' token.
     (define file-path (string-join (append (take path (- len 2)) (list (last path))) "/"))
     (push->download session file-path review))) 
 
@@ -203,6 +206,8 @@
      empty
      (list (string->bytes/utf-8 data)))))
 
+;; given a session, a list of strings representing a file path, and a review hash,
+;; produce a response containing the file's bytes
 (define (push->download session path review)
   (when (not (validate review session))
     (raise-403-not-authorized "You are not authorized to see this page."))
@@ -245,7 +250,10 @@
     (define is-dir (is-directory? file-path))
     (define contents (if (is-directory? file-path)
                          (render-directory file-path start-url)
-                         (render-file file-path)))
+                         (begin
+                           (unless (eq? (path-info file-path) 'file)
+                             (raise-403-not-authorized "You are not allowed to see this page."))
+                           render-file)))
     (define maybe-file-url
       (if is-dir #f (download-url start-url file #:dotdot-hack #t)))
     (file-container-page default-mode save-url load-url assignment step path contents
@@ -266,27 +274,6 @@
 
 (define (prepare-save-url rest)
   (prepare-url "save" rest))
-
-;; generate a textarea to be replaced by the codemirror instance
-(define (render-file file-path)
-  (unless (eq? (path-info file-path) 'file)
-    (raise-403-not-authorized "You are not allowed to see this page."))
-  '((textarea ((id "file") (class "file")) "")))
-
-;; given a step-id and a depth, generate an xexpr for a link
-;; with the name of the step and a path with the given number of
-;; dotdots. CF test case.
-(define (to-step-link step depth)
-  (if (< depth 0) (xexpr->string step)
-      ;; FIXME yucky paths
-      (let ((updepth (string-append (apply string-append (repeat "../" depth)) "./")))
-        `(a ((href ,updepth)) ,step))))
-
-(module+ test
-  (require rackunit)
-  ;; DERIVED FROM REGRESSION
-  (check-equal? (to-step-link "argwarg" 4)
-                '(a ((href "../../../.././")) "argwarg")))
 
 (define (to-path ls)
   (letrec ((helper (lambda (acc ls)

@@ -7,36 +7,49 @@
 
 (provide render-directory
          download-url
-         to-path-html)
+         to-path-html
+         to-step-link
+         render-file)
 
 ;; generate the xexprs representing the directory
-;; browser
-(: render-directory (String String -> (Listof XExpr)))
-(define (render-directory dir-path start-url)
+;; browser. In the case of feedback, we don't show the download
+;; link. I don't know whether this is deliberate, but I'm preserving
+;; this behavior.
+(: render-directory (String String [#:show-download Boolean]-> (Listof XExpr)))
+(define (render-directory dir-path start-url
+                          #:show-download [download? #t])
   (let ((dirs (list-dirs dir-path))
         (files (list-files dir-path)))
     `((div ((id "directory") (class "browser"))
           (ul
            ,@(append (map (html-directory start-url) dirs)
-                     (map (html-file start-url) files)))))))
+                     (map (html-file start-url download?) files)))))))
 
 ;; returns an xexpr representing a subdirectory in the directory listing
 (: html-directory (String -> (String -> XExpr)))
 (define (html-directory start-url)
   (lambda (dir)
     `(li ((class "directory"))
+         ;; FIXME path
          (a ((href ,(string-append start-url dir)))
             ,dir))))
 
 ;; returns an xexpr representing a file in the directory listing
-(: html-file (String -> (String -> XExpr)))
-(define (html-file start-url)
+(: html-file (String Boolean -> (String -> XExpr)))
+(define (html-file start-url download?)
   (lambda (file)
+    (define maybe-download-link
+      (cond [download?
+             `((span ((style "float: right"))
+                     (a ((href ,(download-url start-url file)))
+                        "Download File")))]
+            [else
+             `()]))
     `(li ((class "file"))
+         ;; FIXME path
          (a ((href ,(string-append start-url file))) ,file)
-         (span ((style "float: right"))
-               (a ((href ,(download-url start-url file)))
-                  "Download File")))))
+         ,@maybe-download-link)))
+
 
 ;; the link for a file download. Oh, ugh, hack for
 ;; file paths. The real fix is
@@ -87,7 +100,25 @@
              ,path-elt)])))
   (add-between path-xexprs " / "))
 
+;; given a step-id and a depth, generate an xexpr for a link
+;; with the name of the step and a path with the given number of
+;; dotdots. CF test case.
+;; FIXME gets called with negative numbers. Is this a bug?
+(: to-step-link (XExpr Integer -> XExpr))
+(define (to-step-link step depth)
+  (if (< depth 0) step
+      ;; FIXME yucky paths
+      (let ((updepth (string-append
+                      (apply string-append
+                             (for/list : (Listof String)
+                               ([i (in-range depth)])
+                               "../"))
+                      "./")))
+        `(a ((href ,updepth)) ,step))))
 
+;; a textarea to be replaced by the codemirror instance
+(define render-file
+  '((textarea ((id "file") (class "file")) "")))
 
 (module+ test
   (require typed/rackunit)
@@ -98,12 +129,16 @@
                      (a ((href "http://www.example.com/a/bc")) "bc")))
 
   ;; derived from a regression test:
-  (check-equal? ((html-file "http://www.example.com/a/b/") "c")
+  (check-equal? ((html-file "http://www.example.com/a/b/" #t) "c")
                 '(li ((class "file"))
                      (a ((href "http://www.example.com/a/b/c")) "c")
                      (span ((style "float: right"))
                            (a ((href "http://www.example.com/a/b/download/c"))
                               "Download File"))))
+
+  (check-equal? ((html-file "http://www.example.com/a/b/" #f) "c")
+                '(li ((class "file"))
+                     (a ((href "http://www.example.com/a/b/c")) "c")))
   
   (check-equal? (download-url "http://example.com/foo/bar/baz/" "quux")
                 "http://example.com/foo/bar/baz/download/quux")
@@ -116,4 +151,12 @@
                 " / "
                 (a ((href "../b")) "b")
                 " / "
-                "c")))
+                "c"))
+
+  
+  ;; DERIVED FROM REGRESSION
+  ;; FIXME what's the point of the trailing ./ ?
+  (check-equal? (to-step-link "argwarg" 4)
+                '(a ((href "../../../.././")) "argwarg"))
+  (check-equal? (to-step-link "argwarg" 0)
+                '(a ((href "./")) "argwarg")))

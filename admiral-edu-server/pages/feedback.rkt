@@ -14,7 +14,8 @@
          "responses.rkt"
          "templates.rkt"
          "../util/file-extension-type.rkt"
-         "../authoring/assignment.rkt")
+         "../authoring/assignment.rkt"
+         "file-container-helpers.rkt")
 
 (define (repeat val n)
   (cond
@@ -75,6 +76,7 @@
                    results)))
 
 (define (gen-status assignment uid start-url)
+  ;; FIXME strings
   (string-append "<h2>Next Required Action</h2>"
                  (let ((do-next (next-step assignment uid)))
                    (cond 
@@ -91,6 +93,7 @@
   (let* ((feedback (gen-reviews reviews start-url))
          (message (if (empty? reviews) "You have not received any feedback for this assignment."
                       "The links below are to reviews completed on your submissions.")))
+    ;; FIXME strings
     (string-append "<h2>Review Feedback</h2><p>" message "</p>" feedback)))
 
 ;; generate page text informing user of reviews to be completed
@@ -185,11 +188,16 @@
         (reviewee (review:Record-reviewee-id review)))
     (equal? uid reviewee)))
 
+;; generate the file-container iframe for feedback viewing.
+;; FIXME once again lots and lots of duplicated code with the
+;; other file-container pages.
 (define (do-file-container session role rest [message '()])
+  (define r-hash (car rest))
+  ;; FIXME a server error on a bogus hash here:
+  (define review (review:select-by-hash r-hash))
+  (when (not (validate review session))
+      (raise-403-not-authorized "You are not authorized to see this page."))
   (let* ((start-url (hash-ref (ct-session-table session) 'start-url))
-         (r-hash (car rest))
-         ;; FIXME a server error on a bogus hash here:
-         (review (review:select-by-hash r-hash))
          (class (ct-session-class session))
          [assignment (review:Record-assignment-id review)]
          (stepName (review:Record-step-id review))
@@ -202,36 +210,23 @@
          [path (to-path-html (cdr rest))]
          (file (to-path (cdr rest)))
          (test-prime (newline))
-         (file-path (submission-file-path class assignment reviewee stepName file))
-         (contents (if (is-directory? file-path) (render-directory file-path start-url) (render-file file-path))))
-    ;; FIXME move this check up.
-    (if (not (validate review session))
-        (error:not-authorized-response)
-        (string-append (include-template "html/feedback-file-container-header.html")
-                       contents
-                       (include-template "html/file-container-footer.html")))))
+         (file-path (submission-file-path class assignment reviewee stepName file)))
+    (define is-dir (is-directory? file-path))
+    (define contents (if is-dir
+                         (render-directory file-path start-url #:show-download #f)
+                         ;; FIXME shouldn't there be a 403 check like in review.rkt?
+                         render-file))
+    (define maybe-file-url
+      (if is-dir #f (download-url start-url file #:dotdot-hack #t)))
+    (feedback-file-container-page assignment step path default-mode contents load-url maybe-file-url)))
+
+
+#;(retrieve-file file-path)
 
 (define (determine-mode-from-filename filename)
   (let* ((split (string-split filename "."))
          (ext (if (null? split) "" (last split))))
     (extension->file-type ext)))
-
-(define (to-path-html input)
-  (letrec ((helper (lambda (acc ls)
-                     (match ls
-                       ['() (apply string-append (reverse acc))]
-                       [(cons head '()) (let ((new-acc (cons head acc)))
-                                          (helper new-acc '()))]
-                       [(cons head tail) (let* ((url (string-append (apply string-append (repeat "../" (- (length input) (+ (length acc) 1)))) (xexpr->string head)))
-                                                (link (string-append " <a href=\"" url "\">" (xexpr->string head) "</a> / "))
-                                                (new-acc (cons link acc)))
-                                           (helper new-acc tail))]))))
-    (helper '() input)))
-
-(define (to-step-link step depth)
-  (if (< depth 0) (xexpr->string step)
-      (let ((updepth (string-append (apply string-append (repeat "../" depth)) "./")))
-        (string-append "<a href=\"" updepth "\">" (xexpr->string step) "</a>"))))
 
 (define (prepare-url word rest)
   (let* ((last-el (last rest))
@@ -258,27 +253,6 @@
                                            (helper new-acc tail))]))))
     (helper '() ls)))
 
-(define (render-directory dir-path start-url)
-  (let ((dirs (list-dirs dir-path))
-        (files (list-files dir-path)))
-    (string-append
-     "<div id=\"directory\" class=\"browser\">"
-     "<ul>"
-     (apply string-append (map (html-directory start-url) dirs))
-     (apply string-append (map (html-file start-url) files))
-     "</ul>"
-     "</div>")))
-
-(define (html-directory start-url)
-  (lambda (dir)
-    (string-append "<li class=\"directory\"><a href=\"" start-url dir "\">" dir "</a></li>")))
-
-(define (html-file start-url)
-  (lambda (file)
-    (string-append "<li class=\"file\"><a href=\"" start-url file "\">" file "</a></li>")))
-
-(define (render-file file-path)
-  (string-append "<textarea id=\"file\" class=\"file\">" (retrieve-file file-path) "</textarea>"))
 
 
 (define (post->do-file-container session role rest post-data)
