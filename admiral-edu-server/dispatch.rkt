@@ -5,7 +5,8 @@
          racket/date
          racket/string
          racket/match
-         racket/list)
+         racket/list
+         racket/path)
 
 (require 
   "auth/google-openidc.rkt"
@@ -93,6 +94,18 @@
       `((p "missing authentication headers."))
       400 #"Bad Request")]))
 
+;; given a request, construct a "session"
+;; FIXME hoping to get rid of the start-rel-url piece
+(define (construct-session req start-rel-url)
+  (match (req->uid req)
+    [(? string? uid-str)
+     (let* ((raw-bindings (request-bindings/raw req))
+            (bindings (request-bindings req))
+            (session (ct-session (class-name) uid-str (make-table start-rel-url bindings))))
+       session)]
+    [else
+     (raise-400-bad-request "Missing Authentication Headers")]))
+
 
 (define (ensure-trailing-slash candidate)
   (let ((len (string-length candidate)))
@@ -144,6 +157,8 @@
            (cond [post?
                   ;; save or load contents of review. bit of an abuse of POST.
                   (review:push->file-container session post-data rest)]
+                 ;; FIXME move 'download' token to end of path or beginning...
+                 ;; "/file-container/<hash>/...*/download/..."
                  [(and (> (length rest) 1)
                        ;; FIXME icky path hacking
                        (string=? "download" (list-ref rest (- (length rest) 2))))
@@ -187,11 +202,12 @@
           [(cons "feedback" rest)
            (if post?
                ;; POST /feedback/*/<hash>/... ((feedback . *) ...) : submit feedback
-               ;; POST /feedback/file-container/... (!feedback) ?
+               ;; POST /feedback/file-container/<hash>/load : load or save rubric json data
                ;; POST /feedback/view/... (!feedback) ?
                (feedback:post session user-role rest bindings post-data)
                ;; GET /feedback/ : assignment dashboard ?
                ;; GET /feedback/view/<hash> : viewing a review
+               ;; GET /feedback/file-container/<hash>/[...*] : file-container page
                (render-hack (feedback:load session user-role rest)))]
           ;; "/export/..."
           [(cons "export" rest)
