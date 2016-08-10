@@ -175,7 +175,18 @@
    (-> safe-id? xexpr? (listof xexpr?) js-str? (listof xexpr?)
        (or/c string? false?) string?)]))
 (define (browse-file-container-page assignment step path default-mode content file-url)
+  ;; FIXME wrap with response-200
   (include-template "html/browse-file-container.html"))
+
+;; given values for the fields, construct the feedback-file-container page
+(provide
+ (contract-out
+  [feedback-file-container-page
+   (-> safe-id? xexpr? (listof xexpr?) js-str? (listof xexpr?) ct-url?
+       (or/c string? false?) string?)]))
+(define (feedback-file-container-page assignment step path default-mode content load-url file-url)
+  ;; FIXME wrap with response-200
+  (include-template "html/feedback-file-container.html"))
 
 ;; wrap a string as a 200 Okay response. The idea is to use
 ;; this only directly on the result of a template
