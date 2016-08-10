@@ -31,8 +31,8 @@
     <script>
       var defaultMode = "@(js-str default-mode)";
       // for loading and saving json containing line comments:
-      var saveURL = @(urlgen save-url);
-      var loadURL = @(urlgen load-url);
+      var saveCommentsUrl = @(urlgen save-url);
+      var commentsUrl = @(urlgen load-url);
       // url for loading text of file to be reviewed:
       // for directories, this is set to false.
       var maybeFileUrl = @(string-or-false file-url);
