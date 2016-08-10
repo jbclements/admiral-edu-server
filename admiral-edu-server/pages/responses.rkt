@@ -25,6 +25,7 @@
 
 (provide response/full ;; <- bad, don't use this
          response/xexpr
+         bytes->file-response
          xexprs->response
          xexprs->plain-page-response
          string->response ;; <- bad, don't use this
@@ -56,3 +57,14 @@
    (current-seconds) TEXT/HTML-MIME-TYPE
    '()
    (list (string->bytes/utf-8 str))))
+
+;; use to send a file back to the user
+(: bytes->file-response (Bytes -> Response))
+(define (bytes->file-response content)
+  (response/full
+   200 #"Okay"
+   (current-seconds)
+   #"application/octet-stream; charset=utf-8"
+   '()
+   (list content)))
+
