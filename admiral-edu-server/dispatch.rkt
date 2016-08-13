@@ -131,13 +131,12 @@
     (if (not user-role)
         (error:not-registered-response session)
         (match (list method path)
-          ;; "/"
-          ;; FIXME are both of these two actually possible?
-          [(list _ (or '() '(""))) (response/xexpr (index session user-role))]
-          ;; "/download/hash/path..."
+          [(list _ (or '() '("")))
+           ;; root page
+           (response/xexpr (index session user-role))]
+          [(list #"get" (list "download" hash path-strs ...))
           ;; download the raw bytes of a file, based on hash and path.
           ;; used for reviewing and feedback.
-          [(list _ (list "download" hash path-strs ...))
            (download:do-download session hash path-strs)]
           [(list #"post" (cons "review" rest))
            ;; used by codemirror autosave and review elements
@@ -162,9 +161,12 @@
           [(list _ (list-rest "su" uid rest))
            ;; interface for executing a command as another user
            (with-sudo post? post-data uid session user-role bindings raw-bindings rest)]
-          [(list #"post" (cons "author" rest))
-           ;; interface for adding, editing assignments
-           (author:post->validate session post-data rest)]
+          [(list #"post" (list "author" _ ... "validate"))
+           ;; add a new assignment
+           (author:validate session post-data #t)]
+          [(list #"post" (list "author" _ ... "validate-save"))
+           ;; add a new assignment, replacing an old one
+           (author:validate session post-data #f)]
           [(list #"get" (cons "author" rest))
            ;; interface for adding, editing assignments
            (author:load session user-role rest)]
