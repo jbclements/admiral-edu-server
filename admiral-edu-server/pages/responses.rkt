@@ -26,6 +26,7 @@
 (provide response/full ;; <- bad, don't use this
          response/xexpr
          bytes->file-response
+         bytes->json-response
          xexprs->response
          xexprs->plain-page-response
          string->response ;; <- bad, don't use this
@@ -65,6 +66,16 @@
    200 #"Okay"
    (current-seconds)
    #"application/octet-stream; charset=utf-8"
+   '()
+   (list content)))
+
+;; use to send a JSON-encoded file back to the user
+(: bytes->json-response (Bytes -> Response))
+(define (bytes->json-response content)
+  (response/full
+   200 #"Okay"
+   (current-seconds)
+   #"application/json; charset=utf-8"
    '()
    (list content)))
 

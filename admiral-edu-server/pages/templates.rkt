@@ -162,7 +162,9 @@
 ;; given the values for the fields, construct the authoring page
 ;; using the template
 (provide (contract-out
-          [authoring-page (-> safe-id? ct-url? (listof xexpr?) (listof xexpr?) response?)]))
+          [authoring-page (-> safe-id? ct-url? (listof xexpr?)
+                              (listof xexpr?)
+                              response?)]))
 (define (authoring-page class-name save-url content message)
   (response-200
    (include-template "html/authoring.html")))
@@ -173,10 +175,10 @@
  (contract-out
   [file-container-page
    (-> js-str? ct-url? ct-url? safe-id? xexpr? (listof xexpr?) (listof xexpr?)
-       (or/c ct-url? false?) string?)]))
+       (or/c ct-url? false?) response?)]))
 (define (file-container-page default-mode save-url load-url assignment step path content file-url)
-  ;; FIXME need to wrap with response-200
-  (include-template "html/file-container.html"))
+  (response-200
+  (include-template "html/file-container.html")))
 
 ;; given values for the fields, construct the browse-file-container page
 (provide
@@ -193,10 +195,10 @@
  (contract-out
   [feedback-file-container-page
    (-> safe-id? xexpr? (listof xexpr?) js-str? (listof xexpr?) ct-url?
-       (or/c ct-url? false?) string?)]))
+       (or/c ct-url? false?) response?)]))
 (define (feedback-file-container-page assignment step path default-mode content load-url file-url)
-  ;; FIXME wrap with response-200
-  (include-template "html/feedback-file-container.html"))
+  (response-200
+   (include-template "html/feedback-file-container.html")))
 
 ;; wrap a string as a 200 Okay response. The idea is to use
 ;; this only directly on the result of a template

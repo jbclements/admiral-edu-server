@@ -5,7 +5,6 @@
          racket/contract
          racket/match
          web-server/templates
-         web-server/http/response-structs
          xml
          json)
 
@@ -13,7 +12,7 @@
          "../base.rkt"
          "../email/email.rkt"
          "../util/file-extension-type.rkt"
-         (prefix-in error: "errors.rkt")
+         "responses.rkt"
          "templates.rkt"
          "file-container-helpers.rkt")
 
@@ -159,7 +158,7 @@
      empty
      (list (string->bytes/utf-8 data)))))
 
-;; load or save review comments
+;; load or save review comments (returns response)
 (provide push->file-container)
 (define (push->file-container session post-data rest)
   (define r-hash (car rest))
@@ -185,12 +184,9 @@
         (review-id (review:Record-review-id review)))
     (when (not (review:Record-completed review))
       (save-review-comments class assignment stepName review-id reviewer reviewee path data))
-    (response/full
-     200 #"Okay"
-     (current-seconds) #"application/json; charset=utf-8"
-     empty
-     (list (string->bytes/utf-8 "Success")))))
+    (bytes->json-response #"Success")))
 
+;; returns response
 (define (push->load session path review)
   (let* ((class (ct-session-class session))
          (assignment (review:Record-assignment-id review))
@@ -201,11 +197,7 @@
          (data (load-review-comments class assignment stepName review-id reviewer reviewee path)))
     (when (not (validate review session))
       (raise-403-not-authorized "You are not authorized to see this page."))
-    (response/full
-     200 #"Okay"
-     (current-seconds) #"application/json; charset=utf-8"
-     empty
-     (list (string->bytes/utf-8 data)))))
+    (bytes->json-response (string->bytes/utf-8 data))))
 
 ;; FIXME call download.rkt fn instead.
 ;; given a session, a list of strings representing a file path, and a review hash,
@@ -220,15 +212,11 @@
   (define data (maybe-get-file-bytes class assignment stepName reviewee path))
   (unless data
     (raise-403-not-authorized "You are not authorized to see this page."))
-  (response/full
-   200 #"Okay"
-   (current-seconds) #"application/octet-stream; charset=utf-8"
-   empty
-   (list data)))
+  (bytes->file-response data))
   
 (provide (contract-out
           [file-container
-           (-> ct-session? any/c (listof string?) any)]))
+           (-> ct-session? any/c (listof string?) response?)]))
 ;; FIXME huge amount of shared code with 'do-file-container' in browse
 (define (file-container session role rest)
   (define start-url (hash-ref (ct-session-table session) 'start-url))

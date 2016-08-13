@@ -105,118 +105,109 @@
 ;; the raw-bindings, and the path, do the stuff and return a response.
 (provide handlerPrime)
 (define (handlerPrime post? post-data session bindings raw-bindings path)
-  (with-handlers ([exn:user-error?
-                   (λ (exn)
-                     (cond
-                       [(= (exn:user-error-code exn) 403)
-                        (error:not-authorized-response
-                         (exn-message exn))]
-                       [else
-                        (error-xexprs->response
-                         `((p ,(exn-message exn))
-                           (p "Try returning to "
-                              (a ((href ,(string-append "https://"
-                                                        (sub-domain) (server-name) "/" (class-name))))
-                                 "Class Home")
-                              " and trying again."))
-                         (exn:user-error-code exn)
-                         (match (exn:user-error-code exn)
-                           [400 #"Bad Request"]
-                           [404 #"Not Found"]))]))])
+  (with-handlers
+      ([exn:user-error?
+        (λ (exn)
+          (cond
+            [(= (exn:user-error-code exn) 403)
+             (error:not-authorized-response
+              (exn-message exn))]
+            [else
+             (error-xexprs->response
+              `((p ,(exn-message exn))
+                (p "Try returning to "
+                   (a ((href ,(string-append "https://"
+                                             (sub-domain) (server-name) "/" (class-name))))
+                      "Class Home")
+                   " and trying again."))
+              (exn:user-error-code exn)
+              (match (exn:user-error-code exn)
+                [400 #"Bad Request"]
+                [404 #"Not Found"]))]))])
+    ;; makes patterns more readable:
+    (define method (cond [post? #"post"]
+                         [else #"get"]))
     (define user-role (session->role session))
     (if (not user-role)
         (error:not-registered-response session)
-        (match path
+        (match (list method path)
           ;; "/"
           ;; FIXME are both of these two actually possible?
-          [(or '() '("")) (response/xexpr (index session user-role))]
+          [(list _ (or '() '(""))) (response/xexpr (index session user-role))]
           ;; "/download/hash/path..."
           ;; download the raw bytes of a file, based on hash and path.
           ;; used for reviewing and feedback.
-          [(list "download" hash path-strs ...)
+          [(list _ (list "download" hash path-strs ...))
            (download:do-download session hash path-strs)]
-          ;; "/review/..."
-          [(cons "review" rest)
-           ;; POST:
+          [(list #"post" (cons "review" rest))
            ;; used by codemirror autosave and review elements
            ;; to save review.
-           (cond [post? (review:post->review session post-data rest)]
-                 ;; GET
-                 ;; presents review screen, also handles click on review submit button
-                 [else (render-hack (review:load session user-role rest))])]
-          ;; "/file-container/..."
-          [(cons "file-container" rest)
-           (cond [post?
-                  ;; save or load contents of review. bit of an abuse of POST.
-                  (review:push->file-container session post-data rest)]
-                 ;; FIXME move 'download' token to end of path or beginning...
-                 ;; "/file-container/<hash>/...*/download/..."
-                 [(and (> (length rest) 1)
-                       ;; FIXME icky path hacking
-                       (string=? "download" (list-ref rest (- (length rest) 2))))
-                  (render-hack
-                   (review:check-download session user-role rest))]
-                 [(render-hack
-                   (review:file-container session user-role rest))])]
-          ;; "/su/uid/..."
-          ;; interface for executing a command as another user
-          [(cons "su" (cons uid rest))
+           (review:post->review session post-data rest)]
+          [(list #"get" (cons "review" rest))
+           ;; presents review screen, also handles click on review submit button
+           (render-hack (review:load session user-role rest))]
+          [(list #"post" (cons "file-container" rest))
+           ;; save or load contents of review. bit of an abuse of POST.
+           (review:push->file-container session post-data rest)]
+          [(list #"get" (cons "file-container" rest))
+           (cond ;; FIXME move 'download' token to end of path or beginning...
+             ;; "/file-container/<hash>/...*/download/..."
+             [(and (> (length rest) 1)
+                   ;; FIXME icky path hacking
+                   (string=? "download" (list-ref rest (- (length rest) 2))))
+              (render-hack
+               (review:check-download session user-role rest))]
+             [else
+              (review:file-container session user-role rest)])]
+          [(list _ (list-rest "su" uid rest))
+           ;; interface for executing a command as another user
            (with-sudo post? post-data uid session user-role bindings raw-bindings rest)]
-          ;; "/author/..."
-          ;; interface for adding, editing assignments
-          [(cons "author" rest)
-           (if post?
-               ;; POST
-               (author:post->validate session post-data rest)
-               ;; GET
-               (author:load session user-role rest))]
+          [(list #"post" (cons "author" rest))
+           ;; interface for adding, editing assignments
+           (author:post->validate session post-data rest)]
+          [(list #"get" (cons "author" rest))
+           ;; interface for adding, editing assignments
+           (author:load session user-role rest)]
           ;; "/next/..."
-          [(cons "next" rest)
+          [(list _ (cons "next" rest))
            (render-hack (next session user-role rest))]
           ;; "/dependencies/..."
-          [(cons "dependencies" rest)
-           (if post?
-               (dep:post session rest bindings raw-bindings)
-               (render-hack (dep:dependencies session user-role rest)))]
-          ;; "/submit/..."
-          ;; used to submit files and to publish them (POST only)
-          ;; FIXME I think the "action" binding should instead just be
-          ;; implemented using a different URL.
-          [(cons "submit" rest)
-           (if post?
-               ;; POST
-               (response/xexpr (submit:submit session rest bindings raw-bindings))
-               (raise-400-bad-request "You've accessed this page in an invalid way."))]
+          [(list #"post" (cons "dependencies" rest))
+           (dep:post session rest bindings raw-bindings)]
+          [(list #"get" (cons "dependencies" rest))
+           (render-hack (dep:dependencies session user-role rest))]
+          [(list #"post" (cons "submit" rest))
+           ;; used to submit files and to publish them (POST only)
+           ;; FIXME I think the "action" binding should instead just be
+           ;; implemented using a different URL.
+           (response/xexpr (submit:submit session rest bindings raw-bindings))]
           ;; "/feedback/..."
           ;; viewing and submitting feedback? And other stuff? confused.
           ;; seems to be the main entry point to an assignment. More of
           ;; a dashboard?
-          [(cons "feedback" rest)
-           (if post?
-               ;; POST /feedback/*/<hash>/... ((feedback . *) ...) : submit feedback
-               ;; POST /feedback/file-container/<hash>/load : load or save rubric json data
-               ;; POST /feedback/view/... (!feedback) ?
-               (feedback:post session user-role rest bindings post-data)
-               ;; GET /feedback/ : assignment dashboard ?
-               ;; GET /feedback/view/<hash> : viewing a review
-               ;; GET /feedback/file-container/<hash>/[...*] : file-container page
-               (render-hack (feedback:load session user-role rest)))]
-          ;; "/export/..."
-          [(cons "export" rest)
-           ;; this one does not return a web page, but rather a file:
+          [(list #"post" (cons "feedback" rest))
+           ;; POST /feedback/*/<hash>/... ((feedback . *) ...) : submit feedback
+           ;; POST /feedback/file-container/<hash>/load : load or save rubric json data
+           ;; POST /feedback/view/... (!feedback) ?
+           (feedback:post session user-role rest bindings post-data)]
+          [(list #"get" (cons "feedback" rest))
+           ;; GET /feedback/ : assignment dashboard ?
+           ;; GET /feedback/view/<hash> : viewing a review
+           ;; GET /feedback/file-container/<hash>/[...*] : file-container page
+           (render-hack (feedback:load session user-role rest))]
+          [(list #"get" (cons "export" rest))
+           ;; return a file representing the status(?) of an assignment
            (export:load session user-role rest)]
-          ;; "/exception/..."
-          ;; simulate throwing of a server exception.
-          [(cons "exception" rest)
+          [(list _ (cons "exception" rest))
+           ;; simulate throwing of a server exception.
            (error "Test an exception occurring.")]
-          ;; "/roster/..."
-          [(cons "roster" rest)
-           (if post?
-               ;; must include "action" binding:
-               (render-hack ((roster:post post-data bindings) session user-role rest))
-               (render-hack (roster:load session user-role rest)))]
+          [(list #"post" (cons "roster" rest))
+           ;; must include "action" binding:
+           (render-hack ((roster:post post-data bindings) session user-role rest))]
+          [(list #"get" (cons "roster" rest))
+           (render-hack (roster:load session user-role rest))]
           ;; "/browse/..."
-          [(cons "browse" rest)
+          [(list _ (cons "browse" rest))
            (cond [(and (> (length rest) 1)
                        (string=? "download" (list-ref rest (- (length rest) 2))))
                   (render-hack (browse:download session user-role rest))]

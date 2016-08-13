@@ -32,6 +32,7 @@
   (let ((action (car rest)))
     ;; this one returns a response:
     (cond [(equal? "view" action) (do-view session (cdr rest) message)]
+          ;; returns a response:
           [(equal? "file-container" action) (do-file-container session role (cdr rest) message)]
           [else (do-default session role rest message)])))
 
@@ -67,6 +68,7 @@
          (assignment (car rest))
          (reviews (review:select-feedback (class-name) assignment uid))
          (submissions (submission:select-from-assignment assignment (class-name) uid))
+         ;; FIXME xexprs, please.
          (results 
           (string-append (gen-status assignment uid start-url)
                          (gen-submissions submissions start-url)
@@ -195,6 +197,7 @@
 ;; FIXME once again lots and lots of duplicated code with the
 ;; other file-container pages.
 ;; 'rest' represents the path to the file in the local storage.
+;; returns response
 (define (do-file-container session role rest [message '()])
   (define r-hash (car rest))
   ;; FIXME a server error on a bogus hash here:
@@ -267,7 +270,7 @@
          (review (review:select-by-hash hash)))
     ;; FIXME can now return response..
     (if (not (validate review session))
-        (error:not-authorized-response)
+        (raise-403-not-authorized)
         (post->load session path review))))
 
 (define (post->load session path review)
