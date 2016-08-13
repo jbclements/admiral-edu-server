@@ -23,24 +23,12 @@
     [(<= n 0) '()]
     [else (cons val (repeat val (- n 1)))]))
 
-(provide load)
-;; handles a GET to /feedback/...
-;; FIXME message is never passed?
-(define (load session role rest [message '()])
-  (when (empty? rest)
-    (raise-404-not-found "Path not found."))
-  (let ((action (car rest)))
-    ;; this one returns a response:
-    (cond [(equal? "view" action) (do-view session (cdr rest) message)]
-          ;; returns a response:
-          [(equal? "file-container" action) (do-file-container session role (cdr rest) message)]
-          [else (do-default session role rest message)])))
-
 (provide post)
 ;; handles a POST to /feedback/...
 (define (post session role rest bindings post-data)
   ;; FIXME if there's no rest...? URL patterns please
   (let ((action (car rest))
+        ;; FIXME gnarr... no special endpoint for this?
         (submit? (exists-binding? 'feedback bindings)))
     (cond [submit? (post->do-feedback-submit session (cadr rest) bindings )]
           [(equal? "file-container" action) (post->do-file-container session role (cdr rest) post-data)]
@@ -62,10 +50,11 @@
     (save-review-feedback review feedback)
     (do-view session (list review-hash) `((p "Feedback submitted.")))))
 
-(define (do-default session role rest message)
+;; this is kind of an assignment dashboard, actually....
+(provide do-default)
+(define (do-default session role assignment)
   (let* ((uid (ct-session-uid session))
          (start-url (hash-ref (ct-session-table session) 'start-url))
-         (assignment (car rest))
          (reviews (review:select-feedback (class-name) assignment uid))
          (submissions (submission:select-from-assignment assignment (class-name) uid))
          ;; FIXME xexprs, please.
@@ -75,8 +64,9 @@
                          (gen-pending-reviews assignment uid start-url)
                          (gen-completed-reviews assignment uid start-url)
                          (gen-review-feedback reviews start-url))))
-    (string-append "<h1>" assignment "</h1>"
-                   results)))
+    (string->response
+     (string-append "<h1>" assignment "</h1>"
+                    results))))
 
 (define (gen-status assignment uid start-url)
   ;; FIXME strings
@@ -165,6 +155,7 @@
         (string-append "<li><a href='" start-url "../view/" hash "/'>Review #" (number->string cur) ": " step "</a></li>" (gen-reviews-helper rest (+ 1 cur) start-url)))))
          
 ;; show review, allow feedback. returns response
+(provide do-view)
 (define (do-view session rest message)
   (let* ((start-url (hash-ref (ct-session-table session) 'start-url))
          (r-hash (car rest))
@@ -198,36 +189,40 @@
 ;; other file-container pages.
 ;; 'rest' represents the path to the file in the local storage.
 ;; returns response
-(define (do-file-container session role rest [message '()])
-  (define r-hash (car rest))
+(provide do-file-container)
+(define (do-file-container session role r-hash rest [message '()])
   ;; FIXME a server error on a bogus hash here:
-  (define review (review:select-by-hash r-hash))
+  (define review (review:maybe-select-by-hash r-hash))
+  (when (not review)
+    (raise-403-not-authorized))
   (when (not (validate review session))
-      (raise-403-not-authorized "You are not authorized to see this page."))
+      (raise-403-not-authorized))
   (let* ((start-url (hash-ref (ct-session-table session) 'start-url))
          (class (ct-session-class session))
          [assignment (review:Record-assignment-id review)]
          (stepName (review:Record-step-id review))
          (reviewee (review:Record-reviewee-id review))
-         [default-mode (determine-mode-from-filename (last rest))]
          ;; FIXME is this going to work with subdirectories?
          [load-url (string-append "'" start-url "load" "'")]
-         [step (to-step-link stepName (- (length rest) 2))]
-         (last-path (last rest))
-         (prefix (if (equal? last-path "") "" (string-append last-path "/")))
-         [path (to-path-html (cdr rest))]
-         (file (to-path (cdr rest)))
+         [step (to-step-link stepName (- (length rest) 1))]
+         [path (to-path-html rest)]
+         (file (to-path rest))
          (test-prime (newline))
          (file-path (submission-file-path class assignment reviewee stepName file)))
     (define is-dir (is-directory? file-path))
-    (define contents (if is-dir
-                         (render-directory file-path start-url #:show-download #f)
-                         ;; FIXME shouldn't there be a 403 check like in review.rkt?
-                         render-file))
-    (define maybe-file-url
-      (if is-dir #f
-          (construct-url-path session (cons "download" rest))))
-    (feedback-file-container-page assignment step path default-mode contents load-url maybe-file-url)))
+    (cond [(is-directory? file-path)
+           (define contents (render-directory file-path start-url #:show-download #f))
+           (feedback-file-container-page assignment step path "bogus" contents load-url #f)]
+          [else
+           (define default-mode (determine-mode-from-filename (last rest)))
+           ;; FIXME shouldn't there be a 403 check like in review.rkt?
+           (define contents render-file)
+           (define maybe-file-url
+             (construct-url-path session (cons "download" (cons r-hash rest))))
+           (feedback-file-container-page assignment step path default-mode contents load-url maybe-file-url)])
+
+    
+    ))
 
 
 #;(retrieve-file file-path)

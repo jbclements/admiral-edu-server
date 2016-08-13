@@ -190,11 +190,16 @@
            ;; POST /feedback/file-container/<hash>/load : load or save rubric json data
            ;; POST /feedback/view/... (!feedback) ?
            (feedback:post session user-role rest bindings post-data)]
-          [(list #"get" (cons "feedback" rest))
-           ;; GET /feedback/ : assignment dashboard ?
-           ;; GET /feedback/view/<hash> : viewing a review
-           ;; GET /feedback/file-container/<hash>/[...*] : file-container page
-           (render-hack (feedback:load session user-role rest))]
+          [(list #"get" (list "feedback" "view" path-elts ...))
+           ;; FIXME only a hash allowed?
+           ;; view a review
+           (feedback:do-view session path-elts '())]
+          [(list #"get" (list "feedback" "file-container" hash path-elts ...))
+           ;; a file-container page (goes in the iframe of a review)
+           (feedback:do-file-container session user-role hash path-elts)]
+          [(list #"get" (list "feedback" assignment any ...))
+           ;; kind of an assignment dashboard:
+           (feedback:do-default session user-role assignment)]
           [(list #"get" (cons "export" rest))
            ;; return a file representing the status(?) of an assignment
            (export:load session user-role rest)]
