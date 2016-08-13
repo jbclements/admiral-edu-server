@@ -14,6 +14,7 @@
 (provide load)
 (: load (->* (ct-session (Listof String) (U XExpr #f)) (Boolean)
              Response))
+;; FIXME flatten into top-level dispatch
 (define (load session url message [post #f])
   (match url
     [(list assignment-id) (display-assignment assignment-id message)]
@@ -173,7 +174,9 @@
     [10 "October"]
     [11 "November"]
     [12 "December"]
-    [_ (error (format "Could not convert month ~a to string." month))]))
+    [_ (raise-argument-error 'month->string "number in [0..11]" 0 month)]))
+
+
     
 
 
@@ -356,4 +359,9 @@
         (ul () 
          (li () "Completed: " ,completed)
          (li () "Assigned: " ,assigned))))))
-      
+
+(module+ test
+  (require typed/rackunit)
+
+  (check-equal? (month->string 7) "July")
+  (check-exn #px"number in \\[0..11\\]" (λ () (month->string 1234))))
