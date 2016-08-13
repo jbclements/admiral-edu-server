@@ -11,9 +11,8 @@
 
 
 ;; given a session, a review hash, and a nonempty file path,
+;; validate hash and permissions and
 ;; return a response containing the file's bytes
-;; FIXME call download.rkt instead.
-;; perform a download
 (: do-download (ct-session String (Pairof String
                                              (Listof String))
                               -> Response))
@@ -42,6 +41,8 @@
 
 (: validate (review:Record ct-session -> Boolean))
 (define (validate review session)
-  (let ((uid (ct-session-uid session))
-        (reviewer (review:Record-reviewer-id review)))
-    (equal? uid reviewer)))
+  (define uid (ct-session-uid session))
+  (define reviewer (review:Record-reviewer-id review))
+  (define reviewee (review:Record-reviewee-id review))
+  (or (equal? uid reviewer)
+      (equal? uid reviewee)))

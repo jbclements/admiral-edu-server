@@ -199,7 +199,7 @@
     (let* ([bindings (spec->bindings binding-spec)]
            (raw-bindings (spec->raw-bindings binding-spec))
            (start-rel-url (ensure-trailing-slash (string-append "/" (class-name-shim) "/" (string-join path "/"))))
-           (session (ct-session (class-name-shim) user (make-table start-rel-url bindings)))
+           (session (ct-session (class-name-shim) user #f (make-table start-rel-url bindings)))
            (result (with-handlers ([(λ (x) #t) server-error-shim])
                      (handlerPrime post? post-data session bindings raw-bindings path))))
       (explode-response result)))

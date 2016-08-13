@@ -97,6 +97,10 @@ must add a summative comment at the end.
   (printf "Submitting text for user 1\n")
   (upload-submission "test-class" "user1@example.com" "a1-ct" "tests" "my-file"
                      #"foo </textarea> bar <textarea> baz")
+
+  (printf "Submitting text for user 2\n")
+  (upload-submission "test-class" "user2@example.com" "a1-ct" "tests" "my-file"
+                     #"this is the file submitted by user 2")
   
   ;; stop here if you want to see the user 1 submission
   ;; in the codemirror window.

@@ -69,6 +69,7 @@
     (raise-403-not-authorized "You are not authorized to see this page."))
   (review-page save-url load-url file-container no-modifications completed submit-url))
 
+;; FIXME duplicated in download.rkt
 (define (validate review session)
   (let ((uid (ct-session-uid session))
         (reviewer (review:Record-reviewer-id review)))
@@ -206,6 +207,7 @@
      empty
      (list (string->bytes/utf-8 data)))))
 
+;; FIXME call download.rkt fn instead.
 ;; given a session, a list of strings representing a file path, and a review hash,
 ;; produce a response containing the file's bytes
 (define (push->download session path review)

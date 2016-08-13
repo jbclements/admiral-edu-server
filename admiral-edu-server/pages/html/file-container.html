@@ -35,7 +35,7 @@
       var commentsUrl = @(urlgen load-url);
       // url for loading text of file to be reviewed:
       // for directories, this is set to false.
-      var maybeFileUrl = @(string-or-false file-url);
+      var maybeFileUrl = @(ct-url-or-false file-url);
 
     </script>
     <script src="/bin/filecontainer.js"></script>

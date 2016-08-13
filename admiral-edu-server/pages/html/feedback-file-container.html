@@ -10,25 +10,25 @@
   
   <body>    
     <div id="file-container" class="file-container">
-			<div id="file-header" class="file-header">
-				<h1>
-					@(safe-id assignment) /
-					@(xexpr->string step) / 
-					@(xexprs->string path)
-				</h1>
-				<div id="syntax-menu" class="syntax-menu">
-				</div>
-
-			</div>
-                        @(xexprs->string content)
+      <div id="file-header" class="file-header">
+	<h1>
+	  @(safe-id assignment) /
+	  @(xexpr->string step) / 
+	  @(xexprs->string path)
+	</h1>
+	<div id="syntax-menu" class="syntax-menu">
+	</div>
+        
+      </div>
+      @(xexprs->string content)
     </div>
     <script>
       var defaultMode = "@(js-str default-mode)";
       // for loading and saving json containing line comments:
-      var commentUrl = @(urlgen load-url);
+      var commentsUrl = @(urlgen load-url);
       // url for loading text of file to be reviewed:
       // for directories, this is set to false.
-      var maybeFileUrl = @(string-or-false file-url);
+      var maybeFileUrl = @(ct-url-or-false file-url);
 
     </script>
 

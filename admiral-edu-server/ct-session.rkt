@@ -11,9 +11,11 @@
 ;; url and bindings mostly.
 
 ;; Captain Teach Session information
+;; FIXME use this class name rather than calling (class-name) all over the place.
 (provide (struct-out ct-session))
 (struct: ct-session ((class : String)
                      (uid : String)
+                     (su-from-uid : (U False String))
                      (table : (HashTable Session-Var String)))
   #:transparent)
 
@@ -91,12 +93,3 @@
                  (filter (make-predicate (Pairof Session-Var String))
                          (clean-bindings bindings))))
   (make-hash pairs))
-          
-;  (let ((args (append (list 'start-url start-rel-url) (filter (compose not reserved?) (flatten bindings)))))
-;    (apply hash args)))
-
-(: flatten (All (a b) ((Listof (Pairof a b)) -> (Listof (U a b)))))
-(define (flatten ls)
-  (match ls
-    ['() '()]
-    [(cons `(,a . ,b) tail) (cons a (cons b (flatten tail)))]))

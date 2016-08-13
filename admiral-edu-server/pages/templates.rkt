@@ -8,7 +8,8 @@
          web-server/templates
          xml
          racket/contract
-         web-server/servlet)
+         web-server/servlet
+         "../urls.rkt")
 
 (provide ;; FIXME get rid of this one:
          string->plain-page-html
@@ -48,11 +49,13 @@
 
 ;; given a URL specification, return a URL.
 ;; currently the identity.
-;; FIXME come up with an abstract representation of a
-;; captain teach URL that fences out weird errors
+;; FIXME disallow strings and move everything
+;; over to custom Url-Path structure to prevent
+;; XSS vulns
 (define (urlgen url)
-  url)
-(define ct-url? string?)
+  (cond [(string? url) url]
+        [(Url-Path? url) (url-path->url-string url)]))
+(define ct-url? (or/c string? Url-Path?))
 
 (define (maybe-hidden-class hidden?)
   (if hidden? "hidden" ""))
@@ -73,17 +76,24 @@
     (raise-argument-error 'safe-id "simple alphanumeric id" 0 s))
   s)
 
-(define (string-or-false s)
+(define (ct-url-or-false s)
   (cond [(false? s) "false"]
         ;; FIXME not sure about the definition of javascript
         ;; string quoting
+        [(Url-Path? s)
+         (js-str-format (url-path->url-string s))]
         [(string? s)
-         (string-append
-          "'"
-          (regexp-replace* #px"'"
-                           (regexp-replace* #px"\\\\" s "\\\\\\\\")
-                           "\\\\'")
-          "'")]))
+         ;; FIXME ELIMINATE WHEN POSSIBLE:
+         (js-str-format s)]))
+
+;; wrap in single quotes, map ' to \' and \ to \\
+(define (js-str-format s)
+  (string-append
+   "'"
+   (regexp-replace* #px"'"
+                    (regexp-replace* #px"\\\\" s "\\\\\\\\")
+                    "\\\\'")
+   "'"))
 
 (define (false? s)
   (eq? s #f))
@@ -163,7 +173,7 @@
  (contract-out
   [file-container-page
    (-> js-str? ct-url? ct-url? safe-id? xexpr? (listof xexpr?) (listof xexpr?)
-       (or/c string? false?) string?)]))
+       (or/c ct-url? false?) string?)]))
 (define (file-container-page default-mode save-url load-url assignment step path content file-url)
   ;; FIXME need to wrap with response-200
   (include-template "html/file-container.html"))
@@ -173,7 +183,7 @@
  (contract-out
   [browse-file-container-page
    (-> safe-id? xexpr? (listof xexpr?) js-str? (listof xexpr?)
-       (or/c string? false?) string?)]))
+       (or/c ct-url? false?) string?)]))
 (define (browse-file-container-page assignment step path default-mode content file-url)
   ;; FIXME wrap with response-200
   (include-template "html/browse-file-container.html"))
@@ -183,7 +193,7 @@
  (contract-out
   [feedback-file-container-page
    (-> safe-id? xexpr? (listof xexpr?) js-str? (listof xexpr?) ct-url?
-       (or/c string? false?) string?)]))
+       (or/c ct-url? false?) string?)]))
 (define (feedback-file-container-page assignment step path default-mode content load-url file-url)
   ;; FIXME wrap with response-200
   (include-template "html/feedback-file-container.html"))
@@ -203,13 +213,15 @@
   (check-not-exn
    (λ ()
      (browse-file-container-page
-      "abc" "def" "ghi.def" "abcd" "contenty"
-      "waffle-house/abc.txt")))
+      "abc" `(i "wiper") (list "ath" "ghi.def") "abcd"
+      '("contenty" (i "mumble"))
+      (Url-Path (list "waffle-house" "abc.txt") #t))))
 
   (check-not-exn
    (λ ()
      (browse-file-container-page
-      "abc" "def" "ghi.def" "abcd" "contenty"
+      "abc" `(i "wiper") (list "ath" "ghi.def") "abcd"
+      '("contenty" (i "mumble"))
       #f)))
   
   (check-match
@@ -223,9 +235,10 @@
   (check-match
    (xexprs->plain-page-html "Quadra!" '((p "goofy")))
    (regexp #px"Quadra!.*<p>goofy</p>"))
-
-  (check-equal? (string-or-false #t) "true")
-  (check-equal? (string-or-false #f) "false")
-  (check-equal? (string-or-false "abc") "'abc'")
-  (check-equal? (string-or-false "abc'de'\\n\\" )
-                "'abc\\'de\\'\\\\n\\\\'"))
+  
+  (check-equal? (ct-url-or-false #f) "false")
+  (check-equal? (ct-url-or-false "abc") "'abc'")
+  (check-equal? (ct-url-or-false "abc'de'\\n\\" )
+                "'abc\\'de\\'\\\\n\\\\'")
+  (check-equal? (ct-url-or-false (Url-Path (list "big" "wig '\\dig") #t))
+                "'/big/wig%20\\'%5Cdig'"))

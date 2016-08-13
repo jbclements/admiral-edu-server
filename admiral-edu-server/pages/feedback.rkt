@@ -10,6 +10,7 @@
 
 (require "../storage/storage.rkt"
          "../base.rkt"
+         "../urls.rkt"
          (prefix-in error: "errors.rkt")
          "responses.rkt"
          "templates.rkt"
@@ -132,6 +133,7 @@
   (lambda (record)
     (let ((step (review:Record-step-id record))
           (hash (review:Record-hash record)))
+      ;; FIXME paths
       `(li (a ((href ,(string-append start-url "../../review/" hash "/"))) "Completed Review for '" ,step "'")))))
 
 (define (gen-submissions submissions start-url)
@@ -146,6 +148,7 @@
   (lambda (record)
     (let ((assignment-id (submission:Record-assignment record))
           (step-id (submission:Record-step record)))
+      ;; FIXME paths
     `(li (a ((href ,(string-append start-url "../../browse/" assignment-id "/" step-id "/"))) ,step-id)))))
 
 (define (gen-reviews reviews start-url) (gen-reviews-helper reviews 1 start-url))
@@ -191,6 +194,7 @@
 ;; generate the file-container iframe for feedback viewing.
 ;; FIXME once again lots and lots of duplicated code with the
 ;; other file-container pages.
+;; 'rest' represents the path to the file in the local storage.
 (define (do-file-container session role rest [message '()])
   (define r-hash (car rest))
   ;; FIXME a server error on a bogus hash here:
@@ -203,6 +207,7 @@
          (stepName (review:Record-step-id review))
          (reviewee (review:Record-reviewee-id review))
          [default-mode (determine-mode-from-filename (last rest))]
+         ;; FIXME is this going to work with subdirectories?
          [load-url (string-append "'" start-url "load" "'")]
          [step (to-step-link stepName (- (length rest) 2))]
          (last-path (last rest))
@@ -217,7 +222,8 @@
                          ;; FIXME shouldn't there be a 403 check like in review.rkt?
                          render-file))
     (define maybe-file-url
-      (if is-dir #f (download-url start-url file #:dotdot-hack #t)))
+      (if is-dir #f
+          (construct-url-path session (cons "download" rest))))
     (feedback-file-container-page assignment step path default-mode contents load-url maybe-file-url)))
 
 

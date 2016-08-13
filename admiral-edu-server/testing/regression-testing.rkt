@@ -91,7 +91,7 @@
             [else (error 'run-request "post data from bindings and optional arg: ~e and ~e"
                          post-data-from-bindings post-data-given)]))
     (define start-rel-url (ensure-trailing-slash (string-append "/" (class-name-shim) "/" (string-join path "/"))))
-    (define session (ct-session (class-name-shim) user (make-table start-rel-url bindings)))
+    (define session (ct-session (class-name-shim) user #f (make-table start-rel-url bindings)))
     (define result (with-handlers ([(λ (x) #t) server-error-shim])
               (handlerPrime post? post-data session bindings raw-bindings path)))
     (explode-response result))
@@ -301,21 +301,43 @@ u must add a summative comment at the end.
            stu2-publishes)
       (200 (,stu2 ("feedback" "test-with-html")))
       ;; stu2 clicks on last review
-      (200 ,(λ () (list stu2 (list "review" (lastreview stu2)))))
+      (200 ,(λ () (list stu2 (list "review" (lastreview-of stu2 stu1))))
+           review)
+      ;; load review file-container for directory
+      (200 ,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1))))
+           review-iframe-dir)
+      ;; file-container for file
+      (200 ,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1)
+                                   "my-different-file")))
+           review-iframe-file)
+      ;; actual text of file
+      (200 ,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1) "download"
+                                   "my-different-file")))
+           review-iframe-file-content)
+      ;; actual text of file using new endpoint:
+      (200 ,(λ () (list stu2 (list "download" (lastreview-of stu2 stu1) "my-different-file")))
+           review-iframe-file-content-new)
       ;; should it be an error to submit bogus rubric json?
-      (200 ,(λ () (list stu2 (list "review" (lastreview stu2) "tests" "save")
+      (200 ,(λ () (list stu2 (list "review" (lastreview-of stu2 stu1) "tests" "save")
                         (list 'json #"\"abcd\"")
                         #t)))
-      (200 ,(λ () (list stu2 (list "review" "submit" (lastreview stu2))))
+      (200 ,(λ () (list stu2 (list "review" "submit" (lastreview-of stu2 stu1))))
            stu2-submits-review1)
-      ;; must do both reviews, to be sure that we covered stu1's submission
+      ;; do the other review too
       (200 ,(λ () (list stu2 (list "review" (lastreview stu2) "tests" "save")
                         (list 'json #"\"abcde\"")
                         #t)))
       (200 ,(λ () (list stu2 (list "review" "submit" (lastreview stu2))))
            stu2-submits-review2)
+      ;; stu1 now views it
       (200 ,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))))
            stu1-views-review)
+      (200 ,(λ () `(, stu1 ("feedback" "file-container" ,(firstfeedback stu1))))
+           stu1-views-review-fc-dir)
+      (200 ,(λ () `(, stu1 ("feedback" "file-container" ,(firstfeedback stu1) "my-different-file")))
+           stu1-views-review-fc-file)
+      (200 ,(λ () `(, stu1 ("download" ,(firstfeedback stu1) "my-different-file")))
+           stu1-views-review-fc-file-raw)
       ((200 ,no-italics)
        ,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))
                       ((feedback . "feedback with <i>italics</i>.")
@@ -327,6 +349,12 @@ u must add a summative comment at the end.
   ;; return the last pending review for given student on "test-with-html"
   (define (lastreview uid)
     (last (pending-review-hashes (cons "test-with-html" uid))))
+
+  ;; return the first pending review for the given student on "test-with-html"
+  ;; where the reviewee is the given one
+  (define (lastreview-of reviewer reviewee)
+    (last (pending-review-hashes/reviewee (cons "test-with-html" reviewer)
+                                           reviewee)))
 
   ;; return the feedback for given student on "test-with-html"
   (define (firstfeedback uid)

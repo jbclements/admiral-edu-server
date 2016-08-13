@@ -27,6 +27,7 @@
          (prefix-in feedback: "pages/feedback.rkt")
          (prefix-in roster: "pages/roster.rkt")
          (prefix-in browse: "pages/browse.rkt")
+         (prefix-in download: "pages/download.rkt")
          (prefix-in typed: "dispatch-typed.rkt"))
 
 (define (any? x)
@@ -39,60 +40,46 @@
 (provide ct-rules)
 (define-values (ct-rules mk-url)
   (dispatch-rules
-   [((string-arg) ...) handler]
-   [((string-arg) ...) #:method "post" handler]
+   [((string-arg) ...) (handler #f)]
+   [((string-arg) ...) #:method "post" (handler #t)]
    [else error:four-oh-four-response]))
 
-;; FIXME transitioning very gradually...
 ;; initially using this only for interactive testing server...
 ;; I'm aware of the danger that the interactive server may not
 ;; share as much code as possible with the production one.
 ;; the goal is to eliminate the classname-trimming done by the
 ;; apache forwarding rules, to make the testing env more like
-;; the real one, and to allow use of the url-maker.
+;; the real one.
 (provide ct-rules-2)
 (define-values (ct-rules-2 mk-url-2)
   (dispatch-rules
-   ;; FIXME REAL RULES HERE!
-   [((string-arg) (string-arg) ...) handler2]
-   [((string-arg) (string-arg) ...) #:method "post" handler2]
-   ;; no else clause to allow serving of static files
+   [((string-arg) (string-arg) ...) (handler2 #f)]
+   [((string-arg) (string-arg) ...) #:method "post" (handler2 #t)]
    ))
 
-(define (handler req path)
+(define ((handler post?) req path)
   (handler2 req #f path))
 
 ;; should replace handler eventually. Too much to fix!
 ;; given request, classname (ignored, but inserted by dispatch interface), and
 ;; list of path strings, handle a request
-(define (handler2 req classname path)
+;; NB: currently classname will be #f for real server
+(define ((handler2 post?) req classname path)
   (define method (request-method req))
   (log-ct-access-info/nomacro
    (format
     "[~a] ~a - ~a ~a" (date->string (current-date) #t)
     (class-name) method path))
-  (define post?
-    (match method
-      [(or #"POST" #"post") #t]
-      [(or #"GET" "get") #f]
-      [other (error:error-xexprs->response
-              `((p "expected GET or POST"))
-              400 #"Bad Request")]))
-  (match (req->uid req)
-    [(? string? uid-str)
-     (let* ((raw-bindings (request-bindings/raw req))
-            (bindings (request-bindings req))
-            (post-data (request-post-data/raw req))
-            (clean-path (filter (lambda (x) (not (equal? "" x))) path))
-            (start-rel-url (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/"))))
-            (session (ct-session (class-name) uid-str (make-table start-rel-url bindings))))
-       (with-handlers ([any? error:server-error-response])
-         (handlerPrime post? post-data session
-                       bindings raw-bindings clean-path)))]
-    [else
-     (error:error-xexprs->response
-      `((p "missing authentication headers."))
-      400 #"Bad Request")]))
+  ;; fixme ditch this:
+  (define start-rel-url (ensure-trailing-slash (string-append "/" (class-name) "/" (string-join path "/"))))
+  (define session (construct-session req start-rel-url))
+  (let* ((raw-bindings (request-bindings/raw req))
+         (bindings (request-bindings req))
+         (post-data (request-post-data/raw req))
+         (clean-path (filter (lambda (x) (not (equal? "" x))) path)))
+    (with-handlers ([any? error:server-error-response])
+      (handlerPrime post? post-data session
+                    bindings raw-bindings clean-path))))
 
 ;; given a request, construct a "session"
 ;; FIXME hoping to get rid of the start-rel-url piece
@@ -101,7 +88,7 @@
     [(? string? uid-str)
      (let* ((raw-bindings (request-bindings/raw req))
             (bindings (request-bindings req))
-            (session (ct-session (class-name) uid-str (make-table start-rel-url bindings))))
+            (session (ct-session (class-name) uid-str #f (make-table start-rel-url bindings))))
        session)]
     [else
      (raise-400-bad-request "Missing Authentication Headers")]))
@@ -143,6 +130,11 @@
           ;; "/"
           ;; FIXME are both of these two actually possible?
           [(or '() '("")) (response/xexpr (index session user-role))]
+          ;; "/download/hash/path..."
+          ;; download the raw bytes of a file, based on hash and path.
+          ;; used for reviewing and feedback.
+          [(list "download" hash path-strs ...)
+           (download:do-download session hash path-strs)]
           ;; "/review/..."
           [(cons "review" rest)
            ;; POST:
@@ -233,11 +225,14 @@
           [else (typed:handlerPrime post? post-data session user-role bindings raw-bindings path)]))))
 
 ;; for superusers: re-issue the request as though it came from user 'uid'
-(define (with-sudo post post-data uid session user-role bindings raw-bindings path)
-  (define can-sudo (roles:Record-can-edit user-role))
-  (define new-session (ct-session (ct-session-class session) uid (ct-session-table session)))
-  (when (not can-sudo)
+(define (with-sudo post post-data new-uid session user-role bindings raw-bindings path)
+  (define can-sudo? (roles:Record-can-edit user-role))
+  (when (not can-sudo?)
     (raise-403-not-authorized))
+  (define new-session (ct-session (ct-session-class session)
+                                  new-uid
+                                  (ct-session-uid session)
+                                  (ct-session-table session)))
   (handlerPrime post post-data new-session bindings raw-bindings path))
 
 ;; Returns #f if the session is not valid
@@ -260,7 +255,17 @@
     (make-request method (string->url u) empty
                   (delay empty) #f "1.2.3.4" 80 "4.3.2.1"))
 
-  (check-not-exn
+  #;(check-not-exn
    (λ () (ct-rules-2 (url->request #"GET" "http://example.com/"))))
-  (check-not-exn
-   (λ () (ct-rules-2 (url->request #"POST" "http://example.com/")))))
+  #;(check-not-exn
+   (λ () (ct-rules-2 (url->request #"POST" "http://example.com/"))))
+
+  (define (zz req args)
+    args)
+
+  (define-values (test-rules test-maker)
+    (dispatch-rules
+     [((string-arg) ...) zz]))
+  (check-equal?
+   (test-rules (url->request #"GET" "http://example.com/abc%20def/"))
+   (list "abc def" "")))
