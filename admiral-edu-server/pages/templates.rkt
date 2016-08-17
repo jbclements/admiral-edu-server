@@ -9,7 +9,7 @@
          xml
          racket/contract
          web-server/servlet
-         "../urls.rkt")
+         "../paths.rkt")
 
 (provide ;; FIXME get rid of this one:
          string->plain-page-html
@@ -54,8 +54,8 @@
 ;; XSS vulns
 (define (urlgen url)
   (cond [(string? url) url]
-        [(Url-Path? url) (url-path->url-string url)]))
-(define ct-url? (or/c string? Url-Path?))
+        [(url-path? url) (url-path->url-string url)]))
+(define ct-url? (or/c string? url-path?))
 
 (define (maybe-hidden-class hidden?)
   (if hidden? "hidden" ""))
@@ -66,27 +66,28 @@
 (define (checkbox-checked c)
   (if c "CHECKED" ""))
 
-;; this contract should probably be somewhere much more
-;; global
 (define (safe-id? c)
-  (and (string? c) (regexp-match #px"^[-_a-zA-Z0-9]+$" c)))
+  (and (string? c) (legal-path-elt? c)))
 
 (define (safe-id s)
   (unless (safe-id? s)
     (raise-argument-error 'safe-id "simple alphanumeric id" 0 s))
-  s)
+  (xexpr->string s))
 
 (define (ct-url-or-false s)
   (cond [(false? s) "false"]
         ;; FIXME not sure about the definition of javascript
         ;; string quoting
-        [(Url-Path? s)
+        [(url-path? s)
          (js-str-format (url-path->url-string s))]
         [(string? s)
          ;; FIXME ELIMINATE WHEN POSSIBLE:
          (js-str-format s)]))
 
 ;; wrap in single quotes, map ' to \' and \ to \\
+;; NOTE: this will not work for strings with newlines, "reverse solidus"es
+;; and other nutty stuff. This is designed to work for things that
+;; come out of url-path->url-string
 (define (js-str-format s)
   (string-append
    "'"
@@ -217,7 +218,7 @@
      (browse-file-container-page
       "abc" `(i "wiper") (list "ath" "ghi.def") "abcd"
       '("contenty" (i "mumble"))
-      (Url-Path (list "waffle-house" "abc.txt") #t))))
+      (strs->abs-ct-path/testing (list "waffle-house" "abc.txt")))))
 
   (check-not-exn
    (λ ()
@@ -242,5 +243,6 @@
   (check-equal? (ct-url-or-false "abc") "'abc'")
   (check-equal? (ct-url-or-false "abc'de'\\n\\" )
                 "'abc\\'de\\'\\\\n\\\\'")
-  (check-equal? (ct-url-or-false (Url-Path (list "big" "wig '\\dig") #t))
+  (check-equal? (ct-url-or-false (strs->abs-ct-path/testing
+                                  (list "big" "wig '\\dig")))
                 "'/big/wig%20\\'%5Cdig'"))

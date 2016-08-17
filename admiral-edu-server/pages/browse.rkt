@@ -14,6 +14,7 @@
 
 (require "../storage/storage.rkt"
          "../base.rkt"
+         "../paths.rkt"
          (prefix-in error: "errors.rkt")
          "../util/file-extension-type.rkt"
          "../authoring/assignment.rkt"
@@ -34,7 +35,6 @@
 
 ;; render a "file-container" page (used exclusively I believe in an iframe for listing
 ;; a directory or editing a file using CodeMirror
-;; FIXME 'message' apparently unused?
 ;; path contains a list of strings representing the elements of the URL after
 ;; the assignment-id and stepName, which in this case represent a path in
 ;; the class-local filesystem
@@ -45,18 +45,27 @@
   [define default-mode (determine-mode-from-filename path)]
   [define step (to-step-link stepName (length path))]
   [define path-html (to-path-html path)]
+  [define rel-ct-path (strs->rel-ct-path path)]
   ;; gee whiz... in the case of the file, we want to insert the 'download' label *before* the filename... use horrible dotdot?
-  (define file (to-path path))
   (define file-path
-    (submission-file-path class assignment user-id stepName file))
-  (define is-dir (is-directory? file-path))
-  (define contents (if is-dir
-                       (render-directory file-path start-url)
-                       render-file))
-  (define maybe-file-url
-    (if is-dir #f (download-url start-url file #:dotdot-hack #t)))
-  (browse-file-container-page assignment step path-html default-mode
-                              contents maybe-file-url))
+    (submission-file-path class assignment user-id stepName
+                          rel-ct-path))
+  (match (path-info file-path)
+    ['directory
+     (define contents (render-directory file-path start-url))
+     (define maybe-file-url #f)
+     (browse-file-container-page assignment step path-html default-mode
+                                 contents maybe-file-url)]
+    ['file
+     (define contents render-file)
+     (define maybe-file-url
+       (download-url start-url
+                     (path->string (ct-path->path rel-ct-path))
+                     #:dotdot-hack #t))
+     (browse-file-container-page assignment step path-html default-mode
+                                 contents maybe-file-url)]
+    ['does-not-exist
+     (raise-403-not-authorized)]))
 
 
 (provide download)
@@ -92,32 +101,4 @@
   (if (<= depth 0) (xexpr->string step)
       (let ((updepth (string-append (apply string-append (repeat "../" depth)) (xexpr->string step))))
         (string-append "<a href=\"" updepth "\">" (xexpr->string step) "</a>"))))
-
-(define (prepare-url word rest)
-  (let* ((last-el (last rest))
-         (prefix (if (equal? last-el "") "" (string-append last-el "/"))))
-    (string-append "\"" prefix word "\"")))
-
-(define (prepare-load-url rest)
-  (prepare-url "load" rest))
-
-(define (prepare-save-url rest)
-  (prepare-url "save" rest))
-
-
-;;TODO: Also in pages/review.rkt Should abstract to common function place
-(define (to-path ls)
-  (letrec ((helper (lambda (acc ls)
-                     (match ls
-                       ['() (apply string-append (reverse acc))]
-                       [(cons head '()) (let ((new-acc (cons head acc)))
-                                          (helper new-acc '()))]
-                       [(cons head tail) (let ((new-acc (cons "/" (cons head acc))))
-                           
-                                           
-                                           (helper new-acc tail))]))))
-    (helper '() ls)))
-
-
-
 

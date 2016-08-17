@@ -134,10 +134,16 @@
           [(list _ (or '() '("")))
            ;; root page
            (response/xexpr (index session user-role))]
+          
           [(list #"get" (list "download" hash path-strs ...))
           ;; download the raw bytes of a file, based on hash and path.
           ;; used for reviewing and feedback.
            (download:do-download session hash path-strs)]
+          [(list #"get" (list "browse-download" assignment step path-strs ...))
+           ;; download raw bytes. used in browsing (i.e. not as part of a review,
+           ;; with a hash)
+           (download:do-browse-download session hash assignment step path-strs)]
+          
           [(list #"post" (cons "review" rest))
            ;; used by codemirror autosave and review elements
            ;; to save review.
@@ -145,6 +151,7 @@
           [(list #"get" (cons "review" rest))
            ;; presents review screen, also handles click on review submit button
            (render-hack (review:load session user-role rest))]
+          
           [(list #"post" (cons "file-container" rest))
            ;; save or load contents of review. bit of an abuse of POST.
            (review:push->file-container session post-data rest)]
@@ -158,9 +165,11 @@
                (review:check-download session user-role rest))]
              [else
               (review:file-container session user-role rest)])]
+          
           [(list _ (list-rest "su" uid rest))
            ;; interface for executing a command as another user
            (with-sudo post? post-data uid session user-role bindings raw-bindings rest)]
+          
           [(list #"post" (list "author" _ ... "validate"))
            ;; add a new assignment
            (author:validate session post-data #t)]
@@ -170,19 +179,23 @@
           [(list #"get" (cons "author" rest))
            ;; interface for adding, editing assignments
            (author:load session user-role rest)]
+          
           ;; "/next/..."
           [(list _ (cons "next" rest))
            (render-hack (next session user-role rest))]
+          
           ;; "/dependencies/..."
           [(list #"post" (cons "dependencies" rest))
            (dep:post session rest bindings raw-bindings)]
           [(list #"get" (cons "dependencies" rest))
            (render-hack (dep:dependencies session user-role rest))]
+          
           [(list #"post" (cons "submit" rest))
            ;; used to submit files and to publish them (POST only)
            ;; FIXME I think the "action" binding should instead just be
            ;; implemented using a different URL.
            (response/xexpr (submit:submit session rest bindings raw-bindings))]
+
           ;; "/feedback/..."
           ;; viewing and submitting feedback? And other stuff? confused.
           ;; seems to be the main entry point to an assignment. More of
@@ -202,23 +215,29 @@
           [(list #"get" (list "feedback" assignment any ...))
            ;; kind of an assignment dashboard:
            (feedback:do-default session user-role assignment)]
+          
           [(list #"get" (cons "export" rest))
            ;; return a file representing the status(?) of an assignment
            (export:load session user-role rest)]
+          
           [(list _ (cons "exception" rest))
            ;; simulate throwing of a server exception.
            (error "Test an exception occurring.")]
+          
           [(list #"post" (cons "roster" rest))
            ;; must include "action" binding:
            (render-hack ((roster:post post-data bindings) session user-role rest))]
           [(list #"get" (cons "roster" rest))
            (render-hack (roster:load session user-role rest))]
+          
           ;; "/browse/..."
           [(list _ (cons "browse" rest))
+           ;; FIXME ambiguity in endpoint processing if e.g. path contains "download"
            (cond [(and (> (length rest) 1)
                        (string=? "download" (list-ref rest (- (length rest) 2))))
                   (render-hack (browse:download session user-role rest))]
                  [else (render-hack (browse:load session user-role rest))])]
+          
           ;; looks like a WIP moving all of dispatch to typed racket?
           [else (typed:handlerPrime post? post-data session user-role bindings raw-bindings path)]))))
 

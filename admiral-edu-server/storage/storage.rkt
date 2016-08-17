@@ -7,21 +7,25 @@
          "../configuration.rkt"
          "../util/basic-types.rkt"
          "../database/mysql.rkt"
-         (prefix-in local: "local-storage.rkt"))
+         (prefix-in local: "local-storage.rkt")
+         "../paths.rkt")
 
 ;; These are our file-system-sig types
+;; FIXME converting path inputs from String to Path-String
+;; as needed. The work is generally in cloud-storage,
+;; where they're assumed to be strings.
 (require/typed "storage-basic.rkt"
-               [retrieve-file (String -> String)]
-               [retrieve-file-bytes (String -> Bytes)]
+               [retrieve-file (Path-String -> String)]
+               [retrieve-file-bytes (Path-String -> Bytes)]
                ; TODO: Revise from Any to some safe data type
                [write-file (String Any -> Void)]
                [delete-path (String -> Void)]
-               [path-info (String -> (U 'file 'directory 'does-not-exist))]
-               [list-files (String -> (Listof String))]
+               [path-info (Path-String -> (U 'file 'directory 'does-not-exist))]
+               [list-files (Path-String -> (Listof String))]
                [list-dirs (String -> (Listof String))]
                [list-sub-files (String -> (Listof String))])
 
-;; FIXME: every one of these needs a wrapper for interactions with user-supplied paths
+;; FIXME: pass Ct-Paths to these
 
 (provide retrieve-file 
          retrieve-file-bytes
@@ -149,29 +153,59 @@
 ;; Returns the bytes of the file associated with the class, assignment, 
 ;; step, user, and path, or #f if the path doesn't refer to a file.
 (provide maybe-get-file-bytes)
-(: maybe-get-file-bytes (String String String String String -> (U False Bytes)))
+(: maybe-get-file-bytes (String String String String (U String
+                                                        Ct-Path)
+                                -> (U False Bytes)))
 (define (maybe-get-file-bytes class assignment step uid path)
-  (define file-path (string-append (submission-path class assignment uid step) path))
-  (match (path-info file-path)
-    ['file
-     (printf "Attempting to retrieve: ~a\n" file-path)
-     (retrieve-file-bytes file-path)]
-    [other
-     #f]))
+  ;; FIXME remove first cond clause and change to paths everywhere.
+  (cond [(string? path)
+         (define file-path (string-append
+                            (submission-path/string class assignment uid step)
+                            "/"
+                            path))
+         (match (path-info file-path)
+           ['file
+            (printf "Attempting to retrieve: ~a\n" file-path)
+            (retrieve-file-bytes file-path)]
+           [other
+            #f])]
+        [else
+         (define file-path
+           (ct-path->path
+            (ct-path-join
+             (submission-path class assignment uid step)
+             path)))
+         (match (path-info file-path)
+           ['file
+            (printf "Attempting to retrieve: ~a\n" file-path)
+            (retrieve-file-bytes file-path)]
+           [other
+            #f])]))
 
 ;; class-id -> assignment-id user-id step-id
 (provide submission-path)
-(: submission-path (String String String String -> String))
+(: submission-path (String String String String -> Ct-Path))
 (define (submission-path class-id assignment-id user-id step-id)
-  ;; FIXME build-path...
-  (string-append class-id "/" assignment-id "/" user-id "/" step-id "/"))
+  (strs->rel-ct-path (list class-id assignment-id user-id step-id)))
+
+;; FIXME eliminate uses of this, replacing with submission-path
+(: submission-path/string (String String String String -> String))
+(define (submission-path/string class-id assignment-id user-id step-id)
+  (path->string
+   (ct-path->path (submission-path class-id assignment-id user-id step-id))))
 
 
 ;; class-id -> assignment-id -> user-id -> step-id -> file-name -> string
 (provide submission-file-path)
-(: submission-file-path (String String String String String -> String))
+(: submission-file-path (String String String String (U String Ct-Path) -> String))
 (define (submission-file-path class-id assignment-id user-id step-id file-name)
-  (string-append (submission-path class-id assignment-id user-id step-id) file-name))
+  ;; FIXME eliminate both conversions and just return a ct-path
+  (path->string
+   (ct-path->path
+    (ct-path-join (submission-path class-id assignment-id user-id step-id)
+                  ;; FIXME eliminate first branch when unneeded
+                  (cond [(string? file-name) (strs->rel-ct-path (list file-name))]
+                        [else file-name])))))
 
 
 ; Uploads a dependency solution. If necessary, deletes the previous dependency that was uploaded 
@@ -180,7 +214,7 @@
 (define (upload-dependency-solution class-id user-id assignment-id step-id file-name file-content)
   (cond [(not (check-file-name file-name)) (Failure (format "Invalid filename ~a" file-name))]
         [else
-         (let ((path (submission-path class-id assignment-id user-id step-id)))
+         (let ((path (submission-path/string class-id assignment-id user-id step-id)))
            ;; Delete previously uploaded files
            (delete-path path)
            
@@ -204,7 +238,7 @@
      (cond [(not (check-file-name file-name)) (Failure (format "Invalid filename ~a" file-name))]
            ;; Ensure the students has not finalized their submission
            [published (Failure "Submission already exists.")]
-           [else (let ((path (submission-path class-id assignment-id user-id step-id)))
+           [else (let ((path (submission-path/string class-id assignment-id user-id step-id)))
                    
                    ;; Delete previously uploaded files
                    (delete-path path)
@@ -225,7 +259,7 @@
 (define (do-unarchive-solution class-id user-id assignment-id step-id file-name file-content)
   (let* ((temp-dir (get-local-temp-directory))
          (file-path (build-path temp-dir file-name))
-         (path (submission-path class-id assignment-id user-id step-id)))
+         (path (submission-path/string class-id assignment-id user-id step-id)))
     
     ;; Write the file out
     (local:write-file file-path file-content)
@@ -238,7 +272,7 @@
     
     ;; Copy files to storage
     (let* ((file-names (local:list-sub-files temp-dir))
-           ;; FIXME OH MY GOD THIS IS BAD
+           ;; FIXME terrible way to do a "split-path"
            (len (string-length (path->string temp-dir)))
            (submission-file-name (lambda: ([file-name : String]) (string-append path (substring file-name len))))
            (handle-file (lambda: ([file-name : String]) 

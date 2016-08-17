@@ -10,7 +10,7 @@
 
 (require "../storage/storage.rkt"
          "../base.rkt"
-         "../urls.rkt"
+         "../paths.rkt"
          (prefix-in error: "errors.rkt")
          "responses.rkt"
          "templates.rkt"
@@ -208,40 +208,28 @@
          [path (to-path-html rest)]
          (file (to-path rest))
          (test-prime (newline))
-         (file-path (submission-file-path class assignment reviewee stepName file)))
+         (file-path (submission-file-path class assignment reviewee stepName
+                                          (strs->rel-ct-path rest))))
     (define is-dir (is-directory? file-path))
     (cond [(is-directory? file-path)
            (define contents (render-directory file-path start-url #:show-download #f))
-           (feedback-file-container-page assignment step path "bogus" contents load-url #f)]
+           (feedback-file-container-page
+            assignment step path "bogus" contents load-url #f)]
           [else
            (define default-mode (determine-mode-from-filename (last rest)))
            ;; FIXME shouldn't there be a 403 check like in review.rkt?
            (define contents render-file)
            (define maybe-file-url
-             (construct-url-path session (cons "download" (cons r-hash rest))))
-           (feedback-file-container-page assignment step path default-mode contents load-url maybe-file-url)])
-
-    
-    ))
-
-
-#;(retrieve-file file-path)
+             (ct-path->url-path
+              session
+              (strs->rel-ct-path (cons "download" (cons r-hash rest)))))
+           (feedback-file-container-page
+            assignment step path default-mode contents load-url maybe-file-url)])))
 
 (define (determine-mode-from-filename filename)
   (let* ((split (string-split filename "."))
          (ext (if (null? split) "" (last split))))
     (extension->file-type ext)))
-
-(define (prepare-url word rest)
-  (let* ((last-el (last rest))
-         (prefix (if (equal? last-el "") "" (string-append last-el "/"))))
-    (string-append "\"" prefix word "\"")))
-
-(define (prepare-load-url rest)
-  (prepare-url "load" rest))
-
-(define (prepare-save-url rest)
-  (prepare-url "save" rest))
 
 
 ;;TODO: Also in pages/review.rkt Should abstract to common function place

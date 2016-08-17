@@ -188,11 +188,14 @@ u must add a summative comment at the end.
       ;; bad YAML
       ;; NON-REGRESSION: new version better than old
       (400 (,m ("author" "validate") () #t #"ziggy stardust")) ;; 10
-      ;; bogus path piece
+      ;; bogus path piece... actually, the API just ignores
+      ;; everything until the last one. For now, this is just okay.
       ;; holding off on fixing this until we have a handle on paths...
-      (404 (,m ("author" "boguspath" "validate") () #t ,assignment-yaml)
+      (200 (,m ("author" "boguspath" "validate") () #t ,assignment-yaml)
            boguspath-validate)
-      (200 (,m ("author" "validate") () #t ,assignment-yaml))
+      ;; this one is now invalid because the assignment already exists
+      (400 (,m ("author" "validate") () #t ,assignment-yaml)
+           existing-assignment)
       (200 (,m ("author" "validate") () #t ,yaml-with-html))
       ;; REGRESSION: missing title
       (200 (,m ("assignments")))
@@ -247,7 +250,7 @@ u must add a summative comment at the end.
       ;; the file 
       (200 (,stu1 ("browse" "test-with-html" "tests" "my-different-file")))
       ;; ouch, what about this:
-      (404 (,stu1
+      (403 (,stu1
             ("browse" "test-with-html" "tests" "my-different-file" "download" "test-class"
                       "test-with-html" ,stu1 "tests" "my-different-file"))
            accidental-trainwreck)

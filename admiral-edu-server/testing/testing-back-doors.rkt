@@ -2,6 +2,7 @@
 
 (require "../database/mysql/review.rkt"
          "../storage/storage.rkt"
+         "../paths.rkt"
          racket/match)
 
 ;; grotty back doors into the system to deal with
@@ -54,11 +55,12 @@
                 hash)]
         [else
          (list-files
-          (submission-path (class-name-shim)
-                           (Record-assignment-id the-record)
-                           (Record-reviewee-id the-record)
-                           ;; not sure about the "step" argument
-                           "tests"))
+          (ct-path->path
+           (submission-path (class-name-shim)
+                            (Record-assignment-id the-record)
+                            (Record-reviewee-id the-record)
+                            ;; not sure about the "step" argument
+                            "tests")))
          ]))
 
 (define-type AUKey (Pair String String))

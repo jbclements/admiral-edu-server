@@ -5,9 +5,11 @@
          "../util/basic-types.rkt"
          "../storage/storage.rkt"
          "responses.rkt"
+         "../paths.rkt"
          (prefix-in review: "../database/mysql/review.rkt"))
 
-(provide do-download)
+(provide do-download
+         do-browse-download)
 
 
 ;; given a session, a review hash, and a nonempty file path,
@@ -35,6 +37,23 @@
   (define data (maybe-get-file-bytes class assignment stepName
                                      reviewee path-str))
   ;; FIXME isn't this an internal error?
+  (unless data
+    (raise-403-not-authorized "You are not authorized to see this page."))
+  (bytes->file-response data))
+
+;; given a session, an assignment and step, and a nonempty file path,
+;; validate hash and permissions and
+;; return a response containing the file's bytes
+;; no auth check because the uid is part of the file's path.
+(: do-browse-download (ct-session String String
+                                  (Pairof String
+                                             (Listof String))
+                              -> Response))
+(define (do-browse-download session assignment step path-strs)
+  (define class (ct-session-class session))
+  (define user (ct-session-uid session))
+  (define data (maybe-get-file-bytes class assignment step user
+                                     (strs->rel-ct-path path-strs)))
   (unless data
     (raise-403-not-authorized "You are not authorized to see this page."))
   (bytes->file-response data))

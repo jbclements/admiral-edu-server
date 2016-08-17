@@ -14,6 +14,7 @@
          "../util/file-extension-type.rkt"
          "responses.rkt"
          "templates.rkt"
+         "../paths.rkt"
          "file-container-helpers.rkt")
 
 (define (repeat val n)
@@ -113,7 +114,7 @@
   (let* ((r-hash (car rest))
          (review (try-select-by-hash r-hash)))
     (when (not (validate review session))
-      (raise-403-not-authorized "You are not authorized to see this page."))
+      (raise-403-not-authorized))
     (cond
       [(equal? (last rest) "save") (post->save-rubric session post-data review)]
       [(equal? (last rest) "load") (post->load-rubric session review)]
@@ -151,7 +152,7 @@
          (review-id (review:Record-review-id review))
          (data (retrieve-rubric class assignment stepName review-id reviewer reviewee)))
     (when (not (validate review session))
-      (raise-403-not-authorized "You are not authorized to see this page."))
+      (raise-403-not-authorized))
     (response/full
      200 #"Okay"
      (current-seconds) #"application/json; charset=utf-8"
@@ -196,7 +197,7 @@
          (review-id (review:Record-review-id review))
          (data (load-review-comments class assignment stepName review-id reviewer reviewee path)))
     (when (not (validate review session))
-      (raise-403-not-authorized "You are not authorized to see this page."))
+      (raise-403-not-authorized))
     (bytes->json-response (string->bytes/utf-8 data))))
 
 ;; FIXME call download.rkt fn instead.
@@ -211,7 +212,7 @@
   (define reviewee (review:Record-reviewee-id review))
   (define data (maybe-get-file-bytes class assignment stepName reviewee path))
   (unless data
-    (raise-403-not-authorized "You are not authorized to see this page."))
+    (raise-403-not-authorized))
   (bytes->file-response data))
   
 (provide (contract-out
@@ -234,20 +235,26 @@
          [step (to-step-link stepName (- (length rest) 2))]
          (last-path (last rest))
          [path (to-path-html (cdr rest))]
-         (file (to-path (cdr rest)))
-         (test-prime (newline))
-         (file-path (submission-file-path class assignment reviewee stepName file)))
-    (define is-dir (is-directory? file-path))
-    (define contents (if (is-directory? file-path)
-                         (render-directory file-path start-url)
-                         (begin
-                           (unless (eq? (path-info file-path) 'file)
-                             (raise-403-not-authorized "You are not allowed to see this page."))
-                           render-file)))
-    (define maybe-file-url
-      (if is-dir #f (download-url start-url file #:dotdot-hack #t)))
-    (file-container-page default-mode save-url load-url assignment step path contents
-                         maybe-file-url)))
+         [rel-ct-path (strs->rel-ct-path (cdr rest))]
+         (test-prime (newline)))
+    (define file-path
+      (submission-file-path class assignment reviewee stepName rel-ct-path))
+    ;; FIXME eliminate conversion when unnecessary
+    (match (path-info file-path)
+      ['directory
+       (define contents (render-directory file-path start-url))
+       (define maybe-file-url #f)
+       (file-container-page default-mode save-url load-url assignment step path contents
+                            maybe-file-url)]
+      ['file
+       (define file (path->string (ct-path->path rel-ct-path)))
+       (define contents render-file)
+       (define maybe-file-url
+         (download-url start-url file #:dotdot-hack #t))
+       (file-container-page default-mode save-url load-url assignment step path contents
+                            maybe-file-url)]
+      ['does-not-exist
+       (raise-403-not-authorized)])))
 
 (define (determine-mode-from-filename filename)
   (let* ((split (string-split filename "."))

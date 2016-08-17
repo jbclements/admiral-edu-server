@@ -1,16 +1,25 @@
-#lang racket
+#lang racket/base
 
-(require aws
+(require racket/string
+         racket/list
+         racket/contract
+         aws
          "../configuration.rkt"
          (prefix-in local: "local-storage.rkt"))
 
 (provide run-with-aws-parameters
-         retrieve-file
-         retrieve-file-bytes
+         (contract-out
+          [retrieve-file
+           (-> relative-path? string?)]
+          [retrieve-file-bytes
+           (-> relative-path? bytes?)])
          write-file
          delete-path
-         path-info
-         list-files
+         (contract-out
+          [path-info
+           (-> relative-path? (or/c 'file 'directory 'does-not-exist))]
+          [list-files
+           (-> relative-path? (listof string?))])
          list-dirs
          list-sub-files)
 
@@ -21,22 +30,30 @@
                  [private-key (cloud-secret-key)])
     (thunk)))
 
-
-; If the file exists locally, it returns it. Otherwise, it fetches it from the cloud and then returns it
+;; If the file exists locally, it returns it. Otherwise, it
+;; fetches it from the cloud and then returns it as a string
 (define (retrieve-file path)
-  (let* ((info (local:path-info path)))
-    (local:ensure-path-exists path)
-    (when (eq? info 'does-not-exist) (get/file (string-append (bucket) path) (string->path path))))
+  (when (eq? (local:path-info path) 'does-not-exist)
+    (fetch-file path))
   (local:retrieve-file path))
 
+;; If the file exists locally, it returns it. Otherwise, it
+;; fetches it from the cloud and then returns it as a byte-string
 (define (retrieve-file-bytes path)
-  (let* ((info (local:path-info path)))
-    (local:ensure-path-exists path)
-    (when (eq? info 'does-not-exist) 
-      (begin (printf "Syncing: ~a\n" (string-append (bucket) path))
-             (get/file (string-append (bucket) path) (string->path path))
-             (printf "Done.\n"))))
+  (when (eq? (local:path-info path) 'does-not-exist)
+    (fetch-file path))
   (local:retrieve-file-bytes path))
+
+;; given a path-string, fetches a file from AWS
+(define (fetch-file path)
+  (define path-str (cond [(path? path) (path->string path)]
+                         [else path]))
+  (define path-path (cond [(path? path) path]
+                          [else (string->path path)]))
+  (local:ensure-path-exists path-path)
+  (printf "Syncing: ~a\n" (string-append (bucket) path-str))
+  (get/file (string-append (bucket) path-str) path-path)
+  (printf "Done.\n"))
 
 
 ; Writes the local file (over writing if necessary). Then, pushes the local file to the cloud.
@@ -65,23 +82,35 @@
       (map delete-f files))
     (local:delete-path path))
   
-  ; (path -> Either 'file 'directory 'does-not-exist)
-  ; Returns a symbol representing if the path is a file, directory, or does not exist
-  (define (path-info path)
-    (cond [(file-exists-in-cloud? path) 'file]
-          [else 'directory]))
-  
-  (define (file-exists-in-cloud? path)
-    (let* ((files (ls (string-append (bucket) path)))
-           (member? (filter (lambda (x) (equal? path x)) files)))
-      (= (length member?) 1)))
+; (path -> Either 'file 'directory 'does-not-exist)
+; returns 'file if the path exists, otherwise
+;; returns 'directory'. Baby Yikes.
+(define (path-info path)
+  (cond [(file-exists-in-cloud? path) 'file]
+        [else 'directory]))
+
+;; determines whether a path exists in the cloud storage.
+;; FIXME I'm confused by this function. This function suggests
+;; that the 'ls' function can accurately perform directory-like
+;; listing operations, which makes it very strange that
+;; the 'path-info' function doesn't distinguish between directories
+;; and 'does-not-exist. Experimentation with AWS required here.
+(define (file-exists-in-cloud? path)
+  (define path-str (cond [(path? path) (path->string path)]
+                         [else path]))
+  (let* ((files (ls (string-append (bucket) path-str)))
+         (member? (filter (lambda (x) (equal? path-str x)) files)))
+    (= (length member?) 1)))
   
   ; (path -> (listof path))
   ; Returns all files that are at the specified path.
   (define (list-files path)
-    (printf "Listing files at ~a\n" path)
-    (let* ((files (ls (string-append (bucket) path)))
-           (split-path (string-split path "/"))
+    (define path-str (cond [(path? path) (path->string path)]
+                           [else path]))
+    (printf "Listing files at ~a\n" path-str)
+    ;; FIXME terrible string manipulation
+    (let* ((files (ls (string-append (bucket) path-str)))
+           (split-path (string-split path-str "/"))
            (split (lambda (x) (string-split x "/")))
            (split-files (map split files))
            (at-len (length split-path))
@@ -110,13 +139,15 @@
   (define (take-up-to ls n)
     (cond [(> (- (length ls) n) 0) (take ls n)]
           [else ls]))
+
+;; FIXME it appears to me that this will return
+;; true for nonexistent paths
+(define (is-directory? path)
+  (eq? 'directory (path-info path)))
   
-  (define (is-directory? path)
-    (eq? 'directory (path-info path)))
-  
-  ; (path -> (listof path))
-  ; Returns all files that are at the specified path recursively adding all sub directories
-  (define (list-sub-files path)
-    (ls (string-append (bucket) path)))
+; (path -> (listof path))
+; Returns all files that are at the specified path recursively adding all sub directories
+(define (list-sub-files path)
+  (ls (string-append (bucket) path)))
   
 

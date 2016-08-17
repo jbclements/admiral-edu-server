@@ -9,6 +9,13 @@
 (require/typed racket/file
                [make-parent-directory* (Path-String -> Void)])
 
+;; INVARIANT: every path argument is used in a
+;; (build-path (local-storage-path) ...) before
+;; getting handed to a file-system primitive.
+
+;; FIXME using Ct-Paths here to represent the relative paths could potentially
+;; avoid some nasty bugs.
+
 ;;TODO: Once everything is typed, we should replace almost all instances of Path-String with Path
 
 ; (path -> string?)

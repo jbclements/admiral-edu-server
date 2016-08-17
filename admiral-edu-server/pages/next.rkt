@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require "../base.rkt"
-         "../temporary-hacks.rkt"
+         "../paths.rkt"
          "responses.rkt"
          (prefix-in error: "errors.rkt")
          "../authoring/assignment.rkt"
@@ -45,9 +45,9 @@
          (browse-url (string-append start-url "../../browse/" assignment-id "/" step-id "/"))
          (class (ct-session-class session))
          (user-id (ct-session-uid session))
-         (the-path (submission-path class assignment-id user-id step-id))
+         ;; FIXME remove conversion when list-files takes a ct-path
+         (the-path (ct-path->path (submission-path class assignment-id user-id step-id)))
          (publish-okay (> (length (list-files the-path)) 0)))
-    ;; FIXME CSS BUGS, use xexprs:
     `((p "Below is your current submission to '" ,step-id "'. It has not yet "
          "been published. You may make changes until you are ready to publish.")
       (iframe ((width "800px") (height "600px") (style "border: none")
