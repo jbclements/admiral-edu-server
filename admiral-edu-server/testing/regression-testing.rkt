@@ -255,8 +255,11 @@ u must add a summative comment at the end.
                       "test-with-html" ,stu1 "tests" "my-different-file"))
            accidental-trainwreck)
       ;; let's see what the download content looks like
+      
       (200 (,stu1 ("browse" "test-with-html" "tests" "download" "my-different-file"))
            download)
+      (200 (,stu1 ("browse-download" "test-with-html" "tests" "my-different-file"))
+           new-download)
       
       ;; wait... random strangers can submit???
       (403 (,stu9 ("submit" "test-with-html" "tests")
