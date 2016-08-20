@@ -142,7 +142,7 @@
           [(list #"get" (list "browse-download" assignment step path-strs ...))
            ;; download raw bytes. used in browsing (i.e. not as part of a review,
            ;; with a hash)
-           (download:do-browse-download session hash assignment step path-strs)]
+           (download:do-browse-download session assignment step path-strs)]
           
           [(list #"post" (cons "review" rest))
            ;; used by codemirror autosave and review elements
@@ -231,12 +231,9 @@
            (render-hack (roster:load session user-role rest))]
           
           ;; "/browse/..."
-          [(list _ (cons "browse" rest))
-           ;; FIXME ambiguity in endpoint processing if e.g. path contains "download"
-           (cond [(and (> (length rest) 1)
-                       (string=? "download" (list-ref rest (- (length rest) 2))))
-                  (render-hack (browse:download session user-role rest))]
-                 [else (render-hack (browse:load session user-role rest))])]
+          [(list #"get" (list "browse" assignment step rest ...))
+           ;; the iframe that allows the user to inspect just-submitted files
+           (render-hack (browse:do-file-container session assignment step rest))]
           
           ;; looks like a WIP moving all of dispatch to typed racket?
           [else (typed:handlerPrime post? post-data session user-role bindings raw-bindings path)]))))

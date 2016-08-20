@@ -16,6 +16,7 @@
            web-server/http/response-structs
            rackunit
            rackunit/text-ui
+           html-parsing
            "../dispatch.rkt"
            "../base.rkt"
            "testing-shim.rkt"
@@ -158,6 +159,43 @@ u must add a summative comment at the end.
     (match-define (list _ _ _ _ _ content) result)
     (check (compose not string-contains?) content "<i>"))
 
+  (define ((has-anchor-link l) result)
+    (match-define (list _ _ _ _ _ content) result)
+    (check ormap-xexp (html->xexp content)
+           (λ (e) (match e
+                    ;; NB fails for <a>'s with more than one href...
+                    [(list 'a (list '@ _1 ... (list 'href link) _2 ...) _3 ...)
+                     (equal? link l)]
+                    [other #f]))))
+
+  ;; does the xexp contain this element? (doesn't search attributes)
+  (define (ormap-xexp pred xexp)
+    (or (pred xexp)
+        (match xexp
+          [(list tag (list '@ attr ...) sub-elts ...)
+           (ormap (λ (xexp) (ormap-xexp pred xexp)) sub-elts)]
+          [(list tag sub-elts ...)
+           (ormap (λ (xexp) (ormap-xexp xexp)) sub-elts)]
+          [other #f])))
+
+  (define (equal-maker x) (λ (e) (equal? x e)))
+  
+  (check-equal? (ormap-xexp '(a (@ (aoeu 3) (dch 4)) "abc" "def") (equal-maker "def")) #t)
+  (check-equal? (ormap-xexp '(a (@ (aoeu 3) (dch 4)) "abc" "def") (equal-maker "abc")) #t)
+  (check-equal? (ormap-xexp '(a (@ (aoeu 3) (dch 4)) "abc" "def") (equal-maker "oth")) #f)
+  (check-equal? (ormap-xexp '(a (@ (aoeu 3) (dch 4)) "abc" "def") (equal-maker '(a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t)
+  (check-equal? (ormap-xexp '(a (@ (aoeu 3) (dch 4)) "abc" "def") (equal-maker '(@ (aoeu 3) (dch 4)))) #f)
+  (check-equal? (ormap-xexp '(b (a (@ (aoeu 3) (dch 4)) "abc" "def")) (equal-maker "abc")) #t)
+  (check-equal? (ormap-xexp '(b (a (@ (aoeu 3) (dch 4)) "abc" "def")) (λ (elt)
+                                                                            (match elt
+                                                                              [(list 'a (list '@ _1 ... (list 'dch 4) _2 ...))
+                                                                               #t]
+                                                                              [other #f]))) #t)
+  
+  (define ((has-link l) result)
+    (match-define (list _ _ _ _ _ content) result)
+    (check string-contains? content l))
+
   ;; a test (currently) consists of a list
   ;; containing the expected status code and the
   ;; arguments to pass to run-request.
@@ -165,7 +203,7 @@ u must add a summative comment at the end.
   ;; from earlier requests, must allow request args
   ;; to be thunked. 
   (define tests
-    `((200 (,m ()))
+    `(((200 ,(has-anchor-link "/assaeuaoeignments")) (,m ()))
       ;; REGRESSION: changed title
       (200 (,m ("assignments")))
       (200 (,m ("roster")))
@@ -255,9 +293,10 @@ u must add a summative comment at the end.
                       "test-with-html" ,stu1 "tests" "my-different-file"))
            accidental-trainwreck)
       ;; let's see what the download content looks like
-      
-      (200 (,stu1 ("browse" "test-with-html" "tests" "download" "my-different-file"))
+      ;; removed old-style download
+      #;(200 (,stu1 ("browse" "test-with-html" "tests" "download" "my-different-file"))
            download)
+      ;; trying the new-style browse download
       (200 (,stu1 ("browse-download" "test-with-html" "tests" "my-different-file"))
            new-download)
       
