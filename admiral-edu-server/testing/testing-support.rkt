@@ -20,7 +20,8 @@
 ;; raw-bindings (and post data, in the case of the json)
 
 (define binding-spec/c
-  (or/c 'empty
+  (or/c '()
+        'empty
         (list/c 'alist (listof (cons/c symbol? string?)))
         (list/c 'multipart (listof
                             (or/c (list/c 'nameandvalue bytes? bytes?)
@@ -31,6 +32,7 @@
 (define (spec->raw-bindings binding-spec)
   (match binding-spec
     ['empty (list)]
+    ['() (list)]
     [(list 'multipart file-bindings)
      (for/list ([b (in-list (filter (λ (x) x) file-bindings))])
        (match b
@@ -57,7 +59,8 @@
 ;; SHOULDN'T USE ORDINARY BINDINGS AT ALL....
 (define (spec->bindings binding-spec)
   (match binding-spec
-    ['empty (list)]
+    ['() '()]
+    ['empty '()]
     [(list 'multipart file-bindings)
      (for/list ([b (in-list file-bindings)])
        (match b
@@ -81,6 +84,7 @@
 ;; second one 'alist or 'multipart
 (define (append-binding-specs a b)
   (match a
+    ['() b]
     ['empty b]
     [(list 'alist a-bindings)
      (match b

@@ -13,6 +13,7 @@
   (require racket/string
            racket/list
            racket/match
+           racket/contract
            web-server/http/response-structs
            rackunit
            rackunit/text-ui
@@ -80,7 +81,7 @@
   (define (run-request user path [binding-spec '()] [post? #f] [post-data-given #""])
     ;; a shortcut to avoid having to write 'alist everywhere
     (define spec (match binding-spec
-                   [(cons (or 'multipart 'json) _) binding-spec]
+                   [(cons (or 'multipart 'json 'alist) _) binding-spec]
                    [other (list 'alist other)]))
     [define bindings (spec->bindings spec)]
     (define raw-bindings (spec->raw-bindings spec))
@@ -159,6 +160,8 @@ u must add a summative comment at the end.
     (match-define (list _ _ _ _ _ content) result)
     (check (compose not string-contains?) content "<i>"))
 
+  ;; does the result contain an <a> element with an href of
+  ;; the form /test-class/[l] ?
   (define ((has-anchor-link l) result)
     (match-define (list _ _ _ _ _ content) result)
     (check ormap-xexp
@@ -168,6 +171,10 @@ u must add a summative comment at the end.
                      (equal? link (string-append "/test-class" l))]
                     [other #f]))
            (html->xexp content)))
+
+  ;; andmap over has-anchor-link
+  (define ((has-anchor-links . ls) result)
+    (andmap (λ (l) ((has-anchor-link l) result)) ls))
 
   ;; does the xexp contain this element? (doesn't search attributes)
   (define (ormap-xexp pred xexp)
@@ -194,10 +201,41 @@ u must add a summative comment at the end.
                                 [other #f]))
                             '(b (a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t)
   
-  (define ((has-link l) result)
+  (define ((has-string l) result)
     (match-define (list _ _ _ _ _ content) result)
     (check string-contains? content l))
 
+  ;; what is a test? These contracts are essentially documentation.
+  
+  ;; call-params: (user path-strs [bindings] [post?] [raw-bytes?])
+  (define ct-call-params/c
+    (or/c
+     ;; this procedure must return a call-params/c, but I want this to
+     ;; be a flat contract.
+     procedure?
+     (cons/c string?
+             (cons/c (listof string?)
+                     (or/c null?
+                           (cons/c binding-spec/c
+                                   (or/c null?
+                                         (cons/c boolean?
+                                                 (or/c null?
+                                                       (list/c bytes?))))))))))
+  (define response-code? (or/c 200 403 400 404 500))
+  (define ct-expected?
+    (or/c response-code?
+          (list/c response-code? procedure?)))
+  (define ct-test/c
+    (or/c (list/c ct-call-params/c ct-expected?)
+          (list/c ct-call-params/c ct-expected? symbol?)))
+
+  (define ct-test? (flat-contract-predicate ct-test/c))
+  
+  #;(check-equal? ((flat-contract-predicate ct-call-params/c)
+                 '("masteruser@example.com" ("roster" "new-student") ((action . "create-student") (uid . "frogstar@example.com")) #t))
+                #t)
+  
+  ;; a test contains three parts: expected, call, and (optionally) a name.
   ;; a test (currently) consists of a list
   ;; containing the expected status code and the
   ;; arguments to pass to run-request.
@@ -205,193 +243,215 @@ u must add a summative comment at the end.
   ;; from earlier requests, must allow request args
   ;; to be thunked. 
   (define tests
-    `(((200 ,(has-anchor-link "/assignments/")) (,m ()))
+    `(((,m ()) (200 ,(has-anchor-links "/assignments/" "/roster/")))
       ;; REGRESSION: changed title
-      (200 (,m ("assignments")))
-      (200 (,m ("roster")))
-      (200 (,m ("roster" "new-student")))
+      ((,m ("assignments")) (200 ,(has-anchor-link "/author/")))
+      ((,m ("roster")) 200)
+      ((,m ("roster" "new-student")) 200)
       ;; REGRESSION: error feedback less useful than old
       ;; should be a 400, not a 200:
-      (400 (,m ("roster" "new-student") () #t))
-      (200 (,m ("roster" "new-student") ((action . "create-student")
-                                         (uid . ,stu1))
-               #t))
+      ((,m ("roster" "new-student") () #t) 400)
+      ((,m ("roster" "new-student") (alist ((action . "create-student")
+                                            (uid . ,stu1)))
+               #t) 200)
       ;; create same student again?
-      (200 (,m ("roster" "new-student") ((action . "create-student")
-                                         (uid . ,stu1))
-               #t))
-      (200 (,m ("author")))
+      ((,m ("roster" "new-student") (alist ((action . "create-student")
+                                            (uid . ,stu1)))
+               #t) 200)
+      ((,m ("author")) 200)
       ;; NON-REGRESSION: new version better than old
-      (404 (,m ("author") () #t #"assignment-id : zzz1"))
+      ((,m ("author") () #t #"assignment-id : zzz1") 404)
       ;; ouch! another internal error!
-      (404 (,m ("author" "bogwater") () #t #"assignment-id : zzz1"))
+      ((,m ("author" "bogwater") () #t #"assignment-id : zzz1") 404)
       ;; bad YAML
       ;; NON-REGRESSION: new version better than old
-      (400 (,m ("author" "validate") () #t #"ziggy stardust")) ;; 10
+      ((,m ("author" "validate") () #t #"ziggy stardust") 400) ;; 10
       ;; bogus path piece... actually, the API just ignores
       ;; everything until the last one. For now, this is just okay.
       ;; holding off on fixing this until we have a handle on paths...
-      (200 (,m ("author" "boguspath" "validate") () #t ,assignment-yaml)
+      ((,m ("author" "boguspath" "validate") () #t ,assignment-yaml) 200
            boguspath-validate)
       ;; this one is now invalid because the assignment already exists
-      (400 (,m ("author" "validate") () #t ,assignment-yaml)
+      ((,m ("author" "validate") () #t ,assignment-yaml) 400
            existing-assignment)
-      (200 (,m ("author" "validate") () #t ,yaml-with-html))
+      ((,m ("author" "validate") () #t ,yaml-with-html) 200)
       ;; REGRESSION: missing title
-      (200 (,m ("assignments")))
+      ((,m ("assignments")) 200)
       ;; REGRESSION: missing title
-      (200 (,m ("assignments" "dashboard" "test-with-html"))) ;; 15
-      (200 (,m ("dependencies" "test-with-html")))
-      (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews")))
+      ((,m ("assignments" "dashboard" "test-with-html")) 200) ;; 15
+      ((,m ("dependencies" "test-with-html")) 200)
+      ((,m ("dependencies" "test-with-html" "tests" "student-reviews")) 200)
       ;; NON-REGRESSION: fixed bug
-      (400 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload") () #t #""))
-      (200 (,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload")
+      ((,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload") () #t #"") 400)
+      ((,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload")
                (multipart
                 ((namefilevalue #"file-1" #"file-1" () #"abcd")
                  (namefilevalue #"file-2" #"grogra-2" () #"efgh")))
-               #t))
-      (200 (,m ("assignments")))
-      (200 (,m ("assignments" "dashboard" "test-with-html")))
+               #t) 200)
+      ((,m ("assignments")) 200)
+      ((,m ("assignments" "dashboard" "test-with-html")) 200)
       ;; not open yet:
-      (400 (,stu1 ("next" "test-with-html")))
+      ((,stu1 ("next" "test-with-html")) 400)
       ;; open the assignment
-      (200 (,m ("assignments" "open" "test-with-html")))
+      ((,m ("assignments" "open" "test-with-html")) 200)
       ;; student navigation:
-      (200 (,stu1 ()))
-      (200 (,stu1 ("assignments")))
-      (403 (,stu9 ("feedback" "test-with-html"))
+      ((,stu1 ()) 200)
+      ((,stu1 ("assignments")) 200)
+      ((,stu9 ("feedback" "test-with-html")) 403
            stranger-feedback)
-      (200 (,stu1 ("feedback" "test-with-html")))
+      ((,stu1 ("feedback" "test-with-html")) 200)
       ;; XSS attack: html in assignment description:
-      ((200 ,no-italics) (,stu1 ("next" "test-with-html")))
-      (200 (,stu1 ("submit" "test-with-html" "tests")
+      ((,stu1 ("next" "test-with-html")) (200 ,no-italics))
+      ((,stu1 ("submit" "test-with-html" "tests")
                   (multipart
                    ((namefilevalue #"file" #"my-file" ()
                                       #"oh.... \n two lines!\n")))
-                  #t))
-      ((200 ,no-italics) (,stu1 ("next" "test-with-html"))) ;; 30
+                  #t) 200)
+      ((,stu1 ("next" "test-with-html")) (200 ,no-italics)) ;; 30
       ;; re-submit
-      (200 (,stu1 ("submit" "test-with-html" "tests")
+      ((,stu1 ("submit" "test-with-html" "tests")
                   (multipart
                    ((namefilevalue
                      #"file" #"my-file" () #"oops... \n two different lines\n")))
-                  #t))
+                  #t) 200)
       ;; re-submit with different file name
-      (200 (,stu1 ("submit" "test-with-html" "tests")
+      ((,stu1 ("submit" "test-with-html" "tests")
                   (multipart
                    ((namefilevalue #"file"
                                       #"my-different-file"
                                       ()
                                       #"oops... \n two different lines\n")))
-                  #t)
+                  #t) 200
            stu1-resubmits)
       ;; content of the iframe:
-      (200 (,stu1 ("browse" "test-with-html" "tests")))
+      ((,stu1 ("browse" "test-with-html" "tests")) 200)
       ;; the file 
-      (200 (,stu1 ("browse" "test-with-html" "tests" "my-different-file")))
+      ((,stu1 ("browse" "test-with-html" "tests" "my-different-file")) 200)
       ;; ouch, what about this:
-      (403 (,stu1
-            ("browse" "test-with-html" "tests" "my-different-file" "download" "test-class"
-                      "test-with-html" ,stu1 "tests" "my-different-file"))
-           accidental-trainwreck)
+      ((,stu1
+        ("browse" "test-with-html" "tests" "my-different-file" "download" "test-class"
+                  "test-with-html" ,stu1 "tests" "my-different-file"))
+       403
+       accidental-trainwreck)
       ;; let's see what the download content looks like
       ;; removed old-style download
-      #;(200 (,stu1 ("browse" "test-with-html" "tests" "download" "my-different-file"))
-           download)
+      #;((,stu1 ("browse" "test-with-html" "tests" "download" "my-different-file"))
+         200
+         download)
       ;; trying the new-style browse download
-      (200 (,stu1 ("browse-download" "test-with-html" "tests" "my-different-file"))
-           new-download)
+      ((,stu1 ("browse-download" "test-with-html" "tests" "my-different-file"))
+       200
+       new-download)
       
       ;; wait... random strangers can submit???
-      (403 (,stu9 ("submit" "test-with-html" "tests")
-                  (multipart
-                   ((namefilevalue #"file"
-                                      #"file-from-stranger" ()
-                                      #"anotuh\n1234\n3")))
-                  #t)
-           stranger-submit)
+      ((,stu9 ("submit" "test-with-html" "tests")
+              (multipart
+               ((namefilevalue #"file"
+                               #"file-from-stranger" ()
+                               #"anotuh\n1234\n3")))
+              #t)
+       403
+       stranger-submit)
       ;; create another student
-      (200 (,m ("roster" "new-student") ((action . "create-student")
-                                         (uid . ,stu2))
-               #t))
+      ((,m ("roster" "new-student") (alist ((action . "create-student")
+                                            (uid . ,stu2)))
+           #t)
+       200)
       
       ;; that student submits:
-      (200 (,stu2 ("submit" "test-with-html" "tests")
-                  (multipart
-                   ((namefilevalue
-                     #"file" #"a-third-file" () #"zzz\n\nzzz\nzzz\n")))
-                  #t))
+      ((,stu2 ("submit" "test-with-html" "tests")
+              (multipart
+               ((namefilevalue
+                 #"file" #"a-third-file" () #"zzz\n\nzzz\nzzz\n")))
+              #t)
+       200)
       ;; can stu2 read stu1's file? No. Good.
-      (403 (,stu2 ("browse" "test-with-html" "tests" "my-different-file")))
+      ((,stu2 ("browse" "test-with-html" "tests" "my-different-file"))
+       403)
       ;; stu1 publishes:
-      (200 (,stu1 ,(path2list "submit/test-with-html/tests")
-                  ((action . "submit"))
-                  #t)
-           stu1-publishes)
-      (200 (,stu1 ,(path2list "feedback/test-with-html")))
+      ((,stu1 ,(path2list "submit/test-with-html/tests")
+              (alist ((action . "submit")))
+              #t)
+       200
+       stu1-publishes)
+      ((,stu1 ,(path2list "feedback/test-with-html")) 200)
       ;; bogus hash:
-      (403 (,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")))
+      ((,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")) 403)
       ;; viewing a bogus feedback
-      (403 (,stu1 ("feedback" "file-container" "BOGUSSS" "ALSOBAD" "load")))
+      ((,stu1 ("feedback" "file-container" "BOGUSSS" "ALSOBAD" "load")) 403)
       ;; thunk to delay extraction of hash:
-      (200 ,(λ () (list stu1 (list "review" (lastreview stu1)))))
+      (,(λ () (list stu1 (list "review" (lastreview stu1)))) 200)
       ;; the iframe...
-      (200 ,(λ () (list stu1 (list "file-container" (lastreview stu1)))))
+      (,(λ () (list stu1 (list "file-container" (lastreview stu1)))) 200)
       ;; stu2 logs in:
-      (200 (,stu2 ()))
+      ((,stu2 ()) 200)
       ;; clicks on assignments
-      (200 (,stu2 ("assignments")))
+      ((,stu2 ("assignments")) 200)
       ;; stu2 publishes:
-      (200 (,stu2 ,(path2list "submit/test-with-html/tests")
-                  ((action . "submit"))
-                  #t)
-           stu2-publishes)
-      (200 (,stu2 ("feedback" "test-with-html")))
+      ((,stu2 ,(path2list "submit/test-with-html/tests")
+              (alist ((action . "submit")))
+              #t)
+       200
+       stu2-publishes)
+      ((,stu2 ("feedback" "test-with-html")) 200)
       ;; stu2 clicks on last review
-      (200 ,(λ () (list stu2 (list "review" (lastreview-of stu2 stu1))))
-           review)
+      (,(λ () (list stu2 (list "review" (lastreview-of stu2 stu1))))
+       200
+       review)
       ;; load review file-container for directory
-      (200 ,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1))))
-           review-iframe-dir)
+      (,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1))))
+       200
+       review-iframe-dir)
       ;; file-container for file
-      (200 ,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1)
-                                   "my-different-file")))
-           review-iframe-file)
+      (,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1)
+                               "my-different-file")))
+       200
+       review-iframe-file)
       ;; actual text of file
-      (200 ,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1) "download"
-                                   "my-different-file")))
-           review-iframe-file-content)
+      (,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1) "download"
+                               "my-different-file")))
+       200
+       review-iframe-file-content)
       ;; actual text of file using new endpoint:
-      (200 ,(λ () (list stu2 (list "download" (lastreview-of stu2 stu1) "my-different-file")))
-           review-iframe-file-content-new)
+      (,(λ () (list stu2 (list "download" (lastreview-of stu2 stu1) "my-different-file")))
+       200
+       review-iframe-file-content-new)
       ;; should it be an error to submit bogus rubric json?
-      (200 ,(λ () (list stu2 (list "review" (lastreview-of stu2 stu1) "tests" "save")
-                        (list 'json #"\"abcd\"")
-                        #t)))
-      (200 ,(λ () (list stu2 (list "review" "submit" (lastreview-of stu2 stu1))))
-           stu2-submits-review1)
+      (,(λ () (list stu2 (list "review" (lastreview-of stu2 stu1) "tests" "save")
+                    (list 'json #"\"abcd\"")
+                    #t))
+       200)
+      (,(λ () (list stu2 (list "review" "submit" (lastreview-of stu2 stu1))))
+       200
+       stu2-submits-review1)
       ;; do the other review too
-      (200 ,(λ () (list stu2 (list "review" (lastreview stu2) "tests" "save")
-                        (list 'json #"\"abcde\"")
-                        #t)))
-      (200 ,(λ () (list stu2 (list "review" "submit" (lastreview stu2))))
-           stu2-submits-review2)
+      (,(λ () (list stu2 (list "review" (lastreview stu2) "tests" "save")
+                    (list 'json #"\"abcde\"")
+                    #t))
+       200)
+      (,(λ () (list stu2 (list "review" "submit" (lastreview stu2))))
+       200
+       stu2-submits-review2)
       ;; stu1 now views it
-      (200 ,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))))
-           stu1-views-review)
-      (200 ,(λ () `(, stu1 ("feedback" "file-container" ,(firstfeedback stu1))))
-           stu1-views-review-fc-dir)
-      (200 ,(λ () `(, stu1 ("feedback" "file-container" ,(firstfeedback stu1) "my-different-file")))
-           stu1-views-review-fc-file)
-      (200 ,(λ () `(, stu1 ("download" ,(firstfeedback stu1) "my-different-file")))
-           stu1-views-review-fc-file-raw)
-      ((200 ,no-italics)
-       ,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))
+      (,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))))
+       200
+       stu1-views-review)
+      (,(λ () `(, stu1 ("feedback" "file-container" ,(firstfeedback stu1))))
+       200
+       stu1-views-review-fc-dir)
+      (,(λ () `(, stu1 ("feedback" "file-container" ,(firstfeedback stu1) "my-different-file")))
+       200
+       stu1-views-review-fc-file)
+      (,(λ () `(, stu1 ("download" ,(firstfeedback stu1) "my-different-file")))
+       200
+       stu1-views-review-fc-file-raw)
+      (,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))
                       ((feedback . "feedback with <i>italics</i>.")
                        (flag . "goronsky"))
                       #t))
-           stu1-submits-feedback)
-      (200 (,stu2 ("feedback" "test-with-html")))))
+       (200 ,no-italics)
+       stu1-submits-feedback)
+      ((,stu2 ("feedback" "test-with-html")) 200)))
 
   ;; return the last pending review for given student on "test-with-html"
   (define (lastreview uid)
@@ -419,10 +479,14 @@ u must add a summative comment at the end.
           (λ (rt-port)
             (for ([test (in-list tests)]
                   [i (in-naturals)])
+              (unless (ct-test? test)
+                (raise-argument-error 'testing
+                                      "test specification matching contract"
+                                      0 test))
               (define-values (expected request-args-or-thunk testname)
                 (match test
-                  [(list a b) (values a b "")]
-                  [(list a b c) (values a b (symbol->string c))]))
+                  [(list call expected) (values expected call "")]
+                  [(list call expected name) (values expected call (symbol->string name))]))
               (define request-args
                 ;; !@#$ request hashes... can't extract until earlier tests have been
                 ;; run.
