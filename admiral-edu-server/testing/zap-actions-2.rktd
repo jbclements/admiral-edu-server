@@ -21,7 +21,7 @@
  (#f (#"GET" #"https://www.captainteach.org/2166-dev/browse/a1-577be86f"))
  (200
   (#"GET"
-   #"https://www.captainteach.org/2166-dev/browse/a1-577be86f/tests/download/c"))
+   #"https://www.captainteach.org/2166-dev/browse-download/a1-577be86f/tests/c"))
  (#f
   (#"GET" #"https://www.captainteach.org/2166-dev/browse/a1-577be86f/tests"))
  (#f
@@ -47,7 +47,7 @@
   (#"GET" #"https://www.captainteach.org/2166-dev/browse/a1-577be86f/tests/d"))
  (200
   (#"GET"
-   #"https://www.captainteach.org/2166-dev/browse/a1-577be86f/tests/download/d"))
+   #"https://www.captainteach.org/2166-dev/browse-download/a1-577be86f/tests/d"))
  (200
   (#"GET"
    #"https://www.captainteach.org/2166-dev/review/<HASH1>/"))

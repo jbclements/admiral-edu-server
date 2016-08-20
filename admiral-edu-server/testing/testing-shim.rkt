@@ -29,7 +29,6 @@
 ;; FIXME just call this from init-shim.
 (define (delete-local-files-shim)
   (when (directory-exists? (build-path (local-storage-path) (class-name-shim)))
-    (fprintf (current-error-port)
-             "ALERT: DELETING EXISTING CLASS DIRECTORY.\n")
+    (printf "ALERT: DELETING EXISTING CLASS DIRECTORY.\n")
     (delete-directory/files (build-path (local-storage-path) (class-name-shim)))))
  

@@ -161,12 +161,13 @@ u must add a summative comment at the end.
 
   (define ((has-anchor-link l) result)
     (match-define (list _ _ _ _ _ content) result)
-    (check ormap-xexp (html->xexp content)
+    (check ormap-xexp
            (λ (e) (match e
                     ;; NB fails for <a>'s with more than one href...
                     [(list 'a (list '@ _1 ... (list 'href link) _2 ...) _3 ...)
-                     (equal? link l)]
-                    [other #f]))))
+                     (equal? link (string-append "/test-class" l))]
+                    [other #f]))
+           (html->xexp content)))
 
   ;; does the xexp contain this element? (doesn't search attributes)
   (define (ormap-xexp pred xexp)
@@ -175,22 +176,23 @@ u must add a summative comment at the end.
           [(list tag (list '@ attr ...) sub-elts ...)
            (ormap (λ (xexp) (ormap-xexp pred xexp)) sub-elts)]
           [(list tag sub-elts ...)
-           (ormap (λ (xexp) (ormap-xexp xexp)) sub-elts)]
+           (ormap (λ (xexp) (ormap-xexp pred xexp)) sub-elts)]
           [other #f])))
 
   (define (equal-maker x) (λ (e) (equal? x e)))
   
-  (check-equal? (ormap-xexp '(a (@ (aoeu 3) (dch 4)) "abc" "def") (equal-maker "def")) #t)
-  (check-equal? (ormap-xexp '(a (@ (aoeu 3) (dch 4)) "abc" "def") (equal-maker "abc")) #t)
-  (check-equal? (ormap-xexp '(a (@ (aoeu 3) (dch 4)) "abc" "def") (equal-maker "oth")) #f)
-  (check-equal? (ormap-xexp '(a (@ (aoeu 3) (dch 4)) "abc" "def") (equal-maker '(a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t)
-  (check-equal? (ormap-xexp '(a (@ (aoeu 3) (dch 4)) "abc" "def") (equal-maker '(@ (aoeu 3) (dch 4)))) #f)
-  (check-equal? (ormap-xexp '(b (a (@ (aoeu 3) (dch 4)) "abc" "def")) (equal-maker "abc")) #t)
-  (check-equal? (ormap-xexp '(b (a (@ (aoeu 3) (dch 4)) "abc" "def")) (λ (elt)
-                                                                            (match elt
-                                                                              [(list 'a (list '@ _1 ... (list 'dch 4) _2 ...))
-                                                                               #t]
-                                                                              [other #f]))) #t)
+  (check-equal? (ormap-xexp (equal-maker "def") '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #t)
+  (check-equal? (ormap-xexp (equal-maker "abc") '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #t)
+  (check-equal? (ormap-xexp (equal-maker "oth") '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #f)
+  (check-equal? (ormap-xexp (equal-maker '(a (@ (aoeu 3) (dch 4)) "abc" "def")) '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #t)
+  (check-equal? (ormap-xexp (equal-maker '(@ (aoeu 3) (dch 4))) '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #f)
+  (check-equal? (ormap-xexp (equal-maker "abc") '(b (a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t)
+  (check-equal? (ormap-xexp (λ (elt)
+                              (match elt
+                                [(list 'a (list '@ _1 ... (list 'dch 4) _2 ...) _3 ...)
+                                 #t]
+                                [other #f]))
+                            '(b (a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t)
   
   (define ((has-link l) result)
     (match-define (list _ _ _ _ _ content) result)
@@ -203,7 +205,7 @@ u must add a summative comment at the end.
   ;; from earlier requests, must allow request args
   ;; to be thunked. 
   (define tests
-    `(((200 ,(has-anchor-link "/assaeuaoeignments")) (,m ()))
+    `(((200 ,(has-anchor-link "/assignments/")) (,m ()))
       ;; REGRESSION: changed title
       (200 (,m ("assignments")))
       (200 (,m ("roster")))

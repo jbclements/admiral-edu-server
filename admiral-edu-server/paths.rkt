@@ -61,8 +61,7 @@
    (error 'system-type
           "this code doesn't work on Windows. Sorry.")]
   ['macosx
-   (fprintf
-    (current-error-port)
+   (printf
     (string-append
      "**WARNING: running captain teach on a case-insensitive file system"
      " is WRONG WRONG WRONG. Use only for testing, and even then be"
