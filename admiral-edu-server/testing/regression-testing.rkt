@@ -176,6 +176,16 @@ u must add a summative comment at the end.
   (define ((has-anchor-links . ls) result)
     (andmap (λ (l) ((has-anchor-link l) result)) ls))
 
+  (define ((has-iframe-link l) result)
+    (match-define (list _ _ _ _ _ content) result)
+    (check ormap-xexp
+           (λ (e) (match e
+                    ;; NB fails for <iframe>'s with more than one href...
+                    [(list 'iframe (list '@ _1 ... (list 'src link) _2 ...) _3 ...)
+                     (equal? link (string-append "/test-class" l))]
+                    [other #f]))
+           (html->xexp content)))
+  
   ;; does the xexp contain this element? (doesn't search attributes)
   (define (ormap-xexp pred xexp)
     (or (pred xexp)
@@ -316,13 +326,21 @@ u must add a summative comment at the end.
                   #t) 200)
       ;; re-submit with different file name
       ((,stu1 ("submit" "test-with-html" "tests")
-                  (multipart
-                   ((namefilevalue #"file"
-                                      #"my-different-file"
-                                      ()
-                                      #"oops... \n two different lines\n")))
-                  #t) 200
-           stu1-resubmits)
+              (multipart
+               ((namefilevalue #"file"
+                               #"my-different-file"
+                               ()
+                               #"oops... \n two different lines\n")))
+              #t)
+       (200
+        ;; must fix paths first:
+        ;;,(has-anchor-link "/next/test-with-html/")
+        ,(λ (r) #t)
+        )
+       stu1-resubmits)
+      ((,stu1 ("next" "test-with-html"))
+       200
+       stu1-not-yet-published)
       ;; content of the iframe:
       ((,stu1 ("browse" "test-with-html" "tests")) 200)
       ;; the file 
