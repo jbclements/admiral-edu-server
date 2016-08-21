@@ -37,6 +37,7 @@
 ;; path contains a list of strings representing the elements of the URL after
 ;; the assignment-id and stepName, which in this case represent a path in
 ;; the class-local filesystem
+;; returns response
 (define (do-file-container session assignment-id step-id path)
   (define user-id (ct-session-uid session))
   ;; FIXME eliminate this...

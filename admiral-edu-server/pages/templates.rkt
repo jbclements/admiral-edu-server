@@ -1,4 +1,3 @@
-
 #lang racket/base
 
 ;; include-template apparently doesn't play nice with TR
@@ -11,37 +10,28 @@
          web-server/servlet
          "../paths.rkt")
 
-(provide ;; FIXME get rid of this one:
-         string->plain-page-html
-         xexprs->plain-page-html
+(provide (contract-out
+          [plain-page (-> string? (listof xexpr?) response?)])
          xexpr->error-page-html
-         xexprs->error-page-html)
-
-;; FIXME temporary function... replace with xexpr-based thing.
-(define (string->plain-page-html title body)
-  (include-template "html/plain.html"))
+         error-page)
 
 ;; given a title and a list of xexprs, return
 ;; a string representing html text
-(define (xexprs->plain-page-html title xexprs)
-  (define body (xexprs->1string xexprs))
-  (include-template "html/plain.html"))
+(define (plain-page title xexprs)
+  (define body (xexprs->string xexprs))
+  (response-200
+   (include-template "html/plain.html")))
 
 ;; given an xexpr, returns an error page embedding that
 ;; message. Note that the good behavior of xexpr->string
 ;; ensures that passing this a string works too.
 (define (xexpr->error-page-html xexpr)
-  (xexprs->error-page-html (list xexpr)))
+  (error-page (list xexpr)))
 
+;; FIXME rename to error-page
 ;; given a list of xexprs, returns an error page etc. etc.
-(define (xexprs->error-page-html xexprs)
-  (define display-message (xexprs->1string xexprs))
+(define (error-page display-message)
   (include-template "html/error.html"))
-
-;; use xexpr->string on each, join with newlines
-(define (xexprs->1string xexprs)
-  (apply string-append
-         (add-between (map xexpr->string xexprs) "\n")))
 
 ;; this is a simple way of ensuring that certain templates
 ;; are included only in this context:
@@ -123,7 +113,8 @@
 ;; given a list of xexprs, convert them to strings
 ;; for use in a template
 (define (xexprs->string xexprs)
-  (apply string-append (map xexpr->string xexprs)))
+  (apply string-append
+         (add-between (map xexpr->string xexprs) "\n")))
 
 ;; given a string, ensure that it doesn't contain
 ;; backslashes, single- or double-quotes
@@ -186,10 +177,11 @@
  (contract-out
   [browse-file-container-page
    (-> safe-id? xexpr? (listof xexpr?) js-str? (listof xexpr?)
-       (or/c ct-url? false?) string?)]))
+       (or/c ct-url? false?) response?)]))
 (define (browse-file-container-page assignment step path default-mode content file-url)
   ;; FIXME wrap with response-200
-  (include-template "html/browse-file-container.html"))
+  (response-200
+   (include-template "html/browse-file-container.html")))
 
 ;; given values for the fields, construct the feedback-file-container page
 (provide
@@ -236,7 +228,7 @@
    (regexp #px"abc<i>wow</i>tag"))
 
   (check-match
-   (xexprs->plain-page-html "Quadra!" '((p "goofy")))
+   (plain-page "Quadra!" '((p "goofy")))
    (regexp #px"Quadra!.*<p>goofy</p>"))
   
   (check-equal? (ct-url-or-false #f) "false")

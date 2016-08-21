@@ -3,6 +3,10 @@
 ;; this file provides functions to construct responses, and
 ;; provides the Response type
 
+;; FIXME there's a certain amount of tension between this file
+;; and templates; it appears that some pages use templates, and
+;; some just go straight from xexprs to responses.
+
 (require "typed-xml.rkt")
 
 (require/typed web-server/servlet
@@ -20,15 +24,11 @@
                
                [TEXT/HTML-MIME-TYPE Bytes])
 
-(require/typed "templates.rkt"
-               [xexprs->plain-page-html (String (Listof XExpr) -> String)])
-
 (provide response/full ;; <- bad, don't use this
          response/xexpr
          bytes->file-response
          bytes->json-response
          xexprs->response
-         xexprs->plain-page-response
          string->response ;; <- bad, don't use this
          Response
          response?
@@ -39,16 +39,6 @@
 (: xexprs->response ((Listof XExpr) -> Response))
 (define (xexprs->response xexprs)
   (response/xexpr `(html (body ,@xexprs))))
-
-(: xexprs->plain-page-response (String (Listof XExpr) -> Response))
-(define (xexprs->plain-page-response title xexprs)
-  (response/full
-   200 #"Okay"
-   (current-seconds) TEXT/HTML-MIME-TYPE
-   '()
-   (list (string->bytes/utf-8
-          (xexprs->plain-page-html title xexprs)))))
-
 
 ;; FIXME ELIMINATE USES OF THIS FUNCTION (replace with xexprs)
 (: string->response (String -> Response))

@@ -2,7 +2,7 @@
 
 (require "../base.rkt"
          "../paths.rkt"
-         "responses.rkt"
+         "templates.rkt"
          (prefix-in error: "errors.rkt")
          "../authoring/assignment.rkt"
          "../storage/storage.rkt")
@@ -19,7 +19,7 @@
         (let* ((uid (ct-session-uid session))
                (assignment (car rest))     
                (do-next (next-step assignment-id uid)))
-          (xexprs->plain-page-response
+          (plain-page
            "Captain Teach"
            (cond 
              [(MustSubmitNext? do-next) (handle-submit-next session assignment user-id do-next start-url)]

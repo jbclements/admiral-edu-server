@@ -11,7 +11,7 @@
 
 (require/typed "templates.rkt"
                [xexpr->error-page-html (XExpr -> String)]
-               [xexprs->error-page-html ((Listof XExpr) -> String)])
+               [error-page ((Listof XExpr) -> String)])
 
 
 
@@ -49,7 +49,7 @@
    code status (current-seconds) TEXT/HTML-MIME-TYPE
    '()
    (list (string->bytes/utf-8
-          (xexprs->error-page-html xexprs)))))
+          (error-page xexprs)))))
 
 ;; convenience function to produce 400 errors
 (: error-xexprs->400-response ((Listof XExpr) -> Response))

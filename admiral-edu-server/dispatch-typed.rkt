@@ -4,7 +4,7 @@
                [xexpr->string (XExpr -> String)])
 
 (require/typed "pages/templates.rkt"
-               [string->plain-page-html (String String -> (Listof Bytes))])
+               [plain-page (String (Listof XExpr) -> Response)])
 
 (require racket/match
          racket/string
@@ -27,7 +27,7 @@
      (define page-result (assignments:load session url post))
      ;; FIXME: this cond should be unnecessary, result should just be list of xexprs
      (cond [(response? page-result) page-result]
-           [else (xexprs->plain-page-response
+           [else (plain-page
                   "Assignments"
                   page-result)])]
     [else (raise-404-not-found)]))

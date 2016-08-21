@@ -233,7 +233,7 @@
           ;; "/browse/..."
           [(list #"get" (list "browse" assignment step rest ...))
            ;; the iframe that allows the user to inspect just-submitted files
-           (render-hack (browse:do-file-container session assignment step rest))]
+           (browse:do-file-container session assignment step rest)]
           
           ;; looks like a WIP moving all of dispatch to typed racket?
           [else (typed:handlerPrime post? post-data session user-role bindings raw-bindings path)]))))
