@@ -4,6 +4,14 @@
 
 (module+ test
 
+  ;; FIXME unfortunately, the 1-second delay between tests
+  ;; means that this currently takes 151 seconds to
+  ;; finish. The 1-second-resolution timestamp
+  ;; seems like a potential problem. Perhaps even
+  ;; a security vulnerability?
+  (module config info
+    (define timeout 180))
+
 (require "../base.rkt"
          "../testing/test-configuration.rkt"
          "../database/mysql/common.rkt"

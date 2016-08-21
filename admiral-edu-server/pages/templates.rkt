@@ -4,6 +4,7 @@
 ;; (I guess I'm not too surprised)
 
 (require racket/list
+         racket/port
          web-server/templates
          xml
          racket/contract
@@ -28,7 +29,6 @@
 (define (xexpr->error-page-html xexpr)
   (error-page (list xexpr)))
 
-;; FIXME rename to error-page
 ;; given a list of xexprs, returns an error page etc. etc.
 (define (error-page display-message)
   (include-template "html/error.html"))
@@ -228,7 +228,8 @@
    (regexp #px"abc<i>wow</i>tag"))
 
   (check-match
-   (plain-page "Quadra!" '((p "goofy")))
+   (call-with-output-string
+    (response-output (plain-page "Quadra!" '((p "goofy")))))
    (regexp #px"Quadra!.*<p>goofy</p>"))
   
   (check-equal? (ct-url-or-false #f) "false")
