@@ -11,7 +11,9 @@
         "web-server-lib"
         "aws"
         "yaml"
-        "quickcheck"))
+        "quickcheck"
+        ;; for testing:
+        "html-parsing"))
 
 (define build-deps
   (list "typed-racket-more"))
