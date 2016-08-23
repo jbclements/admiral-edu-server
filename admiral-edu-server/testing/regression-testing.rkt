@@ -256,7 +256,8 @@ u must add a summative comment at the end.
     `(((,m ()) (200 ,(has-anchor-links "/assignments/" "/roster/")))
       ;; REGRESSION: changed title
       ((,m ("assignments")) (200 ,(has-anchor-link "/author/")))
-      ((,m ("roster")) 200)
+      ((,m ("roster")) (200 ,(has-anchor-links "/roster/upload-roster/"
+                                               "/roster/new-student/")))
       ((,m ("roster" "new-student")) 200)
       ;; REGRESSION: error feedback less useful than old
       ;; should be a 400, not a 200:
@@ -264,10 +265,11 @@ u must add a summative comment at the end.
       ((,m ("roster" "new-student") (alist ((action . "create-student")
                                             (uid . ,stu1)))
                #t) 200)
-      ;; create same student again?
+      ;; create same student again? yes, that's legal
       ((,m ("roster" "new-student") (alist ((action . "create-student")
                                             (uid . ,stu1)))
-               #t) 200)
+               #t)
+       200)
       ((,m ("author")) 200)
       ;; NON-REGRESSION: new version better than old
       ((,m ("author") () #t #"assignment-id : zzz1") 404)
@@ -307,8 +309,9 @@ u must add a summative comment at the end.
       ;; student navigation:
       ((,stu1 ()) 200)
       ((,stu1 ("assignments")) 200)
-      ((,stu9 ("feedback" "test-with-html")) 403
-           stranger-feedback)
+      ((,stu9 ("feedback" "test-with-html"))
+       403
+       stranger-feedback)
       ((,stu1 ("feedback" "test-with-html")) 200)
       ;; XSS attack: html in assignment description:
       ((,stu1 ("next" "test-with-html")) (200 ,no-italics))
