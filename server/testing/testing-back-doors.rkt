@@ -2,15 +2,18 @@
 
 (require "../database/mysql/review.rkt"
          "../storage/storage.rkt"
+         "./testing-shim.rkt"
          racket/match)
 
 ;; grotty back doors into the system to deal with
 ;; nondeterminism in the assignment of hashes
 
 (require/typed "testing-shim.rkt"
-               [class-name-shim (-> String)])
+               [class-name-shim (-> String)]
+               [list-files-shim (-> Any (Listof String))])
 
 (provide pending-review-hashes
+         pending-review-hashes/reviewee
          feedback-hashes
          patch-path)
 
@@ -22,6 +25,14 @@
 (define (pending-reviews key)
   (match-define (cons assignment uid) key)
   (select-pending assignment (class-name-shim) uid))
+
+;; return the hashes of pending reviews where the reviewee is the given one
+(: pending-review-hashes/reviewee ((Pair String String) String -> (Listof String)))
+(define (pending-review-hashes/reviewee key reviewee)
+  (map Record-hash
+       (filter (λ ([review : Record])
+                 (equal? (Record-reviewee-id review) reviewee))
+               (pending-reviews key))))
 
 (: feedback-hashes ((Pair String String) -> (Listof String)))
 (define (feedback-hashes key)
@@ -44,7 +55,7 @@
          (error 'hash->files "no matching record for hash: ~e"
                 hash)]
         [else
-         (list-files
+         (list-files-shim
           (submission-path (class-name-shim)
                            (Record-assignment-id the-record)
                            (Record-reviewee-id the-record)

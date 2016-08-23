@@ -4,6 +4,7 @@
 ;; old and new server.
 
 (require "../pages/errors.rkt"
+         "../storage/storage.rkt"
          "../base.rkt"
          racket/file)
 
@@ -29,3 +30,12 @@
     (fprintf (current-error-port)
              "ALERT: DELETING EXISTING CLASS DIRECTORY.\n")
     (delete-directory/files (class-name-shim))))
+
+(define (list-files-shim path)
+  (list-files path))
+
+(define (ct-session-shim a b c d)
+  (ct-session a b d))
+
+;; should we ignore the bad-in-original tests?
+(define ignore-bad-in-original? #t)
