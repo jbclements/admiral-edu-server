@@ -1,6 +1,22 @@
 #lang racket/base
 
-;; what is this file testing?
+;; this file tests the code that assigns reviews to reviewers
+
+;; troubling unreproducible drdr error:
+;; three-condition-study-test.rkt: raco test: non-empty stderr: #"file-size: file not found
+;; path: /tmp/ct-storage/test-class/test-assignment/three-condition-config.yaml
+;; context...:
+;; /Users/clements/racket/racket/collects/racket/file.rkt:720:0: file->string113
+;; /Users/clements/racket/racket/share/pkgs/typed-racket-lib/typed-racket/utils/simple-result-arrow.rkt:60:15
+;; /Users/clements/admiral-edu-server/admiral-edu-server/authoring/three-condition-study.rkt:22:0: lookup-group
+;; /Users/clements/admiral-edu-server/admiral-edu-server/authoring/three-condition-study.rkt:114:0: three-do-submit-step
+;; /Users/clements/racket/racket/collects/racket/private/map.rkt:25:19: loop
+;; /Users/clements/racket/racket/collects/racket/private/map.rkt:25:19: loop
+;; /Users/clements/racket/racket/collects/racket/private/map.rkt:25:19: loop
+;; /Users/clements/admiral-edu-server/admiral-edu-server/authoring/three-condition-study-test.rkt:416:0: test-reflection-assigned
+;; (submod /Users/clements/admiral-edu-server/admiral-edu-server/authoring/three-condition-study-test.rkt test): [running body]
+;; (submod /Users/clements/racket/pkgs/compiler-lib/compiler/commands/test.rkt process): [running body]
+;; "
 
 (module+ test
 
