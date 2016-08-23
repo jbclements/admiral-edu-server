@@ -169,12 +169,12 @@ u must add a summative comment at the end.
            (λ (e) (match e
                     ;; NB fails for <a>'s with more than one href...
                     [(list 'a (list '@ _1 ... (list 'href link) _2 ...) _3 ...)
-                     (equal? link (string-append "/test-class" l))]
+                     (equal? link l)]
                     [other #f]))
            (html->xexp content)))
 
   ;; andmap over has-anchor-link
-  (define ((has-anchor-links . ls) result)
+  (define ((has-anchor-links ls) result)
     (andmap (λ (l) ((has-anchor-link l) result)) ls))
 
   (define ((has-iframe-link l) result)
@@ -183,7 +183,7 @@ u must add a summative comment at the end.
            (λ (e) (match e
                     ;; NB fails for <iframe>'s with more than one href...
                     [(list 'iframe (list '@ _1 ... (list 'src link) _2 ...) _3 ...)
-                     (equal? link (string-append "/test-class" l))]
+                     (equal? link l)]
                     [other #f]))
            (html->xexp content)))
   
@@ -211,6 +211,8 @@ u must add a summative comment at the end.
                                  #t]
                                 [other #f]))
                             '(b (a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t)
+
+  
   
   (define ((has-string l) result)
     (match-define (list _ _ _ _ _ content) result)
@@ -275,11 +277,18 @@ u must add a summative comment at the end.
   ;; from earlier requests, must allow request args
   ;; to be thunked. 
   (define tests
-    `(((,m ()) (200 ,(has-anchor-links "/assignments/" "/roster/")))
+    `(((,m ())
+       (200 ,(has-anchor-links
+              '("/test-class/assignments/" "/test-class/roster/"))))
       ;; REGRESSION: changed title
-      ((,m ("assignments")) (200 ,(has-anchor-link "/author/")))
-      ((,m ("roster")) (200 ,(has-anchor-links "/roster/upload-roster/"
-                                               "/roster/new-student/")))
+      ((,m ("assignments"))
+       (200 ,(has-anchor-links
+              '("/test-class/author/"))))
+      ((,m ("roster"))
+       (200 ,(has-anchor-links
+              '("/test-class/roster/upload-roster/"
+                "/test-class/roster/new-student/"
+                "/test-class/roster/edit/masteruser@example.com/"))))
       ((,m ("roster" "new-student")) 200)
       ;; REGRESSION: error feedback less useful than old
       ;; should be a 400, not a 200:
@@ -294,7 +303,8 @@ u must add a summative comment at the end.
                                             (uid . ,stu1)))
                #t)
        200)
-      ((,m ("author")) 200)
+      ((,m ("author"))
+       (200 ,(has-anchor-links '("javascript:validate()"))))
       ;; NON-REGRESSION: new version better than old
       ((,m ("author") () #t #"assignment-id : zzz1")
        404
@@ -319,10 +329,25 @@ u must add a summative comment at the end.
            existing-assignment)
       ((,m ("author" "validate") () #t ,yaml-with-html) 200)
       ;; REGRESSION: missing title
-      ((,m ("assignments")) 200)
+      ((,m ("assignments"))
+       (200 ,(has-anchor-links
+              '("/test-class/author/"
+                "/test-class/assignments/dashboard/a1-ct/"
+                "/test-class/assignments/dashboard/test-with-html/"))))
       ;; REGRESSION: missing title
-      ((,m ("assignments" "dashboard" "test-with-html")) 200) ;; 15
-      ((,m ("dependencies" "test-with-html")) 200)
+      ((,m ("assignments" "dashboard" "test-with-html"))
+       (200 ,(has-anchor-links
+              '("/test-class/assignments/"
+                "/test-class/assignments/status/test-with-html/"
+                "/test-class/dependencies/test-with-html/"
+                "/test-class/author/edit/test-with-html/"
+                "/test-class/export/test-with-html/test-with-html.zip"
+                "/test-class/assignments/delete/test-with-html/")))) ;; 15
+      ((,m ("dependencies" "test-with-html"))
+       (200 ,(has-anchor-links
+              '("/test-class/assignments/"
+                "/test-class/assignments/dashboard/test-with-html/"
+                "/test-class/dependencies/test-with-html/tests/student-reviews/"))))
       ((,m ("dependencies" "test-with-html" "tests" "student-reviews")) 200)
       ;; NON-REGRESSION: fixed bug
       ((,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload") () #t #"")
@@ -332,22 +357,53 @@ u must add a summative comment at the end.
                (multipart
                 ((namefilevalue #"file-1" #"file-1" () #"abcd")
                  (namefilevalue #"file-2" #"grogra-2" () #"efgh")))
-               #t) 200)
-      ((,m ("assignments")) 200)
-      ((,m ("assignments" "dashboard" "test-with-html")) 200)
+               #t)
+       (200 ,(has-anchor-links
+              '("/test-class/assignments/"
+                "/test-class/assignments/dashboard/test-with-html/"
+                "/test-class/dependencies/test-with-html/tests/student-reviews/"))))
+      ((,m ("assignments"))
+       (200 ,(has-anchor-links
+              '("/test-class/author/"
+                "/test-class/assignments/dashboard/a1-ct/"
+                "/test-class/assignments/dashboard/test-with-html/"))))
+      ((,m ("assignments" "dashboard" "test-with-html"))
+       (200 ,(has-anchor-links
+              '("/test-class/assignments/"
+                "/test-class/assignments/status/test-with-html/"
+                "/test-class/assignments/open/test-with-html/"
+                "/test-class/dependencies/test-with-html/"
+                "/test-class/author/edit/test-with-html/"
+                "/test-class/export/test-with-html/test-with-html.zip"
+                "/test-class/assignments/delete/test-with-html/"))))
       ;; not open yet:
       ((,stu1 ("next" "test-with-html"))
        400
        not-open-yet)
       ;; open the assignment
-      ((,m ("assignments" "open" "test-with-html")) 200)
+      ((,m ("assignments" "open" "test-with-html"))
+       (200 ,(has-anchor-links
+              '("/test-class/assignments/"
+                "/test-class/assignments/status/test-with-html/"
+                "/test-class/assignments/close/test-with-html/"
+                "/test-class/dependencies/test-with-html/"
+                "/test-class/author/edit/test-with-html/"
+                "/test-class/export/test-with-html/test-with-html.zip"
+                "/test-class/assignments/delete/test-with-html/"))))
       ;; student navigation:
-      ((,stu1 ()) 200)
-      ((,stu1 ("assignments")) 200)
+      ((,stu1 ())
+       (200 ,(has-anchor-links
+              '("/test-class/assignments/"))))
+      ((,stu1 ("assignments"))
+       (200 ,(has-anchor-links
+              ;; FIXME YUCKY URL:
+              '("/test-class/assignments/../feedback/test-with-html/"))))
       ((,stu9 ("feedback" "test-with-html"))
        403
        stranger-feedback)
-      ((,stu1 ("feedback" "test-with-html")) 200)
+      ((,stu1 ("feedback" "test-with-html"))
+       (200 ,(has-anchor-links
+              '("/test-class/feedback/test-with-html/../../next/test-with-html/"))))
       ;; XSS attack: html in assignment description:
       ((,stu1 ("next" "test-with-html"))
        (200 ,no-italics)
@@ -356,7 +412,10 @@ u must add a summative comment at the end.
                   (multipart
                    ((namefilevalue #"file" #"my-file" ()
                                       #"oh.... \n two lines!\n")))
-                  #t) 200)
+                  #t)
+       (200 ,(has-anchor-links
+              ;; FIXME YUCKY URL
+              '("/test-class/submit/test-with-html/tests/../../../next/test-with-html/"))))
       ((,stu1 ("next" "test-with-html"))
        (200 ,no-italics)
        assignment-description-xss-2) ;; 30
@@ -365,7 +424,10 @@ u must add a summative comment at the end.
                   (multipart
                    ((namefilevalue
                      #"file" #"my-file" () #"oops... \n two different lines\n")))
-                  #t) 200)
+                  #t)
+       (200 ,(has-anchor-links
+              ;; FIXME YUCKY URL
+              '("/test-class/submit/test-with-html/tests/../../../next/test-with-html/"))))
       ;; re-submit with different file name
       ((,stu1 ("submit" "test-with-html" "tests")
               (multipart
@@ -375,18 +437,23 @@ u must add a summative comment at the end.
                                #"oops... \n two different lines\n")))
               #t)
        (200
-        ;; must fix paths first:
-        ;;,(has-anchor-link "/next/test-with-html/")
-        ,(λ (r) #t)
-        )
+        ,(has-anchor-links
+          ;; FIXME YUCKY URL
+          '("/test-class/submit/test-with-html/tests/../../../next/test-with-html/")))
        stu1-resubmits)
       ((,stu1 ("next" "test-with-html"))
        200
        stu1-not-yet-published)
       ;; content of the iframe:
-      ((,stu1 ("browse" "test-with-html" "tests")) 200)
+      ((,stu1 ("browse" "test-with-html" "tests"))
+       (200 ,(has-anchor-links
+              '("/test-class/browse/test-with-html/tests/my-different-file"
+                "/test-class/browse/test-with-html/tests/download/my-different-file"))))
       ;; the file 
-      ((,stu1 ("browse" "test-with-html" "tests" "my-different-file")) 200)
+      ((,stu1 ("browse" "test-with-html" "tests" "my-different-file"))
+       (200 ,(has-anchor-links
+              ;; FIXME how do we feel about this? first relative url path?
+              '("../tests"))))
       ;; ouch, what about this:
       ((,stu1
         ("browse" "test-with-html" "tests" "my-different-file" "download" "test-class"
@@ -424,7 +491,10 @@ u must add a summative comment at the end.
                ((namefilevalue
                  #"file" #"a-third-file" () #"zzz\n\nzzz\nzzz\n")))
               #t)
-       200)
+       (200 ,(has-anchor-links
+              ;; FIXME yucky url
+              '("/test-class/submit/test-with-html/tests/../../../next/test-with-html/")))
+       stu2-submits)
       ;; can stu2 read stu1's file? No. Good.
       ((,stu2 ("browse" "test-with-html" "tests" "my-different-file"))
        403
@@ -433,9 +503,22 @@ u must add a summative comment at the end.
       ((,stu1 ,(path2list "submit/test-with-html/tests")
               (alist ((action . "submit")))
               #t)
-       200
+       (200 ,(has-anchor-links
+              ;; FIXME yucky url
+              '("/test-class/submit/test-with-html/tests/../../../feedback/test-with-html/")))
        stu1-publishes)
-      ((,stu1 ,(path2list "feedback/test-with-html")) 200)
+      ((,stu1 ,(path2list "feedback/test-with-html"))
+       ;; FIXME yucky urls
+       (200 ,(λ (x)
+               (let ([hashes (pending-review-hashes (cons "test-with-html" stu1))])
+                 ((has-anchor-links
+                   (cons
+                    "/test-class/feedback/test-with-html/../../browse/test-with-html/tests/"
+                    (map (λ (hash)
+                           (string-append
+                            "/test-class/feedback/test-with-html/../../review/" hash "/"))
+                         hashes)))
+                  x)))))
       ;; bogus hash:
       ((,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a"))
        403
@@ -445,18 +528,48 @@ u must add a summative comment at the end.
        403
        bogus-file-container)
       ;; thunk to delay extraction of hash:
-      (,(λ () (list stu1 (list "review" (lastreview stu1)))) 200)
+      (,(λ () (list stu1 (list "review" (lastreview stu1))))
+       ;; FIXME there's a *space* in there? and in the iframe link too?
+       (200 ,(λ (x)
+               (and ((has-anchor-links
+                      (list (string-append
+                             "/test-class/review/" (lastreview stu1)
+                             "/../../review/submit/" (lastreview stu1) "/ ")))
+                     x)
+                    ((has-iframe-link
+                      (string-append
+                       "/test-class/review/" (lastreview stu1)
+                       "/../../file-container/" (lastreview stu1) " "))
+                     x)))))
       ;; the iframe...
-      (,(λ () (list stu1 (list "file-container" (lastreview stu1)))) 200)
+      (,(λ () (list stu1 (list "file-container" (lastreview stu1))))
+       (200 ,(λ (r)
+               ;; nasty hack here because of nondeterminism; don't know whether
+               ;; file name will be file-1 or grogra-2.
+               (or
+                ((has-anchor-links
+                  (list
+                   (string-append "/test-class/file-container/" (lastreview stu1) "/file-1")
+                   (string-append "/test-class/file-container/" (lastreview stu1) "/download/file-1")))
+                 r)
+                ((has-anchor-links
+                  (list
+                   (string-append "/test-class/file-container/" (lastreview stu1) "/grogra-2")
+                   (string-append "/test-class/file-container/" (lastreview stu1) "/download/grogra-2")))
+                 r)))))
       ;; stu2 logs in:
-      ((,stu2 ()) 200)
+      ((,stu2 ())
+       (200 ,(has-anchor-links '("/test-class/assignments/"))))
       ;; clicks on assignments
-      ((,stu2 ("assignments")) 200)
+      ((,stu2 ("assignments"))
+       (200 ,(has-anchor-links '("/test-class/assignments/../feedback/test-with-html/"))))
       ;; stu2 publishes:
       ((,stu2 ,(path2list "submit/test-with-html/tests")
               (alist ((action . "submit")))
               #t)
-       200
+       (200 ,(has-anchor-links
+              ;; FIXME yucky urls
+              '("/test-class/submit/test-with-html/tests/../../../feedback/test-with-html/")))
        stu2-publishes)
       ((,stu2 ("feedback" "test-with-html")) 200)
       ;; stu2 clicks on last review
@@ -470,7 +583,7 @@ u must add a summative comment at the end.
       ;; file-container for file
       (,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1)
                                "my-different-file")))
-       200
+       (200 ,(has-anchor-links '("./")))
        review-iframe-file)
       ;; actual text of file
       (,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1) "download"
@@ -495,7 +608,15 @@ u must add a summative comment at the end.
                     #t))
        200)
       (,(λ () (list stu2 (list "review" "submit" (lastreview stu2))))
-       200
+       (200 ,(λ (r)
+               #t
+               ;; AND RIGHT HERE lastreviews now empty....
+               #;((has-anchor-links
+                 ;; FIXME yucky url, hash not even necessary
+                 (list (string-append
+                        "/test-class/review/submit/" (lastreview stu2)
+                        "/../../../feedback/test-with-html/")))
+                r)))
        stu2-submits-review2)
       ;; stu1 now views it
       (,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))))
@@ -518,9 +639,60 @@ u must add a summative comment at the end.
        stu1-submits-feedback-xss)
       ((,stu2 ("feedback" "test-with-html")) 200)))
 
+  ;; RIGHT HERE still working on adding these urls:
+  '((61
+   stu1-views-review
+   ("frogstar@example.com"
+    ("feedback" "view" "39b6494b028ae30c4e5a9a6829c3deec"))
+   ())
+  (62
+   stu1-views-review-fc-dir
+   ("frogstar@example.com"
+    ("feedback" "file-container" "39b6494b028ae30c4e5a9a6829c3deec"))
+   ("/test-class/feedback/file-container/39b6494b028ae30c4e5a9a6829c3deec/my-different-file"))
+  (63
+   stu1-views-review-fc-file
+   ("frogstar@example.com"
+    ("feedback"
+     "file-container"
+     "39b6494b028ae30c4e5a9a6829c3deec"
+     "my-different-file"))
+   ("./"))
+  (64
+   stu1-views-review-fc-file-raw
+   ("frogstar@example.com"
+    ("download" "39b6494b028ae30c4e5a9a6829c3deec" "my-different-file"))
+   ())
+  (65
+   stu1-submits-feedback-xss
+   ("frogstar@example.com"
+    ("feedback" "view" "39b6494b028ae30c4e5a9a6829c3deec")
+    ((feedback . "feedback with <i>italics</i>.") (flag . "goronsky"))
+    #t)
+   ())
+  (66
+   #f
+   ("mf2@example.com" ("feedback" "test-with-html"))
+   ("/test-class/feedback/test-with-html/../../browse/test-with-html/tests/"
+    "/test-class/feedback/test-with-html/../../review/39b6494b028ae30c4e5a9a6829c3deec/"
+    "/test-class/feedback/test-with-html/../../review/693d7b007951c71a53a6c7017bc96ee0/")))
+
+  ;; check that no two tests have the same name
+  (check-false
+   (check-duplicates (apply
+                      append
+                      (map (λ (t) (match t
+                                    [(list a b c) (list c)]
+                                    [other '()]))
+                           tests))))
+  
   ;; return the last pending review for given student on "test-with-html"
   (define (lastreview uid)
     (last (pending-review-hashes (cons "test-with-html" uid))))
+
+  ;; return the first pending review for given student on "test-with-html"
+  (define (firstreview uid)
+    (first (pending-review-hashes (cons "test-with-html" uid))))
 
   ;; return the first pending review for the given student on "test-with-html"
   ;; where the reviewee is the given one

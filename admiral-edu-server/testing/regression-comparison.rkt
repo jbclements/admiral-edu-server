@@ -80,7 +80,34 @@
                 (h2 "Closed Assignments")
                 (ul)))))
 
+;; extract all links from a page
+(define (all-links xexp)
+  (match xexp
+    ;; <a> with an href:
+    [(list 'a (list '@ _1 ... (list 'href l) _2 ...) sub-elts ...)
+     (cons l (apply append (map all-links sub-elts)))]
+    ;; another tag with attrs:
+    [(list tag (list '@ _1 ...) sub-elts ...)
+     (apply append (map all-links sub-elts))]
+    ;; a tag without attrs:
+    [(list tag sub-elts ...)
+     (apply append (map all-links sub-elts))]
+    ;; not a tag
+    [other '()]))
+
 (define TESTS-OF-INTEREST '(1))
+
+(pretty-print
+ (for/list ([test-pre (in-list pre-change-tests)])
+   (match test-pre
+     [(list i n args (list 'web-server-returned-void _1 ...))
+      '()]
+     [(list i n args (list code-a code-msg-a ts-a encoding-pre
+                           headers-a str-pre))
+     
+      (list i n args (all-links (html->xexp str-pre)))])))
+
+(/ 1 0)
 
 (for ([test-pre (in-list pre-change-tests)]
       [test-post (in-list post-change-tests)])
@@ -100,7 +127,7 @@
   (unless (equal? (take test-pre 2)
                   (take test-post 2))
     (error 'test-comparison
-           "expected first 3 elements to be the same, got ~e and ~e"
+           "expected first 2 elements to be the same, got ~e and ~e"
            (take test-pre 2) (take test-post 2)))
 
   
