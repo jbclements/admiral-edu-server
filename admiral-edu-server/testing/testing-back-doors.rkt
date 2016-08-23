@@ -2,14 +2,15 @@
 
 (require "../database/mysql/review.rkt"
          "../storage/storage.rkt"
-         "../paths.rkt"
+         "./testing-shim.rkt"
          racket/match)
 
 ;; grotty back doors into the system to deal with
 ;; nondeterminism in the assignment of hashes
 
 (require/typed "testing-shim.rkt"
-               [class-name-shim (-> String)])
+               [class-name-shim (-> String)]
+               [list-files-shim (-> Any (Listof String))])
 
 (provide pending-review-hashes
          pending-review-hashes/reviewee
@@ -54,13 +55,12 @@
          (error 'hash->files "no matching record for hash: ~e"
                 hash)]
         [else
-         (list-files
-          (ct-path->path
-           (submission-path (class-name-shim)
-                            (Record-assignment-id the-record)
-                            (Record-reviewee-id the-record)
-                            ;; not sure about the "step" argument
-                            "tests")))
+         (list-files-shim
+          (submission-path (class-name-shim)
+                           (Record-assignment-id the-record)
+                           (Record-reviewee-id the-record)
+                           ;; not sure about the "step" argument
+                           "tests"))
          ]))
 
 (define-type AUKey (Pair String String))

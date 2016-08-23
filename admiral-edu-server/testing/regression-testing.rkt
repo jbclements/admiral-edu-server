@@ -92,8 +92,9 @@
             [(equal? post-data-from-bindings #"") post-data-given]
             [else (error 'run-request "post data from bindings and optional arg: ~e and ~e"
                          post-data-from-bindings post-data-given)]))
+    ;; really, this should be happening inside the tested code, not out here....
     (define start-rel-url (ensure-trailing-slash (string-append "/" (class-name-shim) "/" (string-join path "/"))))
-    (define session (ct-session (class-name-shim) user #f (make-table start-rel-url bindings)))
+    (define session (ct-session-shim (class-name-shim) user #f (make-table start-rel-url bindings)))
     (define result (with-handlers ([(λ (x) #t) server-error-shim])
               (handlerPrime post? post-data session bindings raw-bindings path)))
     (explode-response result))
@@ -244,6 +245,27 @@ u must add a summative comment at the end.
   #;(check-equal? ((flat-contract-predicate ct-call-params/c)
                  '("masteruser@example.com" ("roster" "new-student") ((action . "create-student") (uid . "frogstar@example.com")) #t))
                 #t)
+
+  ;; some tests are known not to pass on the old version. Run the code and
+  ;; log the output, but don't signal an error on stderr
+  (define known-bad-in-original
+    '(bad-new-student
+      bad-author-post
+      bad-author-path
+      bad-yaml
+      existing-assignment
+      boguspath-validate
+      bad-review-upload
+      not-open-yet
+      stranger-feedback
+      assignment-description-xss
+      assignment-description-xss-2
+      stranger-submit
+      see-others-file
+      bogus-review
+      bogus-file-container
+      stu1-submits-feedback-xss
+      accidental-trainwreck))
   
   ;; a test contains three parts: expected, call, and (optionally) a name.
   ;; a test (currently) consists of a list
@@ -261,7 +283,9 @@ u must add a summative comment at the end.
       ((,m ("roster" "new-student")) 200)
       ;; REGRESSION: error feedback less useful than old
       ;; should be a 400, not a 200:
-      ((,m ("roster" "new-student") () #t) 400)
+      ((,m ("roster" "new-student") () #t)
+       400
+       bad-new-student)
       ((,m ("roster" "new-student") (alist ((action . "create-student")
                                             (uid . ,stu1)))
                #t) 200)
@@ -272,17 +296,24 @@ u must add a summative comment at the end.
        200)
       ((,m ("author")) 200)
       ;; NON-REGRESSION: new version better than old
-      ((,m ("author") () #t #"assignment-id : zzz1") 404)
+      ((,m ("author") () #t #"assignment-id : zzz1")
+       404
+       bad-author-post)
       ;; ouch! another internal error!
-      ((,m ("author" "bogwater") () #t #"assignment-id : zzz1") 404)
+      ((,m ("author" "bogwater") () #t #"assignment-id : zzz1")
+       404
+       bad-author-path)
       ;; bad YAML
       ;; NON-REGRESSION: new version better than old
-      ((,m ("author" "validate") () #t #"ziggy stardust") 400) ;; 10
+      ((,m ("author" "validate") () #t #"ziggy stardust")
+       400
+       bad-yaml) ;; 10
       ;; bogus path piece... actually, the API just ignores
       ;; everything until the last one. For now, this is just okay.
       ;; holding off on fixing this until we have a handle on paths...
-      ((,m ("author" "boguspath" "validate") () #t ,assignment-yaml) 200
-           boguspath-validate)
+      ((,m ("author" "boguspath" "validate") () #t ,assignment-yaml)
+       200
+       boguspath-validate)
       ;; this one is now invalid because the assignment already exists
       ((,m ("author" "validate") () #t ,assignment-yaml) 400
            existing-assignment)
@@ -294,7 +325,9 @@ u must add a summative comment at the end.
       ((,m ("dependencies" "test-with-html")) 200)
       ((,m ("dependencies" "test-with-html" "tests" "student-reviews")) 200)
       ;; NON-REGRESSION: fixed bug
-      ((,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload") () #t #"") 400)
+      ((,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload") () #t #"")
+       400
+       bad-review-upload)
       ((,m ("dependencies" "test-with-html" "tests" "student-reviews" "upload")
                (multipart
                 ((namefilevalue #"file-1" #"file-1" () #"abcd")
@@ -303,7 +336,9 @@ u must add a summative comment at the end.
       ((,m ("assignments")) 200)
       ((,m ("assignments" "dashboard" "test-with-html")) 200)
       ;; not open yet:
-      ((,stu1 ("next" "test-with-html")) 400)
+      ((,stu1 ("next" "test-with-html"))
+       400
+       not-open-yet)
       ;; open the assignment
       ((,m ("assignments" "open" "test-with-html")) 200)
       ;; student navigation:
@@ -314,13 +349,17 @@ u must add a summative comment at the end.
        stranger-feedback)
       ((,stu1 ("feedback" "test-with-html")) 200)
       ;; XSS attack: html in assignment description:
-      ((,stu1 ("next" "test-with-html")) (200 ,no-italics))
+      ((,stu1 ("next" "test-with-html"))
+       (200 ,no-italics)
+       assignment-description-xss)
       ((,stu1 ("submit" "test-with-html" "tests")
                   (multipart
                    ((namefilevalue #"file" #"my-file" ()
                                       #"oh.... \n two lines!\n")))
                   #t) 200)
-      ((,stu1 ("next" "test-with-html")) (200 ,no-italics)) ;; 30
+      ((,stu1 ("next" "test-with-html"))
+       (200 ,no-italics)
+       assignment-description-xss-2) ;; 30
       ;; re-submit
       ((,stu1 ("submit" "test-with-html" "tests")
                   (multipart
@@ -388,7 +427,8 @@ u must add a summative comment at the end.
        200)
       ;; can stu2 read stu1's file? No. Good.
       ((,stu2 ("browse" "test-with-html" "tests" "my-different-file"))
-       403)
+       403
+       see-others-file)
       ;; stu1 publishes:
       ((,stu1 ,(path2list "submit/test-with-html/tests")
               (alist ((action . "submit")))
@@ -397,9 +437,13 @@ u must add a summative comment at the end.
        stu1-publishes)
       ((,stu1 ,(path2list "feedback/test-with-html")) 200)
       ;; bogus hash:
-      ((,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a")) 403)
+      ((,stu1 ,(path2list "review/598109a435c52dc6ae10c616bcae407a"))
+       403
+       bogus-review)
       ;; viewing a bogus feedback
-      ((,stu1 ("feedback" "file-container" "BOGUSSS" "ALSOBAD" "load")) 403)
+      ((,stu1 ("feedback" "file-container" "BOGUSSS" "ALSOBAD" "load"))
+       403
+       bogus-file-container)
       ;; thunk to delay extraction of hash:
       (,(λ () (list stu1 (list "review" (lastreview stu1)))) 200)
       ;; the iframe...
@@ -471,7 +515,7 @@ u must add a summative comment at the end.
                        (flag . "goronsky"))
                       #t))
        (200 ,no-italics)
-       stu1-submits-feedback)
+       stu1-submits-feedback-xss)
       ((,stu2 ("feedback" "test-with-html")) 200)))
 
   ;; return the last pending review for given student on "test-with-html"
@@ -506,23 +550,25 @@ u must add a summative comment at the end.
                                       0 test))
               (define-values (expected request-args-or-thunk testname)
                 (match test
-                  [(list call expected) (values expected call "")]
-                  [(list call expected name) (values expected call (symbol->string name))]))
+                  [(list call expected) (values expected call #f)]
+                  [(list call expected name) (values expected call name)]))
               (define request-args
                 ;; !@#$ request hashes... can't extract until earlier tests have been
                 ;; run.
                 (cond [(procedure? request-args-or-thunk) (request-args-or-thunk)]
                       [else request-args-or-thunk]))
               (define result (apply run-request request-args))
-              (test-case
-               (format "~s" (list i testname request-args))
-               (match expected
-                 [(? number? code)
-                  (check-equal? (first result) code)]
-                 [(list (? number? code)
-                        (? procedure? test-proc))
-                  (begin (check-equal? (first result) code)
-                         (test-proc result))]))
+              (unless (and ignore-bad-in-original?
+                           (member testname known-bad-in-original))
+                (test-case
+                 (format "~s" (list i testname request-args))
+                 (match expected
+                   [(? number? code)
+                    (check-equal? (first result) code)]
+                   [(list (? number? code)
+                          (? procedure? test-proc))
+                    (begin (check-equal? (first result) code)
+                           (test-proc result))])))
               (define output-val (list i testname request-args result))
               (fprintf r-port "~s\n" output-val)
               (fprintf rt-port "~s\n" output-val)

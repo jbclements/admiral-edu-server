@@ -5,7 +5,9 @@
 
 (require "./test-configuration.rkt"
          "../pages/errors.rkt"
+         "../storage/storage.rkt"
          "../base.rkt"
+         "../paths.rkt"
          racket/file)
 
 (provide (all-defined-out))
@@ -31,4 +33,14 @@
   (when (directory-exists? (build-path (local-storage-path) (class-name-shim)))
     (printf "ALERT: DELETING EXISTING CLASS DIRECTORY.\n")
     (delete-directory/files (build-path (local-storage-path) (class-name-shim)))))
- 
+
+;; in new version, paths are converted explicitly
+(define (list-files-shim path)
+  (list-files (ct-path->path path)))
+
+;; in new version, ct-session has an 'su' argument
+(define (ct-session-shim a b c d)
+  (ct-session a b c d))
+
+;; should we ignore the bad-in-original tests?
+(define ignore-bad-in-original? #f)
