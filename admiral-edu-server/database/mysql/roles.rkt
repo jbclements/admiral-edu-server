@@ -34,6 +34,8 @@
     (query-exec query id role can-edit)))
 
 (provide (struct-out Record))
+;; FIXME looks like the 'id' field actually records the level of privilege
+;; ... and the 'name' is actually the name of a Role, not of a user.
 (struct: Record ([id : Integer] [name : String] [can-edit : Boolean]) #:transparent)
 
 (define record-fields (string-join (list id name can-edit) ","))
