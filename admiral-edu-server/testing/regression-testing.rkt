@@ -563,7 +563,9 @@ u must add a summative comment at the end.
                            _3 ...)
                           #t]
                          [other #f]))
-                r)
+                (match r
+                  [(list _1 ... response-str)
+                   (html->xexp response-str)]))
                #;((has-anchor-links
                    ;; FIXME yucky url, hash not even necessary
                    (list (string-append

@@ -19,15 +19,37 @@
 
 ;; given a link, return a predicate usable with ormap-xexp
 (define (has-anchor-link/pred l)
+  (has-anchor-link/pred/pred)
   (λ (e) (match e
            ;; NB fails for <a>'s with more than one href...
            [(list 'a (list '@ _1 ... (list 'href link) _2 ...) _3 ...)
             (equal? link l)]
            [other #f])))
 
+;; given a link, return a predicate usable with ormap-xexp
+(define (has-anchor-link/pat/pred pat)
+  (has-anchor/link/pred/pred (λ (link) (regexp-match pat link))))
+
+(define (has-anchor-link/pred/pred pred)
+  (λ (e) (match e
+           ;; NB fails for <a>'s with more than one href...
+           [(list 'a (list '@ _1 ... (list 'href link) _2 ...) _3 ...)
+            (pred link)]
+           [other #f])))
+
+
+
 ;; does the result contain an <a> element with an href of
 ;; the form /test-class/[l] ? Performs a check.
 (define ((has-anchor-link l) result)
+  (match-define (list _ _ _ _ _ content) result)
+  (check ormap-xexp
+         (has-anchor-link/pred l)
+         (html->xexp content)))
+
+;; does the result contain an <a> element with an href whose
+;; link matches the given pattern
+(define ((has-anchor-link/pat l) result)
   (match-define (list _ _ _ _ _ content) result)
   (check ormap-xexp
          (has-anchor-link/pred l)
