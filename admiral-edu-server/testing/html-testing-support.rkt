@@ -1,0 +1,97 @@
+#lang racket
+
+(require html-parsing
+         rackunit)
+
+(provide no-italics
+         has-anchor-link/pred
+         has-anchor-link
+         has-anchor-link/bool
+         has-anchor-links
+         has-anchor-links/bool
+         has-iframe-link
+         ormap-xexp
+         has-string)
+
+(define (no-italics result)
+  (match-define (list _ _ _ _ _ content) result)
+  (check (compose not string-contains?) content "<i>"))
+
+;; given a link, return a predicate usable with ormap-xexp
+(define (has-anchor-link/pred l)
+  (λ (e) (match e
+           ;; NB fails for <a>'s with more than one href...
+           [(list 'a (list '@ _1 ... (list 'href link) _2 ...) _3 ...)
+            (equal? link l)]
+           [other #f])))
+
+;; does the result contain an <a> element with an href of
+;; the form /test-class/[l] ? Performs a check.
+(define ((has-anchor-link l) result)
+  (match-define (list _ _ _ _ _ content) result)
+  (check ormap-xexp
+         (has-anchor-link/pred l)
+         (html->xexp content)))
+
+;; does the result contain an <a> element with an href of
+;; the form /test-class/[l] ?
+(define ((has-anchor-link/bool l) result)
+  (match-define (list _ _ _ _ _ content) result)
+  (ormap-xexp
+   (has-anchor-link/pred l)
+   (html->xexp content)))
+
+
+;; andmap over has-anchor-link. performs checks
+(define ((has-anchor-links ls) result)
+  (for-each (λ (l) ((has-anchor-link l) result)) ls))
+
+;; andmap over has-anchor-link. returns a boolean rather
+;; than performing the check.
+(define ((has-anchor-links/bool ls) result)
+  (andmap (λ (l) ((has-anchor-link/bool l) result)) ls))
+
+(define ((has-iframe-link l) result)
+  (match-define (list _ _ _ _ _ content) result)
+  (check ormap-xexp
+         (λ (e) (match e
+                  ;; NB fails for <iframe>'s with more than one href...
+                  [(list 'iframe (list '@ _1 ... (list 'src link) _2 ...) _3 ...)
+                   (equal? link l)]
+                  [other #f]))
+         (html->xexp content)))
+
+
+  
+;; does the xexp contain this element? (doesn't search attributes)
+(define (ormap-xexp pred xexp)
+  (or (pred xexp)
+      (match xexp
+        [(list tag (list '@ attr ...) sub-elts ...)
+         (ormap (λ (xexp) (ormap-xexp pred xexp)) sub-elts)]
+        [(list tag sub-elts ...)
+         (ormap (λ (xexp) (ormap-xexp pred xexp)) sub-elts)]
+        [other #f])))
+
+  
+(define ((has-string l) result)
+  (match-define (list _ _ _ _ _ content) result)
+  (check string-contains? content l))
+
+(module+ test
+  (define (equal-maker x) (λ (e) (equal? x e)))
+
+  (check-equal? (ormap-xexp (equal-maker "def") '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #t)
+  (check-equal? (ormap-xexp (equal-maker "abc") '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #t)
+  (check-equal? (ormap-xexp (equal-maker "oth") '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #f)
+  (check-equal? (ormap-xexp (equal-maker '(a (@ (aoeu 3) (dch 4)) "abc" "def")) '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #t)
+  (check-equal? (ormap-xexp (equal-maker '(@ (aoeu 3) (dch 4))) '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #f)
+  (check-equal? (ormap-xexp (equal-maker "abc") '(b (a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t)
+  (check-equal? (ormap-xexp (λ (elt)
+                              (match elt
+                                [(list 'a (list '@ _1 ... (list 'dch 4) _2 ...) _3 ...)
+                                 #t]
+                                [other #f]))
+                            '(b (a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t))
+
+  

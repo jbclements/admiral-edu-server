@@ -22,7 +22,8 @@
            "../base.rkt"
            "testing-shim.rkt"
            "testing-support.rkt"
-           "testing-back-doors.rkt")
+           "testing-back-doors.rkt"
+           "html-testing-support.rkt")
 
   ;; this one is persistent
   (define REGRESSION-FILE-PATH-PERSISTENT
@@ -157,66 +158,6 @@ u must add a summative comment at the end.
                   granularity: 9
 ")
 
-  (define (no-italics result)
-    (match-define (list _ _ _ _ _ content) result)
-    (check (compose not string-contains?) content "<i>"))
-
-  ;; does the result contain an <a> element with an href of
-  ;; the form /test-class/[l] ?
-  (define ((has-anchor-link l) result)
-    (match-define (list _ _ _ _ _ content) result)
-    (check ormap-xexp
-           (λ (e) (match e
-                    ;; NB fails for <a>'s with more than one href...
-                    [(list 'a (list '@ _1 ... (list 'href link) _2 ...) _3 ...)
-                     (equal? link l)]
-                    [other #f]))
-           (html->xexp content)))
-
-  ;; andmap over has-anchor-link
-  (define ((has-anchor-links ls) result)
-    (andmap (λ (l) ((has-anchor-link l) result)) ls))
-
-  (define ((has-iframe-link l) result)
-    (match-define (list _ _ _ _ _ content) result)
-    (check ormap-xexp
-           (λ (e) (match e
-                    ;; NB fails for <iframe>'s with more than one href...
-                    [(list 'iframe (list '@ _1 ... (list 'src link) _2 ...) _3 ...)
-                     (equal? link l)]
-                    [other #f]))
-           (html->xexp content)))
-  
-  ;; does the xexp contain this element? (doesn't search attributes)
-  (define (ormap-xexp pred xexp)
-    (or (pred xexp)
-        (match xexp
-          [(list tag (list '@ attr ...) sub-elts ...)
-           (ormap (λ (xexp) (ormap-xexp pred xexp)) sub-elts)]
-          [(list tag sub-elts ...)
-           (ormap (λ (xexp) (ormap-xexp pred xexp)) sub-elts)]
-          [other #f])))
-
-  (define (equal-maker x) (λ (e) (equal? x e)))
-  
-  (check-equal? (ormap-xexp (equal-maker "def") '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #t)
-  (check-equal? (ormap-xexp (equal-maker "abc") '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #t)
-  (check-equal? (ormap-xexp (equal-maker "oth") '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #f)
-  (check-equal? (ormap-xexp (equal-maker '(a (@ (aoeu 3) (dch 4)) "abc" "def")) '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #t)
-  (check-equal? (ormap-xexp (equal-maker '(@ (aoeu 3) (dch 4))) '(a (@ (aoeu 3) (dch 4)) "abc" "def")) #f)
-  (check-equal? (ormap-xexp (equal-maker "abc") '(b (a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t)
-  (check-equal? (ormap-xexp (λ (elt)
-                              (match elt
-                                [(list 'a (list '@ _1 ... (list 'dch 4) _2 ...) _3 ...)
-                                 #t]
-                                [other #f]))
-                            '(b (a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t)
-
-  
-  
-  (define ((has-string l) result)
-    (match-define (list _ _ _ _ _ content) result)
-    (check string-contains? content l))
 
   ;; what is a test? These contracts are essentially documentation.
   
@@ -531,32 +472,32 @@ u must add a summative comment at the end.
       (,(λ () (list stu1 (list "review" (lastreview stu1))))
        ;; FIXME there's a *space* in there? and in the iframe link too?
        (200 ,(λ (x)
-               (and ((has-anchor-links
-                      (list (string-append
-                             "/test-class/review/" (lastreview stu1)
-                             "/../../review/submit/" (lastreview stu1) "/ ")))
-                     x)
-                    ((has-iframe-link
-                      (string-append
-                       "/test-class/review/" (lastreview stu1)
-                       "/../../file-container/" (lastreview stu1) " "))
-                     x)))))
+               (begin
+                 ((has-anchor-links
+                   (list (string-append
+                          "/test-class/review/" (lastreview stu1)
+                          "/../../review/submit/" (lastreview stu1) "/ ")))
+                  x)
+                 ((has-iframe-link
+                   (string-append
+                    "/test-class/review/" (lastreview stu1)
+                    "/../../file-container/" (lastreview stu1) " "))
+                  x)))))
       ;; the iframe...
       (,(λ () (list stu1 (list "file-container" (lastreview stu1))))
        (200 ,(λ (r)
                ;; nasty hack here because of nondeterminism; don't know whether
                ;; file name will be file-1 or grogra-2.
-               (or
-                ((has-anchor-links
-                  (list
-                   (string-append "/test-class/file-container/" (lastreview stu1) "/file-1")
-                   (string-append "/test-class/file-container/" (lastreview stu1) "/download/file-1")))
-                 r)
-                ((has-anchor-links
-                  (list
-                   (string-append "/test-class/file-container/" (lastreview stu1) "/grogra-2")
-                   (string-append "/test-class/file-container/" (lastreview stu1) "/download/grogra-2")))
-                 r)))))
+               (define (make-links filename)
+                 (list
+                  (string-append "/test-class/file-container/" (lastreview stu1) "/" filename)
+                  (string-append "/test-class/file-container/" (lastreview stu1) "/download/" filename)))
+               (define links-1 (make-links "file-1"))
+               (define links-2 (make-links "grogra-2"))
+               (check-pred
+                (λ (x) (or ((has-anchor-links/bool links-1) x)
+                           ((has-anchor-links/bool links-2) x)))
+                r))))
       ;; stu2 logs in:
       ((,stu2 ())
        (200 ,(has-anchor-links '("/test-class/assignments/"))))
@@ -609,14 +550,26 @@ u must add a summative comment at the end.
        200)
       (,(λ () (list stu2 (list "review" "submit" (lastreview stu2))))
        (200 ,(λ (r)
-               #t
-               ;; AND RIGHT HERE lastreviews now empty....
+               ;; oog, this is awful:
+               (check
+                ormap-xexp
+                (λ (e) (match e
+                         [(list
+                           'a (list
+                               '@ _1 ...
+                               (list 'href
+                                     (regexp #px"feedback/test-with-html/$"))
+                               _2 ...)
+                           _3 ...)
+                          #t]
+                         [other #f]))
+                r)
                #;((has-anchor-links
-                 ;; FIXME yucky url, hash not even necessary
-                 (list (string-append
-                        "/test-class/review/submit/" (lastreview stu2)
-                        "/../../../feedback/test-with-html/")))
-                r)))
+                   ;; FIXME yucky url, hash not even necessary
+                   (list (string-append
+                          "/test-class/review/submit/" (lastreview stu2)
+                          "/../../../feedback/test-with-html/")))
+                  r)))
        stu2-submits-review2)
       ;; stu1 now views it
       (,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))))
