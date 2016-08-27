@@ -4,7 +4,7 @@
          rackunit)
 
 (provide no-italics
-         has-anchor-link/pred
+         anchor-link-equal?
          has-anchor-link
          has-anchor-link/bool
          has-anchor-links
@@ -18,19 +18,14 @@
   (check (compose not string-contains?) content "<i>"))
 
 ;; given a link, return a predicate usable with ormap-xexp
-(define (has-anchor-link/pred l)
-  (has-anchor-link/pred/pred)
-  (λ (e) (match e
-           ;; NB fails for <a>'s with more than one href...
-           [(list 'a (list '@ _1 ... (list 'href link) _2 ...) _3 ...)
-            (equal? link l)]
-           [other #f])))
+(define (anchor-link-equal? l)
+  (anchor-link/pred? (λ (link) (equal? link l))))
 
 ;; given a link, return a predicate usable with ormap-xexp
-(define (has-anchor-link/pat/pred pat)
-  (has-anchor/link/pred/pred (λ (link) (regexp-match pat link))))
+(define (anchor-link-matches? pat)
+  (anchor-link/pred? (λ (link) (not (not (regexp-match pat link))))))
 
-(define (has-anchor-link/pred/pred pred)
+(define (anchor-link/pred? pred)
   (λ (e) (match e
            ;; NB fails for <a>'s with more than one href...
            [(list 'a (list '@ _1 ... (list 'href link) _2 ...) _3 ...)
@@ -44,7 +39,7 @@
 (define ((has-anchor-link l) result)
   (match-define (list _ _ _ _ _ content) result)
   (check ormap-xexp
-         (has-anchor-link/pred l)
+         (anchor-link-equal? l)
          (html->xexp content)))
 
 ;; does the result contain an <a> element with an href whose
@@ -52,7 +47,7 @@
 (define ((has-anchor-link/pat l) result)
   (match-define (list _ _ _ _ _ content) result)
   (check ormap-xexp
-         (has-anchor-link/pred l)
+         (anchor-link-equal? l)
          (html->xexp content)))
 
 ;; does the result contain an <a> element with an href of
@@ -60,7 +55,7 @@
 (define ((has-anchor-link/bool l) result)
   (match-define (list _ _ _ _ _ content) result)
   (ormap-xexp
-   (has-anchor-link/pred l)
+   (anchor-link-equal? l)
    (html->xexp content)))
 
 
@@ -114,6 +109,18 @@
                                 [(list 'a (list '@ _1 ... (list 'dch 4) _2 ...) _3 ...)
                                  #t]
                                 [other #f]))
-                            '(b (a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t))
+                            '(b (a (@ (aoeu 3) (dch 4)) "abc" "def"))) #t)
+
+  (check-true ((anchor-link-matches? #px"zz")
+               '(a (@ (z 4) (href "chrzz.,ht")) "ont.h")))
+  
+  (check-true ((anchor-link/pred? (λ (l)
+                                    (not
+                                     (not
+                                      (regexp-match #px"zz" l)))))
+               '(a (@ (z 4) (href "chrzz.,ht")) "ont.h")))
+
+  (check-false ((anchor-link/pred? (λ (l) (regexp-match #px"zz" l)))
+                '(a (@ (z 4) (href "chrz.,ht")) "ont.h"))))
 
   

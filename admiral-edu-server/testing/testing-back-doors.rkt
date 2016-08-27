@@ -14,6 +14,7 @@
 
 (provide pending-review-hashes
          pending-review-hashes/reviewee
+         completed-review-hashes
          feedback-hashes
          patch-path)
 
@@ -25,6 +26,15 @@
 (define (pending-reviews key)
   (match-define (cons assignment uid) key)
   (select-pending assignment (class-name-shim) uid))
+
+(: completed-review-hashes ((Pair String String) -> (Listof String)))
+(define (completed-review-hashes key)
+  (map Record-hash (completed-reviews key)))
+
+(: completed-reviews ((Pair String String) -> (Listof Record)))
+(define (completed-reviews key)
+  (match-define (cons assignment uid) key)
+  (select-completed assignment (class-name-shim) uid))
 
 ;; return the hashes of pending reviews where the reviewee is the given one
 (: pending-review-hashes/reviewee ((Pair String String) String -> (Listof String)))

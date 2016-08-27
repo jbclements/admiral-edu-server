@@ -164,9 +164,6 @@ u must add a summative comment at the end.
   ;; call-params: (user path-strs [bindings] [post?] [raw-bytes?])
   (define ct-call-params/c
     (or/c
-     ;; this procedure must return a call-params/c, but I want this to
-     ;; be a flat contract.
-     procedure?
      (cons/c string?
              (cons/c (listof string?)
                      (or/c null?
@@ -469,35 +466,37 @@ u must add a summative comment at the end.
        403
        bogus-file-container)
       ;; thunk to delay extraction of hash:
-      (,(λ () (list stu1 (list "review" (lastreview stu1))))
-       ;; FIXME there's a *space* in there? and in the iframe link too?
-       (200 ,(λ (x)
-               (begin
-                 ((has-anchor-links
-                   (list (string-append
-                          "/test-class/review/" (lastreview stu1)
-                          "/../../review/submit/" (lastreview stu1) "/ ")))
-                  x)
-                 ((has-iframe-link
-                   (string-append
-                    "/test-class/review/" (lastreview stu1)
-                    "/../../file-container/" (lastreview stu1) " "))
-                  x)))))
+      ,(λ ()
+         `((,stu1 ("review" ,(lastreview stu1)))
+           ;; FIXME there's a *space* in there? and in the iframe link too?
+           (200 ,(λ (x)
+                   (begin
+                     ((has-anchor-links
+                       (list (string-append
+                              "/test-class/review/" (lastreview stu1)
+                              "/../../review/submit/" (lastreview stu1) "/ ")))
+                      x)
+                     ((has-iframe-link
+                       (string-append
+                        "/test-class/review/" (lastreview stu1)
+                        "/../../file-container/" (lastreview stu1) " "))
+                      x))))))
       ;; the iframe...
-      (,(λ () (list stu1 (list "file-container" (lastreview stu1))))
-       (200 ,(λ (r)
-               ;; nasty hack here because of nondeterminism; don't know whether
-               ;; file name will be file-1 or grogra-2.
-               (define (make-links filename)
-                 (list
-                  (string-append "/test-class/file-container/" (lastreview stu1) "/" filename)
-                  (string-append "/test-class/file-container/" (lastreview stu1) "/download/" filename)))
-               (define links-1 (make-links "file-1"))
-               (define links-2 (make-links "grogra-2"))
-               (check-pred
-                (λ (x) (or ((has-anchor-links/bool links-1) x)
-                           ((has-anchor-links/bool links-2) x)))
-                r))))
+      ,(λ ()
+         `((,stu1 ("file-container" ,(lastreview stu1)))
+           (200 ,(λ (r)
+                   ;; nasty hack here because of nondeterminism; don't know whether
+                   ;; file name will be file-1 or grogra-2.
+                   (define (make-links filename)
+                     (list
+                      (string-append "/test-class/file-container/" (lastreview stu1) "/" filename)
+                      (string-append "/test-class/file-container/" (lastreview stu1) "/download/" filename)))
+                   (define links-1 (make-links "file-1"))
+                   (define links-2 (make-links "grogra-2"))
+                   (check-pred
+                    (λ (x) (or ((has-anchor-links/bool links-1) x)
+                               ((has-anchor-links/bool links-2) x)))
+                    r)))))
       ;; stu2 logs in:
       ((,stu2 ())
        (200 ,(has-anchor-links '("/test-class/assignments/"))))
@@ -514,123 +513,114 @@ u must add a summative comment at the end.
        stu2-publishes)
       ((,stu2 ("feedback" "test-with-html")) 200)
       ;; stu2 clicks on last review
-      (,(λ () (list stu2 (list "review" (lastreview-of stu2 stu1))))
-       200
-       review)
+      ,(λ ()
+         `((,stu2 ("review" ,(lastreview-of stu2 stu1)))
+           200
+           review))
       ;; load review file-container for directory
-      (,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1))))
-       200
-       review-iframe-dir)
+      ,(λ ()
+         `((,stu2 ("file-container" ,(lastreview-of stu2 stu1)))
+          200
+          review-iframe-dir))
       ;; file-container for file
-      (,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1)
-                               "my-different-file")))
-       (200 ,(has-anchor-links '("./")))
-       review-iframe-file)
+      ,(λ ()
+         `((,stu2 ("file-container" ,(lastreview-of stu2 stu1)
+                                   "my-different-file"))
+         (200 ,(has-anchor-links '("./")))
+         review-iframe-file))
       ;; actual text of file
-      (,(λ () (list stu2 (list "file-container" (lastreview-of stu2 stu1) "download"
-                               "my-different-file")))
-       200
-       review-iframe-file-content)
+      ,(λ ()
+         `((,stu2 ("file-container" ,(lastreview-of stu2 stu1) "download"
+                                    "my-different-file"))
+           200
+           review-iframe-file-content))
       ;; actual text of file using new endpoint:
-      (,(λ () (list stu2 (list "download" (lastreview-of stu2 stu1) "my-different-file")))
-       200
-       review-iframe-file-content-new)
+      ,(λ ()
+         `((,stu2 ("download" ,(lastreview-of stu2 stu1) "my-different-file"))
+          200
+          review-iframe-file-content-new))
       ;; should it be an error to submit bogus rubric json?
-      (,(λ () (list stu2 (list "review" (lastreview-of stu2 stu1) "tests" "save")
-                    (list 'json #"\"abcd\"")
-                    #t))
-       200)
-      (,(λ () (list stu2 (list "review" "submit" (lastreview-of stu2 stu1))))
-       200
-       stu2-submits-review1)
+      ,(λ ()
+         `((,stu2 ("review" ,(lastreview-of stu2 stu1) "tests" "save")
+                  (json #"\"abcd\"")
+                  #t)
+           200))
+      ,(λ ()
+         `((,stu2 ("review" "submit" ,(lastreview-of stu2 stu1)))
+          200
+          stu2-submits-review1))
       ;; do the other review too
-      (,(λ () (list stu2 (list "review" (lastreview stu2) "tests" "save")
-                    (list 'json #"\"abcde\"")
-                    #t))
-       200)
-      (,(λ () (list stu2 (list "review" "submit" (lastreview stu2))))
-       (200 ,(λ (r)
-               ;; oog, this is awful:
-               (check
-                ormap-xexp
-                (λ (e) (match e
-                         [(list
-                           'a (list
-                               '@ _1 ...
-                               (list 'href
-                                     (regexp #px"feedback/test-with-html/$"))
-                               _2 ...)
-                           _3 ...)
-                          #t]
-                         [other #f]))
-                (match r
-                  [(list _1 ... response-str)
-                   (html->xexp response-str)]))
-               #;((has-anchor-links
-                   ;; FIXME yucky url, hash not even necessary
-                   (list (string-append
-                          "/test-class/review/submit/" (lastreview stu2)
-                          "/../../../feedback/test-with-html/")))
-                  r)))
-       stu2-submits-review2)
+      ,(λ ()
+         `((,stu2 ("review" ,(lastreview stu2) "tests" "save")
+                  (json #"\"abcde\"")
+                  #t)
+           200))
+      ,(λ ()
+         `((,stu2 ("review" "submit" ,(lastreview stu2)))
+           (200 ,(λ (r)
+                   ;; oog, this is awful:
+                   (check
+                    ormap-xexp
+                    (λ (e) (match e
+                             [(list
+                               'a (list
+                                   '@ _1 ...
+                                   (list 'href
+                                         (regexp #px"feedback/test-with-html/$"))
+                                   _2 ...)
+                               _3 ...)
+                              #t]
+                             [other #f]))
+                    (match r
+                      [(list _1 ... response-str)
+                       (html->xexp response-str)]))
+                   #;((has-anchor-links
+                       ;; FIXME yucky url, hash not even necessary
+                       (list (string-append
+                              "/test-class/review/submit/" (lastreview stu2)
+                              "/../../../feedback/test-with-html/")))
+                      r)))
+              stu2-submits-review2))
       ;; stu1 now views it
-      (,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))))
-       200
-       stu1-views-review)
-      (,(λ () `(, stu1 ("feedback" "file-container" ,(firstfeedback stu1))))
-       200
-       stu1-views-review-fc-dir)
-      (,(λ () `(, stu1 ("feedback" "file-container" ,(firstfeedback stu1) "my-different-file")))
-       200
-       stu1-views-review-fc-file)
-      (,(λ () `(, stu1 ("download" ,(firstfeedback stu1) "my-different-file")))
-       200
-       stu1-views-review-fc-file-raw)
-      (,(λ () `(,stu1 ("feedback" "view" ,(firstfeedback stu1))
-                      ((feedback . "feedback with <i>italics</i>.")
-                       (flag . "goronsky"))
-                      #t))
-       (200 ,no-italics)
-       stu1-submits-feedback-xss)
-      ((,stu2 ("feedback" "test-with-html")) 200)))
+      ,(λ ()
+         `((,stu1 ("feedback" "view" ,(firstfeedback stu1)))
+          200
+          stu1-views-review))
+      ,(λ ()
+         `((, stu1 ("feedback" "file-container" ,(firstfeedback stu1)))
+           (200 ,(has-anchor-links
+                  (list
+                   (string-append "/test-class/feedback/file-container/"
+                                  (firstfeedback stu1)
+                                  "/my-different-file"))))
+           stu1-views-review-fc-dir))
+      ,(λ ()
+         `((,stu1 ("feedback" "file-container" ,(firstfeedback stu1) "my-different-file"))
+           (200 ,(has-anchor-links
+                  `("./")))
+           stu1-views-review-fc-file))
+      ,(λ ()
+         `((,stu1 ("download" ,(firstfeedback stu1) "my-different-file"))
+           200
+           stu1-views-review-fc-file-raw))
+      ,(λ ()
+         `((,stu1 ("feedback" "view" ,(firstfeedback stu1))
+                  (alist
+                   ((feedback . "feedback with <i>italics</i>.")
+                    (flag . "goronsky")))
+                  #t)
+           (200 ,no-italics)
+           stu1-submits-feedback-xss))
+      ,(λ ()
+         `((,stu2 ("feedback" "test-with-html"))
+           (200 ,(has-anchor-links
+                  (cons
+                   "/test-class/feedback/test-with-html/../../browse/test-with-html/tests/"
+                   (for/list ([hash (in-list (completed-review-hashes
+                                              (cons "test-with-html" stu2)))])
+                     (string-append
+                    "/test-class/feedback/test-with-html/../../review/" hash "/")))))))))
 
-  ;; RIGHT HERE still working on adding these urls:
-  '((61
-   stu1-views-review
-   ("frogstar@example.com"
-    ("feedback" "view" "39b6494b028ae30c4e5a9a6829c3deec"))
-   ())
-  (62
-   stu1-views-review-fc-dir
-   ("frogstar@example.com"
-    ("feedback" "file-container" "39b6494b028ae30c4e5a9a6829c3deec"))
-   ("/test-class/feedback/file-container/39b6494b028ae30c4e5a9a6829c3deec/my-different-file"))
-  (63
-   stu1-views-review-fc-file
-   ("frogstar@example.com"
-    ("feedback"
-     "file-container"
-     "39b6494b028ae30c4e5a9a6829c3deec"
-     "my-different-file"))
-   ("./"))
-  (64
-   stu1-views-review-fc-file-raw
-   ("frogstar@example.com"
-    ("download" "39b6494b028ae30c4e5a9a6829c3deec" "my-different-file"))
-   ())
-  (65
-   stu1-submits-feedback-xss
-   ("frogstar@example.com"
-    ("feedback" "view" "39b6494b028ae30c4e5a9a6829c3deec")
-    ((feedback . "feedback with <i>italics</i>.") (flag . "goronsky"))
-    #t)
-   ())
-  (66
-   #f
-   ("mf2@example.com" ("feedback" "test-with-html"))
-   ("/test-class/feedback/test-with-html/../../browse/test-with-html/tests/"
-    "/test-class/feedback/test-with-html/../../review/39b6494b028ae30c4e5a9a6829c3deec/"
-    "/test-class/feedback/test-with-html/../../review/693d7b007951c71a53a6c7017bc96ee0/")))
 
   ;; check that no two tests have the same name
   (check-false
@@ -659,6 +649,10 @@ u must add a summative comment at the end.
   (define (firstfeedback uid)
     (first (feedback-hashes (cons "test-with-html" uid))))
 
+  ;; return the feedback for given student on "test-with-html"
+  (define (lastfeedback uid)
+    (last (feedback-hashes (cons "test-with-html" uid))))
+
 
 
   (run-tests
@@ -669,8 +663,11 @@ u must add a summative comment at the end.
         (call-with-output-file REGRESSION-FILE-PATH-TEMP
           #:exists 'truncate
           (λ (rt-port)
-            (for ([test (in-list tests)]
+            (for ([test-or-thunk (in-list tests)]
                   [i (in-naturals)])
+              (define test
+                (cond [(procedure? test-or-thunk) (test-or-thunk)]
+                      [else test-or-thunk]))
               (unless (ct-test? test)
                 (raise-argument-error 'testing
                                       "test specification matching contract"
