@@ -11,11 +11,11 @@
          has-anchor-links/bool
          has-iframe-link
          ormap-xexp
-         has-string)
+         has-string
+         no-double-encode)
 
 (define (no-italics result)
-  (match-define (list _ _ _ _ _ content) result)
-  (check (compose not string-contains?) content "<i>"))
+  (check (compose not string-contains?) (sixth result) "<i>"))
 
 ;; given a link, return a predicate usable with ormap-xexp
 (define (anchor-link-equal? l)
@@ -37,26 +37,23 @@
 ;; does the result contain an <a> element with an href of
 ;; the form /test-class/[l] ? Performs a check.
 (define ((has-anchor-link l) result)
-  (match-define (list _ _ _ _ _ content) result)
   (check ormap-xexp
          (anchor-link-equal? l)
-         (html->xexp content)))
+         (html->xexp (sixth result))))
 
 ;; does the result contain an <a> element with an href whose
 ;; link matches the given pattern
 (define ((has-anchor-link/pat l) result)
-  (match-define (list _ _ _ _ _ content) result)
   (check ormap-xexp
          (anchor-link-equal? l)
-         (html->xexp content)))
+         (html->xexp (sixth result))))
 
 ;; does the result contain an <a> element with an href of
 ;; the form /test-class/[l] ?
 (define ((has-anchor-link/bool l) result)
-  (match-define (list _ _ _ _ _ content) result)
   (ormap-xexp
    (anchor-link-equal? l)
-   (html->xexp content)))
+   (html->xexp (sixth result))))
 
 
 ;; andmap over has-anchor-link. performs checks
@@ -69,14 +66,13 @@
   (andmap (λ (l) ((has-anchor-link/bool l) result)) ls))
 
 (define ((has-iframe-link l) result)
-  (match-define (list _ _ _ _ _ content) result)
   (check ormap-xexp
          (λ (e) (match e
                   ;; NB fails for <iframe>'s with more than one href...
                   [(list 'iframe (list '@ _1 ... (list 'src link) _2 ...) _3 ...)
                    (equal? link l)]
                   [other #f]))
-         (html->xexp content)))
+         (html->xexp (sixth result))))
 
 
   
@@ -92,8 +88,13 @@
 
   
 (define ((has-string l) result)
-  (match-define (list _ _ _ _ _ content) result)
-  (check string-contains? content l))
+  (check string-contains? (sixth result) l))
+
+;; does this string contain &lt; ? used to check for
+;; xexpr->string applied to html strings, likely signals
+;; of incorrect translation to xexprs
+(define (no-double-encode str)
+  (not (string-contains? str "&lt;")))
 
 (module+ test
   (define (equal-maker x) (λ (e) (equal? x e)))

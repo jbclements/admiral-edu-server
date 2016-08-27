@@ -206,6 +206,15 @@ u must add a summative comment at the end.
       bogus-file-container
       stu1-submits-feedback-xss
       accidental-trainwreck))
+
+  ;; these tests generate output that is expected to contain the string
+  ;; "&lt;", and should not be fed to the no-double-encode test
+  (define known-to-contain-double-encode
+    '(bad-yaml
+      assignment-description-xss
+      assignment-description-xss-2
+      stu1-not-yet-published
+      stu1-submits-feedback-xss))
   
   ;; a test contains three parts: expected, call, and (optionally) a name.
   ;; a test (currently) consists of a list
@@ -692,7 +701,9 @@ u must add a summative comment at the end.
                    [(list (? number? code)
                           (? procedure? test-proc))
                     (begin (check-equal? (first result) code)
-                           (test-proc result))])))
+                           (test-proc result))])
+                 (unless (member testname known-to-contain-double-encode)
+                   (check-pred no-double-encode (sixth result)))))
               (define output-val (list i testname request-args result))
               (fprintf r-port "~s\n" output-val)
               (fprintf rt-port "~s\n" output-val)
