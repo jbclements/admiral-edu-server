@@ -11,8 +11,8 @@
 
 (require "../storage/storage.rkt"
          "../base.rkt"
-         (only-in "templates.rkt"
-                  xexpr->error-page-html)
+         "../paths.rkt"
+         (only-in "templates.rkt" error-page)
          (prefix-in assign: "../authoring/assignment.rkt")
          (prefix-in error: "errors.rkt")
          "templates.rkt")
@@ -149,7 +149,7 @@
 
 (define (render-result assignment-id result)
   (cond [(Success? result) (assignment-dependencies assignment-id (string-append "<p>" (Success-result result) "</p>"))]
-        [(Failure? result) (xexpr->error-page-html (Failure-message result))]
+        [(Failure? result) (error-page (list (Failure-message result)))]
         [else (raise (format "Unknown result: ~a" result))]))
 
 

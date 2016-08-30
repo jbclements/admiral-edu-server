@@ -10,7 +10,6 @@
 (require web-server/templates)
 
 (require/typed "templates.rkt"
-               [xexpr->error-page-html (XExpr -> String)]
                [error-page ((Listof XExpr) -> String)])
 
 

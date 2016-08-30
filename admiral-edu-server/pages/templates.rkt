@@ -13,7 +13,6 @@
 
 (provide (contract-out
           [plain-page (-> string? (listof xexpr?) response?)])
-         xexpr->error-page-html
          error-page)
 
 ;; given a title and a list of xexprs, return
@@ -21,12 +20,6 @@
 (define (plain-page title body)
   (response-200
    (include-template "html/plain.html")))
-
-;; given an xexpr, returns an error page embedding that
-;; message. Note that the good behavior of xexpr->string
-;; ensures that passing this a string works too.
-(define (xexpr->error-page-html xexpr)
-  (error-page (list xexpr)))
 
 ;; given a list of xexprs, returns an error page etc. etc.
 (define (error-page display-message)
@@ -222,11 +215,11 @@
       #f)))
   
   (check-match
-   (xexpr->error-page-html "abc<i>wow</i>tag")
+   (error-page (list "abc<i>wow</i>tag"))
    (regexp #px"&lt;i&gt;wow&lt;/i&gt;"))
 
   (check-match
-   (xexpr->error-page-html '(p "abc" (i "wow") "tag") )
+   (error-page '((p "abc" (i "wow") "tag")) )
    (regexp #px"abc<i>wow</i>tag"))
 
   (check-match
