@@ -14,7 +14,6 @@
          "../paths.rkt"
          (only-in "templates.rkt" error-page)
          (prefix-in assign: "../authoring/assignment.rkt")
-         (prefix-in error: "errors.rkt")
          "templates.rkt")
 
 (define THREE-STUDY-ACTION "three-study")
@@ -24,68 +23,97 @@
 (provide dependencies)
 (define (dependencies session role rest [message '()])
   (let* ((len (length rest)))
-    (cond [(= len 1) (assignment-dependencies (car rest))]
-          [(and (= len 2) (string=? THREE-STUDY-ACTION (cadr rest))) (three-study-form (car rest))]
+    (cond [(= len 1)
+           (assignment-dependencies session (car rest))]
+          [(and (= len 2) (string=? THREE-STUDY-ACTION (cadr rest)))
+           (three-study-form session (car rest))]
           ;; returns response
-          [(> len 2) (dependencies-form (car rest) (cadr rest) (caddr rest) rest)])))
+          [(> len 2)
+           (dependencies-form (car rest) (cadr rest) (caddr rest) rest)])))
 
-(define (assignment-dependencies assignment-id [message ""])
-  (cond [(not (assignment:exists? assignment-id (class-name)))
-         (assignment-not-found-response assignment-id)]
-        [else (let* ((deps (assign:assignment-id->assignment-dependencies assignment-id))
-                     [header (string-append "<a href='/" (class-name) "/assignments/'>Assignments</a>")]
-                     (dependency-list (string-append (string-join (map (dep->html assignment-id) deps) "\n")))
-                     [extra-message ""]
-                     [body (string-append "<h2><a href='/" (class-name) "/assignments/dashboard/" assignment-id "/'>" assignment-id "</a></h2>"
-                                          "<p>" message "</p>"
-                                          "<p>The links below allow you to preview each rubric and upload file dependencies.</p>"
-                                          "<ul>" dependency-list "</ul>"
-                                          )])
-                (include-template "html/basic.html"))]))
+(define (assignment-dependencies session assignment-id [message '()])
+  (when (not (assignment:exists? assignment-id (class-name)))
+    (raise-assignment-not-found assignment-id))
+  (define deps (assign:assignment-id->assignment-dependencies assignment-id))
+  (define assignment-link
+    (ct-url-path session "assignments"))
+  (define header `(a ((href ,(url-path->url-string assignment-link)))
+                     "Assignments"))
+  (define body (assignment-dependencies-body session assignment-id
+                                             message deps))
+  (basic-page header '() body))
 
-(define (three-study-form assignment-id [message #f])
-  (cond [(not (assignment:exists? assignment-id (class-name)))
-         (assignment-not-found-response assignment-id)]
-        [else 
-         (let* ([header assignment-id]
-                [extra-message ""]
-                [body (render-three-study-form assignment-id)])
-           (include-template "html/basic.html"))]))
+;; this function is testable...
+(define (assignment-dependencies-body session assignment-id message deps)
+  (define dependency-list
+    (map (dep->html session assignment-id) deps))
+  `((h2 (a ((href
+             ,(url-path->url-string
+               (ct-url-path session
+                            "assignments"
+                            "dashboard"
+                            assignment-id))))
+           ,assignment-id))
+    ,@message
+    (p "The links below allow you to preview each rubric "
+       "and upload file dependencies.")
+    (ul
+     ,@dependency-list)))
+
+(define (three-study-form session assignment-id [message #f])
+  (when (not (assignment:exists? assignment-id (class-name)))
+    (raise-assignment-not-found assignment-id))
+  (let* ([header assignment-id]
+         [extra-message ""]
+         [body (render-three-study-form session assignment-id)])
+    (basic-page header '() body)))
+ 
+
+(define (render-three-study-form session assignment-id)
+  `((p "You are uploading the 3 condition study yaml file.")
+    (form ((method "post")
+           (action
+            ,(url-path->url-string
+              (ct-url-path session
+                           "dependencies"
+                           assignment-id
+                           THREE-STUDY-ACTION)))
+           (enctype "multipart/form-data"))
+          (input ((type "file")
+                  (name "three-condition-file")))
+          (input ((type "submit") (value "Upload"))))))
 
 
-(define (render-three-study-form assignment-id)
-  ;; FIXME should be xexpr...
-  (string-append "<p>You are uploading the 3 condition study yaml file.</p>"
-                 "<form method='post' action='" (base-url) assignment-id "/" THREE-STUDY-ACTION "/" "' enctype='multipart/form-data'>"
-                 "<input type='file' name='three-condition-file'>"
-                 "<input type='submit' value='Upload'>"
-                 "</form>"))
 
 ;(struct dependency (step-id review-id amount instructor-solution) #:transparent)
-(define (dep->html assignment-id)
-  (lambda (dep)
-    (cond [(assign:review-dependency? dep)
-           (begin
-             ;; FIXME string pasting
-             (let* ((sid (assign:review-dependency-step-id dep))
-                    (rid (assign:review-dependency-review-id dep))
-                    (inst (if (assign:instructor-solution-dependency? dep) " - <b>Instructor Solution</b>" ""))
-                    (a-start (string-append "<a href=\"" (base-url) assignment-id "/" sid "/" rid "/\">"))
-                    (a-end (if (assign:dependency-met dep) " - Ready" " - Dependencies Missing")))
-               (string-append "<li>" 
-                              a-start
-                              sid ":" rid inst  "</a>"
-                              a-end 
-                              "</li>")))]
-          [(assign:three-study-config-dependency? dep) (begin
-                                                         (let ((ready (if (assign:dependency-met dep) " - Ready" " - Dependency Missing")))
-                                                           (string-append "<li>"
-                                                                          "<a href='" (base-url) assignment-id "/" THREE-STUDY-ACTION "/'>"
-                                                                          "Three Study Configuration File" ready
-                                                                          "</a>"
-                                                                          "</li>")))]
+(define ((dep->html session assignment-id) dep)
+  (cond [(assign:review-dependency? dep)
+         (let* ((sid (assign:review-dependency-step-id dep))
+                (rid (assign:review-dependency-review-id dep))
+                (inst (if (assign:instructor-solution-dependency? dep)
+                          '(" - " (b "Instructor Solution"))
+                          '()))
+                (dependency-link
+                 `(a ((href ,(url-path->url-string
+                              (ct-url-path session "dependencies"
+                                           assignment-id sid rid))))
+                     ,sid ":" ,rid ,@inst))
+                (ready (if (assign:dependency-met dep)
+                           " - Ready"
+                           " - Dependencies Missing")))
+           `(li ,dependency-link ,ready))]
+        [(assign:three-study-config-dependency? dep)
+         (define ready (if (assign:dependency-met dep)
+                           " - Ready"
+                           " - Dependency Missing"))
+         `(li (a ((href
+                   ,(url-path->url-string
+                    (ct-url-path session "dependencies" assignment-id
+                                 THREE-STUDY-ACTION))))
+                 "Three Study Configuration File" ,ready))]
+        [else (raise "Unknown dependency")]))
 
-          [else (raise "Unknown dependency")])))
+
 
 ;; return the upload-dependencies form page. returns response
 (define (dependencies-form assignment step review-id rest)
@@ -106,15 +134,17 @@
          (assignment (car rest))
          ;; FIXME: fails on empty list (this happens in a lot of places...):
          (action (last rest)))
-    (cond [(equal? action "load") (let ((stepName (cadr rest))
-                                        (review-id (caddr rest)))
-                                    (load-rubric class assignment stepName review-id))]
+    (cond [(equal? action "load")
+           (let ((stepName (cadr rest))
+                 (review-id (caddr rest)))
+             (load-rubric class assignment stepName review-id))]
           [(equal? action "upload")
            ;; FIXME: check for existence of these!
            (let ((stepName (cadr rest))
                  (review-id (caddr rest)))
-             (upload-dependencies class assignment stepName review-id bindings raw-bindings))]
-          [(string=? action THREE-STUDY-ACTION) (upload-three-condition assignment bindings raw-bindings)])))
+             (upload-dependencies session class assignment stepName review-id bindings raw-bindings))]
+          [(string=? action THREE-STUDY-ACTION)
+           (upload-three-condition assignment bindings raw-bindings)])))
 
 (define (load-rubric class assignment stepName review-id)
   (let ((data (retrieve-default-rubric class assignment stepName review-id)))
@@ -124,7 +154,7 @@
      empty
      (list (string->bytes/utf-8 data)))))
 
-(define (upload-three-condition assignment-id bindings raw-bindings)
+(define (upload-three-condition session assignment-id bindings raw-bindings)
   (let* ((dep (car (filter assign:three-study-config-dependency? (assign:assignment-id->assignment-dependencies assignment-id))))
          (result (assign:handle-dependency assignment-id dep bindings raw-bindings)))
         (assign:check-ready assignment-id)
@@ -132,24 +162,25 @@
      200 #"Okay"
      (current-seconds) TEXT/HTML-MIME-TYPE
      empty
-     (list (string->bytes/utf-8 (render-result assignment-id result))))))
+     (list (string->bytes/utf-8 (render-result session assignment-id result))))))
 
 ;; upload review dependencies, return a response. should be a list of xexprs?
-(define (upload-dependencies class assignment-id step-id review-id bindings raw-bindings)
+(define (upload-dependencies session class assignment-id step-id review-id bindings raw-bindings)
   ;; FIXME what's up with the car here? alarming. cf fixme on enforcing exactly one
   ;; dependency in assignment-structs.rkt
   (let* ((dep (car (assign:find-dependencies assignment-id step-id review-id)))
          (result (assign:handle-dependency assignment-id dep bindings raw-bindings)))
+    (printf "debug...\n")
     (assign:check-ready assignment-id)
-    (response/full
-     200 #"Okay"
-     (current-seconds) TEXT/HTML-MIME-TYPE
-     empty
-     (list (string->bytes/utf-8 (render-result assignment-id result))))))
+    (render-result session assignment-id result)))
 
-(define (render-result assignment-id result)
-  (cond [(Success? result) (assignment-dependencies assignment-id (string-append "<p>" (Success-result result) "</p>"))]
-        [(Failure? result) (error-page (list (Failure-message result)))]
+(define (render-result session assignment-id result)
+  (cond [(Success? result)
+         ;; come back here...
+         (assignment-dependencies session assignment-id
+                                  `((sp ,(Success-result result))))]
+        [(Failure? result)
+         (error-page (list (Failure-message result)))]
         [else (raise (format "Unknown result: ~a" result))]))
 
 
@@ -159,7 +190,6 @@
   (let* ((dep (car (assign:find-dependencies assignment-id step-id review-id)))
          (amount (if (assign:student-submission-dependency? dep) (assign:student-submission-dependency-amount dep) 1))
          (instructor-solution (assign:instructor-solution-dependency? dep)))
-    ;; FIXME urg strings bad bad
     `((p "Assignment id:" ,assignment-id)
       (p "Submission Step id:" ,step-id)
       (p "Review id:" ,review-id)
@@ -184,7 +214,80 @@
                   (id ,(string-append "file-"ns)))))))))
 
 
-(define (assignment-not-found-response assignment-id)
-  ;; 400 or 404?
-  (error:error-xexprs->400-response
+(define (raise-assignment-not-found assignment-id)
+  (raise-404-not-found
    (string-append "The assignment id '" assignment-id "' was not found.")))
+
+
+(module+ test
+  (require rackunit
+           "../testing/test-configuration.rkt")
+  (current-configuration test-conf)
+
+  (define session
+    (ct-session (class-name) "bogus1@example.com" #f (hash)))
+  
+  ;; REGRESSION TEST
+  (check-equal?
+   (render-three-study-form session
+                            "ass-1234")
+   '((p "You are uploading the 3 condition study yaml file.")
+     (form ((method "post")
+            (action "/test-class/dependencies/ass-1234/three-study")
+            (enctype "multipart/form-data"))
+           (input ((type "file")
+                   (name "three-condition-file")))
+           (input ((type "submit") (value "Upload"))))))
+
+  ;; REGRESSION TEST
+  (check-equal?
+   ((dep->html session "ass-id") (assign:review-dependency #f "abc" "def"))
+   '(li (a ((href "/test-class/dependencies/ass-id/abc/def"))
+           "abc" ":" "def")
+        " - Dependencies Missing"))
+
+  ;; REGRESSION TEST
+  (check-equal?
+   ((dep->html session "ass-id") (assign:review-dependency #t "abc" "def"))
+   '(li (a ((href "/test-class/dependencies/ass-id/abc/def"))
+           "abc" ":" "def")
+        " - Ready"))
+
+  ;; REGRESSION TEST
+  (check-equal?
+   ((dep->html session "ass-id") (assign:instructor-solution-dependency #f "abc" "def"))
+   '(li (a ((href "/test-class/dependencies/ass-id/abc/def"))
+           "abc" ":" "def"
+           " - "
+           (b "Instructor Solution"))
+        " - Dependencies Missing")
+   )
+
+  ;; REGRESSION
+  (check-equal?
+   ((dep->html session "ass-id")
+    (assign:three-study-config-dependency #f))
+   '(li (a ((href "/test-class/dependencies/ass-id/three-study"))
+           "Three Study Configuration File"
+           " - Dependency Missing")))
+
+  ;; REGRESSION
+  (check-equal?
+   (assignment-dependencies-body
+    session "ass-id" '((p "the message"))
+    (list (assign:instructor-solution-dependency #f "abc" "def")
+          (assign:review-dependency #t "ghi" "jkl")))
+   '((h2 (a ((href "/test-class/assignments/dashboard/ass-id"))
+            "ass-id"))
+     (p "the message")
+     (p
+      "The links below allow you to preview each rubric "
+      "and upload file dependencies.")
+     (ul (li (a ((href "/test-class/dependencies/ass-id/abc/def"))
+                "abc" ":" "def"
+                " - "
+                (b "Instructor Solution"))
+             " - Dependencies Missing")
+         (li (a ((href "/test-class/dependencies/ass-id/ghi/jkl"))
+                "ghi" ":" "jkl")
+             " - Ready")))))

@@ -19,7 +19,21 @@
 
 ;; given a link, return a predicate usable with ormap-xexp
 (define (anchor-link-equal? l)
-  (anchor-link/pred? (λ (link) (equal? link l))))
+  (define trimmed (trim-trailing-slash l))
+  (anchor-link/pred?
+   (λ (link) (or (equal? link trimmed)
+                 (equal? link (string-append trimmed "/"))))))
+
+;; trim a trailing slash off of a string that ends with one
+(define (trim-trailing-slash s)
+  (match s
+    [(regexp #px"//$" (list m))
+     (raise-argument-error
+      'trim-trailing-slash
+      "string without two slashes at the end"
+      0 s)]
+    [(regexp #px"/$" (list m)) (substring s 0 (sub1 (string-length s)))]
+    [other s]))
 
 ;; given a link, return a predicate usable with ormap-xexp
 (define (anchor-link-matches? pat)
@@ -122,6 +136,9 @@
                '(a (@ (z 4) (href "chrzz.,ht")) "ont.h")))
 
   (check-false ((anchor-link/pred? (λ (l) (regexp-match #px"zz" l)))
-                '(a (@ (z 4) (href "chrz.,ht")) "ont.h"))))
+                '(a (@ (z 4) (href "chrz.,ht")) "ont.h")))
+
+  (check-equal? (trim-trailing-slash "/abc/") "/abc")
+  (check-equal? (trim-trailing-slash "/abc") "/abc"))
 
   

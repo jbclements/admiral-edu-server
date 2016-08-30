@@ -228,7 +228,7 @@
            ;; must include "action" binding:
            (render-hack ((roster:post post-data bindings) session user-role rest))]
           [(list #"get" (cons "roster" rest))
-           (render-hack (roster:load session user-role rest))]
+           (roster:load session user-role rest)]
           
           ;; "/browse/..."
           [(list #"get" (list "browse" assignment step rest ...))

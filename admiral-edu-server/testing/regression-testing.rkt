@@ -233,9 +233,9 @@ u must add a summative comment at the end.
               '("/test-class/author/"))))
       ((,m ("roster"))
        (200 ,(has-anchor-links
-              '("/test-class/roster/upload-roster/"
-                "/test-class/roster/new-student/"
-                "/test-class/roster/edit/masteruser@example.com/"))))
+              '("/test-class/roster/upload-roster"
+                "/test-class/roster/new-student"
+                "/test-class/roster/edit/masteruser@example.com"))))
       ((,m ("roster" "new-student")) 200)
       ;; REGRESSION: error feedback less useful than old
       ;; should be a 400, not a 200:

@@ -12,7 +12,9 @@
          "../paths.rkt")
 
 (provide (contract-out
-          [plain-page (-> string? (listof xexpr?) response?)])
+          [plain-page (-> string? (listof xexpr?) response?)]
+          [basic-page (-> xexpr? (listof xexpr?) (listof xexpr?)
+                          response?)])
          error-page)
 
 ;; given a title and a list of xexprs, return
@@ -20,6 +22,11 @@
 (define (plain-page title body)
   (response-200
    (include-template "html/plain.html")))
+
+;; FIXME merge with 'plain' page?
+(define (basic-page header extra-message body)
+  (response-200
+   (include-template "html/basic.html")))
 
 ;; given a list of xexprs, returns an error page etc. etc.
 (define (error-page display-message)

@@ -1,13 +1,13 @@
 <html>
-  
+  @bogusbinding
   <head>
     <title>Captain Teach</title>
   </head>
   
   
 <body>
-  <h1>@header </h1>
-  @extra-message
-  @body
+  <h1>@(xexpr->string header)</h1>
+  @(xexprs->string extra-message)
+  @(xexprs->string body)
 </body>
 </html>
