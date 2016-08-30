@@ -628,7 +628,11 @@ u must add a summative comment at the end.
                    (for/list ([hash (in-list (completed-review-hashes
                                               (cons "test-with-html" stu2)))])
                      (string-append
-                    "/test-class/feedback/test-with-html/../../review/" hash "/")))))))))
+                    "/test-class/feedback/test-with-html/../../review/" hash "/")))))))
+      ;; edit user missing username
+      ((,m ("roster" "edit"))
+       404
+       edit-user-missing-name)))
 
 
   ;; check that no two tests have the same name
