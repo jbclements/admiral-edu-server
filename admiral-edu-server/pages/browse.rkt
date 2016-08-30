@@ -46,10 +46,10 @@
   [define default-mode (determine-mode-from-filename path)]
   [define step-link (to-step-link step-id (length path))]
   [define path-html (to-path-html path)]
-  [define rel-ct-path (strs->rel-ct-path path)]
+  [define ct-path (apply rel-ct-path path)]
   (define file-path
     (submission-file-path class assignment-id user-id step-id
-                          rel-ct-path))
+                          ct-path))
   (match (path-info file-path)
     ['directory
      (define contents (render-directory file-path start-url))
@@ -61,7 +61,7 @@
      (define maybe-file-url
        (ct-path->url-path
         session
-        (strs->rel-ct-path `("browse-download" ,assignment-id ,step-id ,@path))))
+        (apply rel-ct-path "browse-download" assignment-id step-id path)))
      (browse-file-container-page assignment-id step-link path-html default-mode
                                  contents maybe-file-url)]
     ['does-not-exist

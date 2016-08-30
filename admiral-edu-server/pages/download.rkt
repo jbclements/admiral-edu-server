@@ -53,7 +53,7 @@
   (define class (ct-session-class session))
   (define user (ct-session-uid session))
   (define data (maybe-get-file-bytes class assignment step user
-                                     (strs->rel-ct-path path-strs)))
+                                     (apply rel-ct-path path-strs)))
   (unless data
     (raise-403-not-authorized "You are not authorized to see this page."))
   (bytes->file-response data))

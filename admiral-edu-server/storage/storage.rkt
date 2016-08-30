@@ -186,7 +186,7 @@
 (provide submission-path)
 (: submission-path (String String String String -> Ct-Path))
 (define (submission-path class-id assignment-id user-id step-id)
-  (strs->rel-ct-path (list class-id assignment-id user-id step-id)))
+  (rel-ct-path class-id assignment-id user-id step-id))
 
 ;; FIXME eliminate uses of this, replacing with submission-path
 (: submission-path/string (String String String String -> String))
@@ -204,7 +204,7 @@
    (ct-path->path
     (ct-path-join (submission-path class-id assignment-id user-id step-id)
                   ;; FIXME eliminate first branch when unneeded
-                  (cond [(string? file-name) (strs->rel-ct-path (list file-name))]
+                  (cond [(string? file-name) (rel-ct-path file-name)]
                         [else file-name])))))
 
 

@@ -209,7 +209,7 @@
          (file (to-path rest))
          (test-prime (newline))
          (file-path (submission-file-path class assignment reviewee stepName
-                                          (strs->rel-ct-path rest))))
+                                          (apply rel-ct-path rest))))
     (define is-dir (is-directory? file-path))
     (cond [(is-directory? file-path)
            (define contents (render-directory file-path start-url #:show-download #f))
@@ -222,7 +222,7 @@
            (define maybe-file-url
              (ct-path->url-path
               session
-              (strs->rel-ct-path (cons "download" (cons r-hash rest)))))
+              (apply rel-ct-path "download" r-hash rest)))
            (feedback-file-container-page
             assignment step path default-mode contents load-url maybe-file-url)])))
 

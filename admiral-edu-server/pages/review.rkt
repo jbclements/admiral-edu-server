@@ -235,10 +235,10 @@
          [step (to-step-link stepName (- (length rest) 2))]
          (last-path (last rest))
          [path (to-path-html (cdr rest))]
-         [rel-ct-path (strs->rel-ct-path (cdr rest))]
+         [ct-path (apply rel-ct-path (cdr rest))]
          (test-prime (newline)))
     (define file-path
-      (submission-file-path class assignment reviewee stepName rel-ct-path))
+      (submission-file-path class assignment reviewee stepName ct-path))
     ;; FIXME eliminate conversion when unnecessary
     (match (path-info file-path)
       ['directory
@@ -247,7 +247,7 @@
        (file-container-page default-mode save-url load-url assignment step path contents
                             maybe-file-url)]
       ['file
-       (define file (path->string (ct-path->path rel-ct-path)))
+       (define file (path->string (ct-path->path ct-path)))
        (define contents render-file)
        (define maybe-file-url
          (download-url start-url file #:dotdot-hack #t))

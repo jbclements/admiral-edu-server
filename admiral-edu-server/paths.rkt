@@ -35,7 +35,7 @@
 ;; made in this code.
 
 ;; the general expected flow here is that you create relative
-;; paths using strs->rel-ct-path, optionally join them using
+;; paths using rel-ct-path, optionally join them using
 ;; ct-path-join, and then *either* convert them to url paths
 ;; using ct-path->url-path and url-path->url-string (two-step
 ;; conversion because I don't want to pass the session into
@@ -44,7 +44,8 @@
 
 (provide Ct-Path
          legal-path-elt?
-         strs->rel-ct-path
+         rel-ct-path
+         ct-url-path
          ct-path-join
          ct-path->url-path
          url-path?
@@ -87,8 +88,8 @@
   (and (Ct-Path? p) (Ct-Path-abs? p)))
 
 ;; turn a list of strings into a relative captain teach path
-(: strs->rel-ct-path ((Listof String) -> Ct-Path))
-(define (strs->rel-ct-path strs)
+(: rel-ct-path (String * -> Ct-Path))
+(define (rel-ct-path . strs)
   (strs->ct-path strs #f))
 
 ;; turn a list of strings into an absolute url path
@@ -183,25 +184,21 @@
   (Ct-Path (cons (ct-session-class ct-session) maybe-su-segment)
             #t))
 
-;; FIXME: actually, I think this is  not how we're going to
-;; construct paths....
 ;; given a session and a list of strings, construct a url-path
-(: construct-url-path (ct-session (Listof String) -> Ct-Path))
-(define (construct-url-path session path-elts)
-  (ct-path-join
-   (session->base-url-path session)
-   (strs->rel-ct-path path-elts)))
+(: ct-url-path (ct-session String * -> Ct-Path))
+(define (ct-url-path session . path-elts)
+  (ct-path->url-path session (apply rel-ct-path path-elts)))
 
 
 (module+ test
   (require typed/rackunit)
 
-  (check-equal? (strs->rel-ct-path (list "b" "ohu:t"))
+  (check-equal? (rel-ct-path "b" "ohu:t")
                 (Ct-Path (list "b" "ohu:t") #f))
 
   (check-exn #px"path element strings" 
              (λ ()
-               (strs->rel-ct-path (list "b" "ohu/t"))))
+               (rel-ct-path "b" "ohu/t")))
 
   (check-equal? (strs->abs-ct-path/testing (list "b" "ohu:t"))
                 (Ct-Path (list "b" "ohu:t") #t))
