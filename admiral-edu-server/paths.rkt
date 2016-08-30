@@ -42,10 +42,15 @@
 ;; the page-maker), *or* to a relative filesystem path with
 ;; ct-path->path.
 
+;; ooh, I want to be able to model paths that end with slashes.
+;; I think the nicest way to do this is just to add another
+;; boolean field to the structure.  
+
 (provide Ct-Path
          legal-path-elt?
          rel-ct-path
          ct-url-path
+         ct-path-/
          ct-path-join
          ct-path->url-path
          url-path?
@@ -77,7 +82,8 @@
 ;; strings that don't contain nuls and slashes, plus a boolean
 ;; indicating whether it's an absolute path
 (struct Ct-Path ([elts : (Listof String)]
-                 [abs? : Boolean])
+                 [abs? : Boolean]
+                 [trailing-slash? : Boolean])
   #:transparent)
 
 ;; as an approximation, a URL path must be a ct-path and must
@@ -106,7 +112,7 @@
     (raise-argument-error 'strs->ct-path
                           "list of path element strings"
                           0 strs))
-  (Ct-Path strs absolute?))
+  (Ct-Path strs absolute? #f))
 
 ;; is this a legal element in a url path?
 ;; FIXME check rfc
@@ -126,6 +132,13 @@
 (: bad-path-elts (Listof String))
 (define bad-path-elts (list "" "." ".."))
 
+;; add a trailing slash to a path
+(: ct-path-/ (Ct-Path -> Ct-Path))
+(define (ct-path-/ a)
+  (Ct-Path (Ct-Path-elts a)
+           (Ct-Path-abs? a)
+           #t))
+
 ;; join two url paths. The second one can't be absolute
 (: ct-path-join (Ct-Path Ct-Path -> Ct-Path))
 (define (ct-path-join a b)
@@ -134,7 +147,8 @@
                           "relative URL path"
                           1 a b))
   (Ct-Path (append (Ct-Path-elts a) (Ct-Path-elts b))
-            (Ct-Path-abs? a)))
+           (Ct-Path-abs? a)
+           (Ct-Path-trailing-slash? b)))
 
 ;; given a ct-session and a relative path, prepend
 ;; an absolute path based on the session to the relative
@@ -153,10 +167,14 @@
     (raise-argument-error 'url-path->string
                           "absolute captain teach path"
                           0 a))
-  (string-join (map 
-                uri-path-segment-encode
-                (Ct-Path-elts a)) "/"
-               #:before-first "/"))
+  (define maybe-final-slash (cond [(Ct-Path-trailing-slash? a) "/"]
+                                  [else ""]))
+  (string-append
+   (string-join (map 
+                 uri-path-segment-encode
+                 (Ct-Path-elts a)) "/"
+                                   #:before-first "/")
+   maybe-final-slash))
 
 ;; translate a relative ct-path to a relative path
 (: ct-path->path (Ct-Path -> Path))
@@ -170,7 +188,11 @@
           'ct-path->path
           "captain teach path with nonempty list of strings"
           0 a)]
-        [else (apply build-path (Ct-Path-elts a))]))
+        [else
+         (define p (apply build-path (Ct-Path-elts a)))
+         (cond [(Ct-Path-trailing-slash? a)
+                (path->directory-path p)]
+               [else p])]))
 
 
 
@@ -182,7 +204,8 @@
     (cond [maybe-su-uid (list "su" (ct-session-uid ct-session))]
           [else (list)]))
   (Ct-Path (cons (ct-session-class ct-session) maybe-su-segment)
-            #t))
+            #t
+            #f))
 
 ;; given a session and a list of strings, construct a url-path
 (: ct-url-path (ct-session String * -> Ct-Path))
@@ -194,42 +217,61 @@
   (require typed/rackunit)
 
   (check-equal? (rel-ct-path "b" "ohu:t")
-                (Ct-Path (list "b" "ohu:t") #f))
+                (Ct-Path (list "b" "ohu:t") #f #f))
 
   (check-exn #px"path element strings" 
              (λ ()
                (rel-ct-path "b" "ohu/t")))
 
   (check-equal? (strs->abs-ct-path/testing (list "b" "ohu:t"))
-                (Ct-Path (list "b" "ohu:t") #t))
+                (Ct-Path (list "b" "ohu:t") #t #f))
 
-  (check-equal? (ct-path-join (Ct-Path (list "a" "b") #t)
-                               (Ct-Path (list "a1" "b2") #f))
-                (Ct-Path (list "a" "b" "a1" "b2") #t))
+  (check-equal? (ct-path-join (Ct-Path (list "a" "b") #t #f)
+                               (Ct-Path (list "a1" "b2") #f #f))
+                (Ct-Path (list "a" "b" "a1" "b2") #t #f))
 
-  (check-equal? (ct-path-join (Ct-Path (list "a" "b") #f)
-                               (Ct-Path (list "a1" "b2") #f))
-                (Ct-Path (list "a" "b" "a1" "b2") #f))
+  (check-equal? (ct-path-join (Ct-Path (list "a" "b") #f #f)
+                               (Ct-Path (list "a1" "b2") #f #f))
+                (Ct-Path (list "a" "b" "a1" "b2") #f #f))
 
   (check-exn #px"relative URL path"
              (λ ()
-               (ct-path-join (Ct-Path (list "a" "b") #f)
-                              (Ct-Path (list "a1" "b2") #t))))
+               (ct-path-join (Ct-Path (list "a" "b") #f #f)
+                              (Ct-Path (list "a1" "b2") #t #f))))
 
-  (check-equal? (ct-path->path (Ct-Path (list "b" "ohu:t") #f))
+  ;; trailing slash should be lost:
+  (check-equal? (ct-path-join (Ct-Path (list "a" "b") #f #t)
+                               (Ct-Path (list "a1" "b2") #f #f))
+                (Ct-Path (list "a" "b" "a1" "b2") #f #f))
+
+  ;; trailing slash should be preserved:
+  (check-equal? (ct-path-join (Ct-Path (list "a" "b") #f #f)
+                               (Ct-Path (list "a1" "b2") #f #t))
+                (Ct-Path (list "a" "b" "a1" "b2") #f #t))
+
+  (check-equal? (ct-path->path (Ct-Path (list "b" "ohu:t") #f #f))
                 (build-path "b" "ohu:t"))
 
-  (check-exn #px"relative captain teach path"
-             (λ () (ct-path->path (Ct-Path (list "b" "ohu:t") #t))))
+  (check-equal? (ct-path-/ (Ct-Path (list "b " "zzok") #f #f))
+                (Ct-Path (list "b " "zzok") #f #t))
 
-  (check-equal? (url-path->url-string (Ct-Path (list "b" "ohu;t") #t))
+  (check-equal? (ct-path->path (Ct-Path (list "b" "ohu:t") #f #t))
+                (path->directory-path (build-path "b" "ohu:t")))
+
+  (check-exn #px"relative captain teach path"
+             (λ () (ct-path->path (Ct-Path (list "b" "ohu:t") #t #f))))
+
+  (check-equal? (url-path->url-string (Ct-Path (list "b" "ohu;t") #t #f))
                 "/b/ohu%3Bt")
+
+  (check-equal? (url-path->url-string (Ct-Path (list "b" "ohu;t") #t #t))
+                "/b/ohu%3Bt/")
 
   (check-equal? (session->base-url-path (ct-session "bogusclass"
                                                     "user1@foo.com"
                                                     #f
                                                     (hash)))
-                (Ct-Path (list "bogusclass") #t))
+                (Ct-Path (list "bogusclass") #t #f))
 
   (check-equal? (session->base-url-path (ct-session "bogusclass"
                                                     "user1@foo.com"
@@ -238,14 +280,15 @@
                 (Ct-Path (list "bogusclass"
                           "su"
                           "user1@foo.com")
-                          #t))
+                          #t
+                          #f))
 
   (check-equal? (ct-path->url-path (ct-session "bogusclass"
                                                     "user1@foo.com"
                                                     #f
                                                     (hash))
-                                   (Ct-Path (list "a" "b") #f))
-                (Ct-Path (list "bogusclass" "a" "b") #t))
+                                   (Ct-Path (list "a" "b") #f #f))
+                (Ct-Path (list "bogusclass" "a" "b") #t #f))
 
   (check-equal? (only-good-chars? "") #t)
   (check-equal? (only-good-chars? "abcha###3;; 14!") #t)
