@@ -18,8 +18,7 @@
 
 ;; given a title and a list of xexprs, return
 ;; a string representing html text
-(define (plain-page title xexprs)
-  (define body (xexprs->string xexprs))
+(define (plain-page title body)
   (response-200
    (include-template "html/plain.html")))
 
@@ -205,6 +204,9 @@
 (module+ test
   (require rackunit)
 
+  (define (response->str r)
+    (call-with-output-string (response-output r)))
+
   (check-not-exn
    (λ ()
      (browse-file-container-page
@@ -228,8 +230,8 @@
    (regexp #px"abc<i>wow</i>tag"))
 
   (check-match
-   (call-with-output-string
-    (response-output (plain-page "Quadra!" '((p "goofy")))))
+   (response->str
+    (plain-page "Quadra!" '((p "goofy"))))
    (regexp #px"Quadra!.*<p>goofy</p>"))
   
   (check-equal? (ct-url-or-false #f) "false")

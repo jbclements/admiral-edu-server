@@ -1,11 +1,11 @@
 <html>
-  
+  @bogusbinding
   <head>
-    <title> Captain Teach - @title </title>
+    <title> Captain Teach - @(xexpr->string title) </title>
   </head>
   
   
 <body>
-  @body
+  @(xexprs->string body)
 </body>
 </html>
