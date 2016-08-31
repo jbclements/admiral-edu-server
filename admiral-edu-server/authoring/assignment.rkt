@@ -4,13 +4,13 @@
                [jsexpr->string (Any -> String)])
 
 (require racket/string
-         racket/match
          racket/list
          "typed-yaml.rkt"
          "../storage/storage.rkt"
          "assignment-structs.rkt"
          "assignment-parser.rkt"
-         "../base.rkt")
+         "../base.rkt"
+         "../paths.rkt")
 
 (provide (all-from-out "assignment-structs.rkt")
          delete-assignment
@@ -36,8 +36,8 @@
 
 
 ;; return the (alphabetically) first duplicated result of the getter
-(: repeat-id? (All (A) ((A -> String) -> ((Listof A) -> (U String #f)))))
-(define (repeat-id? getter)
+(: repeated-id? (All (A) ((A -> String) -> ((Listof A) -> (U String #f)))))
+(define (repeated-id? getter)
   (lambda (list)
     (check-duplicates (sort (map getter list) string<?))))
 
@@ -78,30 +78,38 @@
           (string-append "The specified assignment id '"
                          (Assignment-id assignment)
                          "' already exists."))]
-        [else
-         (define check-steps ((repeat-id? Step-id) (Assignment-steps assignment)))
-         (let* ([check-review-ids (filter string? 
-                                          (map (repeat-id? Review-id) 
-                                               (map Step-reviews (Assignment-steps assignment))))]
-                (ids (append (map Step-id (Assignment-steps assignment))
-                             (apply append
-                                    (map (λ ([step : Step])
-                                           (map Review-id (Step-reviews step)))
-                                         (Assignment-steps assignment)))))
-                [valid-step-ids (filter string? (map validate-id ids))])
-           (sdo (validate-id (Assignment-id assignment))
-                (cond
-                  [(not (null? check-review-ids))
-                   (Failure
-                    (string-append "Found duplicate review-ids: " (string-join check-review-ids ", ")))]
-                  [check-steps
-                   (Failure
-                    (string-append "Assignment may not have multiple steps with the same id. Found multiple instances of '"
-                                   check-steps "'"))]
-                  [(not (null? valid-step-ids))
-                   (Failure
-                    (string-join valid-step-ids ""))]
-                  [else (Success (void))])))]))
+        [else (validate-assignment/internal assignment)]))
+
+;; check that this assignment is consistent with naming conventions.
+;; (since this function doesn't depend on the database, it can be
+;; tested separately)
+(: validate-assignment/internal (Assignment -> (Result Void)))
+(define (validate-assignment/internal assignment)
+  (define duplicated-step-name
+    ((repeated-id? Step-id) (Assignment-steps assignment)))
+  (define duplicated-review-ids
+    (filter string? 
+            (map (repeated-id? Review-id) 
+                 (map Step-reviews (Assignment-steps assignment)))))
+  (let* ((ids (append (map Step-id (Assignment-steps assignment))
+                      (apply append
+                             (map (λ ([step : Step])
+                                    (map Review-id (Step-reviews step)))
+                                  (Assignment-steps assignment)))))
+         [valid-step-ids (filter string? (map validate-id ids))])
+    (sdo (validate-id (Assignment-id assignment))
+         (cond
+           [(not (null? duplicated-review-ids))
+            (Failure
+             (string-append "Found duplicate review-ids: " (string-join duplicated-review-ids ", ")))]
+           [duplicated-step-name
+            (Failure
+             (string-append "Assignment may not have multiple steps with the same id. Found multiple instances of '"
+                            duplicated-step-name "'"))]
+           [(not (null? valid-step-ids))
+            (Failure
+             (string-join valid-step-ids ""))]
+           [else (Success (void))]))))
 
 ;; given post bytes representing YAML for a new assignment
 ;; and whether this is a create or save (overwrite),
@@ -263,3 +271,15 @@
 (: string->assignment-yaml (String -> Assignment-YAML))
 (define (string->assignment-yaml s)
   (cast (string->yaml s) Assignment-YAML))
+
+(module+ test
+  (require typed/rackunit)
+
+  ;; RIGHT HERE, constructing tests for validate-assignment/internal
+  ;; to illustrate requirement for name checking (and to see if validate-step
+  ;; is actually dead code?
+  #;(check-equal? (validate-assignment/internal
+                 (Assignment
+                  "An Assignment"
+                  "ass1"
+                  "This is the description of the assignment"))))

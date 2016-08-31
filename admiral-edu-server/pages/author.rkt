@@ -17,12 +17,11 @@
          "../authoring/assignment.rkt"
          "templates.rkt"
          "responses.rkt"
-         "errors.rkt")
+         "errors.rkt"
+         (only-in xml xexpr?))
 
 (define NEW-ACTION "new")
 (define EDIT-ACTION "edit")
-(define VALIDATE-ACTION "validate")
-(define VALIDATE-AND-SAVE-ACTION "validate-save")
 
 (define warning-message
   '((p (b "Warning:" ) " You are editing an existing assignment."
@@ -32,19 +31,19 @@
        "assignment data.")))
 
 (provide (contract-out
-          [load (->* (ct-session? any/c any/c) (any/c) response?)]))
+          [load (->* (ct-session? any/c any/c) (list xexpr?) response?)]))
 
 ;; allow user to create or edit an assignment. returns response
 (define (load session role rest [message '()])
   (when (not (roles:Record-can-edit role))
     (raise-403-not-authorized))
-  ;; FIXME ad-hoc url parsing
-  (define len (length rest))
-  (define action (if (= 0 len) NEW-ACTION (car rest)))
-  (cond [(equal? NEW-ACTION action)
-         (authoring-page (class-name) "'validate'" '() '())]
-        [(equal? EDIT-ACTION action) (edit (cdr rest) warning-message)]
-        [else (raise-400-bad-request)]))
+  (match rest
+    [(or (list)
+         (list-rest "new" _))
+     (authoring-page (class-name) "'validate'" '() '())]
+    [(list-rest "edit" tail)
+     (edit tail warning-message)]
+    [other (raise-404-not-found)]))
 
 ;; returns response
 (define (edit rest [message '()])
@@ -61,7 +60,9 @@
 
 ;; ensure the assignment is valid, add or overwrite, indicate
 ;; success.
-(provide validate)
+(provide
+ (contract-out
+  [validate (-> ct-session? bytes? boolean? response?)]))
 (define (validate session post-data create?)
   (match (yaml-bytes->create-or-save-assignment post-data create?)
     [(Success _) (xexprs->response '("Success"))]
