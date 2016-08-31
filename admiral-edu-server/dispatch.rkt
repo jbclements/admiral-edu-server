@@ -58,7 +58,7 @@
    ))
 
 (define ((handler post?) req path)
-  (handler2 req #f path))
+  ((handler2 post?) req (class-name) path))
 
 ;; should replace handler eventually. Too much to fix!
 ;; given request, classname (ignored, but inserted by dispatch interface), and
