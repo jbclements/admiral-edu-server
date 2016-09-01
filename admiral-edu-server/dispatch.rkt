@@ -172,8 +172,10 @@
           
           [(list #"post" (list "author" _ ... "validate"))
            ;; add a new assignment
+           ;; AJAX call, doesn't return html
            (author:validate session post-data #t)]
           [(list #"post" (list "author" _ ... "validate-save"))
+           ;; AJAX call, doesn't return html
            ;; add a new assignment, replacing an old one
            (author:validate session post-data #f)]
           [(list #"get" (cons "author" rest))

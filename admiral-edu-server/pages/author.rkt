@@ -1,24 +1,18 @@
 #lang racket/base
 
-(require racket/string
-         racket/list
-         racket/match
+(require racket/match
          racket/contract
-         web-server/http/bindings
-         web-server/templates
-         xml
-         json
-         yaml)
-
-;; FIXME looks like it could easily be converted to typed racket...
-
-(require "../storage/storage.rkt"
+         "../storage/storage.rkt"
          "../base.rkt"
          "../authoring/assignment.rkt"
          "templates.rkt"
          "responses.rkt"
          "errors.rkt"
          (only-in xml xexpr?))
+
+;; FIXME looks like it could easily be converted to typed racket...
+
+(require )
 
 (define NEW-ACTION "new")
 (define EDIT-ACTION "edit")
@@ -31,7 +25,8 @@
        "assignment data.")))
 
 (provide (contract-out
-          [load (->* (ct-session? any/c any/c) ((listof xexpr?)) response?)]))
+          [load (->* (ct-session? any/c any/c) ((listof xexpr?)) response?)]
+          [validate (-> ct-session? bytes? boolean? response?)]))
 
 ;; allow user to create or edit an assignment. returns response
 (define (load session role rest [message '()])
@@ -60,12 +55,13 @@
 
 ;; ensure the assignment is valid, add or overwrite, indicate
 ;; success.
-(provide
- (contract-out
-  [validate (-> ct-session? bytes? boolean? response?)]))
 (define (validate session post-data create?)
-  (match (yaml-bytes->create-or-save-assignment post-data create?)
-    [(Success _) (xexprs->response '("Success"))]
-    [(Failure msg) (error-xexprs->400-response (list msg))]))
+  (with-handlers
+      ([exn:user-error?
+        (λ (exn)
+          (plain-text-response (string-append "Fail: " (exn-message exn))))])
+    (match (yaml-bytes->create-or-save-assignment post-data create?)
+      [(Success _) (plain-text-response "Success")]
+      [(Failure msg) (plain-text-response (string-append "Fail: " msg))])))
 
   

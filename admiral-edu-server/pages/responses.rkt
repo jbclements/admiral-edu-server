@@ -20,14 +20,14 @@
                [response/xexpr (XExpr
                                 [#:code Natural]
                                 [#:message Bytes]
-                                -> Response)]
-               
+                                -> Response)]               
                [TEXT/HTML-MIME-TYPE Bytes])
 
 (provide response/full ;; <- bad, don't use this
          response/xexpr
          bytes->file-response
          bytes->json-response
+         plain-text-response
          xexprs->response
          string->response ;; <- bad, don't use this
          Response
@@ -46,6 +46,19 @@
   (response/full
    200 #"Okay"
    (current-seconds) TEXT/HTML-MIME-TYPE
+   '()
+   (list (string->bytes/utf-8 str))))
+
+;; used for a plain text string. Note that the
+;; plain/text MIME type prevents trivial use
+;; of this endpoint as part of an XSS attack
+;; ... except by very stupid browsers that do
+;; html sniffing.
+(: plain-text-response (String -> Response))
+(define (plain-text-response str)
+  (response/full
+   200 #"Okay"
+   (current-seconds) #"text/plain; charset=utf-8"
    '()
    (list (string->bytes/utf-8 str))))
 

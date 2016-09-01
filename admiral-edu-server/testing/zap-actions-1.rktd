@@ -56,7 +56,7 @@
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/"))
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/assignments/"))
  (200 (#"GET" #"https://www.captainteach.org/2166-dev/author/"))
- (400
+ (200
   (#"POST" #"https://www.captainteach.org/2166-dev/author/validate")
   #"Content-Type: application/json; charset=UTF-8"
   #"nthont.h\n.h.h")

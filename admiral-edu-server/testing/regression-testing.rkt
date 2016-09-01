@@ -263,18 +263,26 @@ u must add a summative comment at the end.
       ;; bad YAML
       ;; NON-REGRESSION: new version better than old
       ((,m ("author" "validate") () #t #"ziggy stardust")
-       400
+       (200 ,(and/p
+              has-plain-text-mime-type
+              (starts-with-string "Fail:")))
        bad-yaml) ;; 10
       ;; bogus path piece... actually, the API just ignores
       ;; everything until the last one. For now, this is just okay.
       ;; holding off on fixing this until we have a handle on paths...
       ((,m ("author" "boguspath" "validate") () #t ,assignment-yaml)
-       200
+       (200 ,(and/p
+              (is-string "Success")
+              has-plain-text-mime-type))
        boguspath-validate)
       ;; this one is now invalid because the assignment already exists
-      ((,m ("author" "validate") () #t ,assignment-yaml) 400
-           existing-assignment)
-      ((,m ("author" "validate") () #t ,yaml-with-html) 200)
+      ((,m ("author" "validate") () #t ,assignment-yaml)
+       (200 ,(and/p
+              has-plain-text-mime-type
+              (starts-with-string "Fail:")))
+       existing-assignment)
+      ((,m ("author" "validate") () #t ,yaml-with-html)
+       (200 ,has-plain-text-mime-type))
       ;; REGRESSION: missing title
       ((,m ("assignments"))
        (200 ,(has-anchor-links

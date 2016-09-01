@@ -12,7 +12,14 @@
          has-iframe-link
          ormap-xexp
          has-string
-         no-double-encode)
+         is-string
+         starts-with-string
+         has-plain-text-mime-type
+         no-double-encode
+         and/p)
+
+(define (and/p p1 p2)
+  (λ (x) (and (p1 x) (p2 x))))
 
 (define (no-italics result)
   (check (compose not string-contains?) (sixth result) "<i>"))
@@ -100,9 +107,27 @@
          (ormap (λ (xexp) (ormap-xexp pred xexp)) sub-elts)]
         [other #f])))
 
-  
+;; given a result, check that the response string exactly equals the given text
+(define ((is-string text) result)
+  (check equal? (sixth result) text))
+
+;; given a result, check that the response string contains the given text
 (define ((has-string l) result)
   (check string-contains? (sixth result) l))
+
+(define ((starts-with-string l) result)
+  (define str (sixth result))
+  (check equal?
+         (substring str 0 (min (string-length str)
+                               (string-length l)))
+         l))
+
+;; RIGHT HERE add check for text/plain MIME type
+(define (has-plain-text-mime-type result)
+  (define mime-type (bytes->string/utf-8 (fourth result)))
+  (check-match mime-type
+               (or "text/plain"
+                   (regexp #px"^text/plain;"))))
 
 ;; does this string contain &lt; ? used to check for
 ;; xexpr->string applied to html strings, likely signals
