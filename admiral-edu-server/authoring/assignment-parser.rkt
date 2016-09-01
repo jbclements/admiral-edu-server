@@ -6,6 +6,7 @@
 
 (require racket/string
          racket/list
+         racket/match
          "assignment-structs.rkt"
          "three-condition-study.rkt"
          (prefix-in hold: "hold-for-review-handler.rkt")
@@ -33,19 +34,26 @@
 (define likert-class "LikertElement")
 (define free-form-class "FreeFormElement")
 
-(define assignment-handlers 
-  (make-hash (list (cons (AssignmentHandler-key default-assignment-handler) default-assignment-handler)
-                   (cons (AssignmentHandler-key three-condition-study-handler) three-condition-study-handler)
-                   (cons (AssignmentHandler-key hold:hold-for-review-handler) hold:hold-for-review-handler))))
+(: assignment-handlers (HashTable String AssignmentHandler))
+(define assignment-handlers
+  (for/hash : (HashTable String AssignmentHandler)
+    ([handler (in-list (list default-assignment-handler
+                             three-condition-study-handler
+                             hold:hold-for-review-handler))])
+    (values (AssignmentHandler-key handler) handler)))
 
 ;; Assignment
 ;; TODO(3 study): Parse next-action-function
+;; maps a YAML hash table to an Assignment structure.
+;; raises user errors
 (provide yaml->assignment)
 (: yaml->assignment (Assignment-YAML -> Assignment))
-(define (yaml->assignment yaml) 
+(define (yaml->assignment yaml)
   (cond [(not (or (= 5 (hash-count yaml))
-                  (= 4 (hash-count yaml)))) (raise-user-error "Expected record with 4 or 5 fields: `name`, `id`, `description`, `steps`, and optionally `assignment-handler`.")]
-        [(not (hash-has-keys? yaml "name" "id" "description" "steps")) (raise-user-error "Expected record with fields: `name`, `id`, `description`, `steps`, and optionally `assignment-handler`.")]
+                  (= 4 (hash-count yaml))))
+         (raise-user-error "Expected record with 4 or 5 fields: `name`, `id`, `description`, `steps`, and optionally `assignment-handler`.")]
+        [(not (hash-has-keys? yaml "name" "id" "description" "steps"))
+         (raise-user-error "Expected record with fields: `name`, `id`, `description`, `steps`, and optionally `assignment-handler`.")]
         [else (let ((id (hash-ref yaml "id"))
                     (name (hash-ref yaml "name"))
                     (description (hash-ref yaml "description"))
@@ -59,7 +67,8 @@
 
 (: get-assignment-handler (Assignment-YAML -> AssignmentHandler))
 (define (get-assignment-handler yaml)
-  (cond [(hash-has-keys? yaml "assignment-handler") (assert (hash-ref assignment-handlers (hash-ref yaml "assignment-handler")) AssignmentHandler?)]
+  (cond [(hash-has-keys? yaml "assignment-handler")
+         (assert (hash-ref assignment-handlers (hash-ref yaml "assignment-handler")) AssignmentHandler?)]
         [else default-assignment-handler]))
 
 ;; TODO(3 study): Output next-action-function
@@ -352,4 +361,5 @@
 (provide raise-invalid-yaml)
 (: raise-invalid-yaml (Any -> Nothing))
 (define (raise-invalid-yaml exn)
-  (raise-400-bad-request (format "YAML did not contain a valid assignment description: ~a" exn)))
+  (raise-400-bad-request (format "Error while parsing assignment description YAML: ~a" exn)))
+

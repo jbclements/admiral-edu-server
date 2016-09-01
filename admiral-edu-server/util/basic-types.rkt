@@ -62,4 +62,21 @@
               (sdo rest ...)]
              [else temp]))]))
 
+(provide do-map)
+(: do-map (All (V) ((V -> (Result Void)) (Listof V) -> (Result Void))))
+(define (do-map fun args)
+  (cond [(null? args) (Success (void))]
+        [else (sdo (fun (car args))
+                   (do-map fun (cdr args)))]))
 
+
+(module+ test
+  (require typed/rackunit)
+
+  (: num-tester (Integer -> (Result Void)))
+  (define (num-tester x)
+    (cond [(< x 10) (Success (void))]
+          [else (Failure (format "number too large: ~v" x))]))
+  
+  (check-equal? (do-map num-tester '(3 4 1 8)) (Success (void)))
+  (check-equal? (do-map num-tester '(3 14 11 8)) (Failure "number too large: 14")))

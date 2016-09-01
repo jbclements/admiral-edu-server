@@ -98,6 +98,7 @@
                                   (Assignment-steps assignment)))))
          [valid-step-ids (filter string? (map validate-id ids))])
     (sdo (validate-id (Assignment-id assignment))
+         (do-map validate-step (Assignment-steps assignment))
          (cond
            [(not (null? duplicated-review-ids))
             (Failure
@@ -121,7 +122,7 @@
                      ([exn:fail? raise-could-not-parse])
                    (string->assignment-yaml yaml-string)))
     (define assignment
-      (with-handlers ([exn:fail? raise-invalid-yaml])
+      (with-handlers ([exn:fail:user? raise-invalid-yaml])
         (yaml->assignment yaml)))
     (sdo (create-or-save-assignment assignment create?)
          (Success (save-assignment-description (class-name) (Assignment-id assignment) yaml-string))
@@ -273,13 +274,118 @@
   (cast (string->yaml s) Assignment-YAML))
 
 (module+ test
-  (require typed/rackunit)
+  (require typed/rackunit
+           (only-in "next-action.rkt" default-assignment-handler)
+           "../util/basic-types.rkt")
+  
 
-  ;; RIGHT HERE, constructing tests for validate-assignment/internal
-  ;; to illustrate requirement for name checking (and to see if validate-step
-  ;; is actually dead code?
-  #;(check-equal? (validate-assignment/internal
-                 (Assignment
-                  "An Assignment"
-                  "ass1"
-                  "This is the description of the assignment"))))
+  (check-equal?
+   (validate-assignment/internal
+    (Assignment
+     "An Assignment"
+     "ass1"
+     "This is the description of the assignment"
+     default-assignment-handler
+     (list (Step
+            "step1"
+            "The instructions for the first step"
+            (list (student-submission
+                   "review1-1"
+                   2
+                   (Rubric
+                    (list (free-form
+                           "free-form1-1-1"
+                           "More instructions here?")
+                          (likert
+                           "likert1-1-2"
+                           "LIkert instructions"
+                           "Loved it"
+                           "loved it even more"
+                           7)
+                          (instruction
+                           "Do this! Now! (please.)")))))))))
+   (Success (void)))
+
+  (check-equal?
+   (validate-assignment/internal
+    (Assignment
+     "An Assignment"
+     "ass\t1"
+     "This is the description of the assignment"
+     default-assignment-handler
+     (list (Step
+            "step1"
+            "The instructions for the first step"
+            (list (student-submission
+                   "review1-1"
+                   2
+                   (Rubric
+                    (list (free-form
+                           "free-form1-1-1"
+                           "More instructions here?")
+                          (likert
+                           "likert1-1-2"
+                           "LIkert instructions"
+                           "Loved it"
+                           "loved it even more"
+                           7)
+                          (instruction
+                           "Do this! Now! (please.)")))))))))
+   (Failure
+    "Id can only contain letters, numbers, and '-' characters. Rejected 'ass\t1'."))
+
+  (check-equal?
+   (validate-assignment/internal
+    (Assignment
+     "An Assignment"
+     "ass1"
+     "This is the description of the assignment"
+     default-assignment-handler
+     (list (Step
+            "step\t1"
+            "The instructions for the first step"
+            (list (student-submission
+                   "review1-1"
+                   2
+                   (Rubric
+                    (list (free-form
+                           "free-form1-1-1"
+                           "More instructions here?")
+                          (likert
+                           "likert1-1-2"
+                           "LIkert instructions"
+                           "Loved it"
+                           "loved it even more"
+                           7)
+                          (instruction
+                           "Do this! Now! (please.)")))))))))
+   (Failure
+    "Id can only contain letters, numbers, and '-' characters. Rejected 'step\t1'."))
+
+  (check-equal?
+   (validate-assignment/internal
+    (Assignment
+     "An Assignment"
+     "ass1"
+     "This is the description of the assignment"
+     default-assignment-handler
+     (list (Step
+            "step1"
+            "The instructions for the first step"
+            (list (student-submission
+                   "review\t1-1"
+                   2
+                   (Rubric
+                    (list (free-form
+                           "free-form1-1-1"
+                           "More instructions here?")
+                          (likert
+                           "likert1-1-2"
+                           "LIkert instructions"
+                           "Loved it"
+                           "loved it even more"
+                           7)
+                          (instruction
+                           "Do this! Now! (please.)")))))))))
+   (Failure
+    "Id can only contain letters, numbers, and '-' characters. Rejected 'review\t1-1'.")))

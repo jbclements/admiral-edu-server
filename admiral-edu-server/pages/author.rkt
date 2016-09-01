@@ -31,7 +31,7 @@
        "assignment data.")))
 
 (provide (contract-out
-          [load (->* (ct-session? any/c any/c) (list xexpr?) response?)]))
+          [load (->* (ct-session? any/c any/c) ((listof xexpr?)) response?)]))
 
 ;; allow user to create or edit an assignment. returns response
 (define (load session role rest [message '()])

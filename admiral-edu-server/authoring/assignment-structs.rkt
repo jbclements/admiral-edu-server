@@ -58,7 +58,7 @@
 ;; Instructor Solution Review
 (provide (struct-out instructor-solution))
 (struct: instructor-solution ([id : String]
-                             [rubric : Rubric]) #:transparent)
+                              [rubric : Rubric]) #:transparent)
 
 
 ;; Rubric Description
