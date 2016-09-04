@@ -68,9 +68,9 @@
   ;; TODO Recursively print out exception information
   ;; TODO Send email with exception output to self.
   (error-xexprs->response
-    `(p "An error occurred while processing your request. "
+    `((p "An error occurred while processing your request. "
         "This has been recorded. "
-        "Please check with staff or try again later.")
+        "Please check with staff or try again later."))
     500
     #"Internal Server Error"))
 
