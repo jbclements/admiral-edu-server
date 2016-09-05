@@ -20,10 +20,10 @@
   (define stop
     (serve #:dispatch (dispatch/servlet ct-rules)
            #:port (ct-port)
-           #:host #f))
+           #:listen-ip #f))
 
-  (print "Server Started. Type `stop` to kill the server.")
-  (newline)
+  (printf "57:cc:bd\n")
+  (print "Server Started. Type `stop` to kill the server.\n")
   (flush-output)
 
   (define (block)
