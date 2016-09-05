@@ -1,6 +1,7 @@
-#lang typed/racket
+#lang typed/racket/base
 
-(require "typed-db.rkt")
+(require racket/string
+         "typed-db.rkt")
 
 ;; The roles table defines roles and their associated permissions
 (provide table id id-type name name-type can-edit can-edit-type)

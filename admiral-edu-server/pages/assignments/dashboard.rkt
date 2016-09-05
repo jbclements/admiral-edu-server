@@ -1,4 +1,4 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require (prefix-in action: "action.rkt")
          (prefix-in list: "list.rkt")
@@ -10,7 +10,7 @@
 (provide load)
 (: load (->* (ct-session (Listof String) (U XExpr #f)) (Boolean) Response))
 (define (load session url message [post #f])
-  (let ((assignment-id (first url)))
+  (let ((assignment-id (car url)))
     (check-ready assignment-id)
     (let* ((assignment (assignment:select (class-name) assignment-id))
            (open (assignment:Record-open assignment))
@@ -35,7 +35,7 @@
 (: open (->* (ct-session (Listof String) (U XExpr #f)) (Boolean)
              Response))
 (define (open session url message [post #f])
-  (let ((assignment-id (first url)))
+  (let ((assignment-id (car url)))
     (assignment:open assignment-id (class-name))
     (load session url message)))
 
@@ -44,7 +44,7 @@
 (: close (->* (ct-session (Listof String) (U XExpr #f)) (Boolean)
               Response))
 (define (close session url message [post #f])
-  (let ((assignment-id (first url)))
+  (let ((assignment-id (car url)))
     (assignment:close assignment-id (class-name))
     (load session url message)))
 
@@ -52,7 +52,7 @@
 (: delete (->* (ct-session (Listof String) (U XExpr #f)) (Boolean)
                Response))
 (define (delete session url message [post #f])
-  (let ((assignment-id (first url)))
+  (let ((assignment-id (car url)))
     (cond [post (run-delete session url message assignment-id)]
           [else 
            (xexprs->response

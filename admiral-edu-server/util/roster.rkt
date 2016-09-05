@@ -1,7 +1,7 @@
-#lang racket
+#lang racket/base
 
-(require "../base.rkt"
-         "common.rkt")
+(require racket/string
+         "../base.rkt")
 
 ; String -> (Listof (Either Success Failure))
 ; Takes a String such that each line is a uid to be added to the system
@@ -10,7 +10,7 @@
 ; could not be added.
 (provide register-roster)
 (define (register-roster data)
-  (let* ((uids (map string-trim (lines data)))
+  (let* ((uids (map string-trim (string-split data "\n")))
          (report (map register-uid uids)))
     report))
 

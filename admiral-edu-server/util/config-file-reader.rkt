@@ -1,7 +1,11 @@
-#lang typed/racket
+#lang typed/racket/base
 
-;; why not just use YAML for this...?
+;; why not just use YAML or a plain s-expression for this?
 
+;; FIXME just use an s-expression...
+
+(require racket/file
+         racket/string)
 ;; Given a Path-String and optionally a delimiter, parses the file line by line
 ;; Each line that contains the delimeter is parsed as a key (delim) value pair and
 ;; included in the returned HashTable. The first instance of the delimiter is used as a separator
@@ -22,6 +26,7 @@
           [(eq? (string-ref trimmed 0) #\#) #t]
           [else #f])))
 
+;; what the heck is this for?
 (: valid-config? (String -> Boolean))
 (define (valid-config? path)
   #f)

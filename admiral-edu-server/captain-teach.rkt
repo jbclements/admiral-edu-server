@@ -23,7 +23,7 @@
            #:listen-ip #f))
 
   (printf "57:cc:bd\n")
-  (print "Server Started. Type `stop` to kill the server.\n")
+  (printf "Server Started. Type `stop` to kill the server.\n")
   (flush-output)
 
   (define (block)

@@ -1,4 +1,4 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require "../base.rkt"
          "typed-xml.rkt"
@@ -32,8 +32,8 @@
 (: show-instructor-view
    (ct-session (Listof String) Boolean (U XExpr #f) -> Response))
 (define (show-instructor-view session url post message)
-  (let ((action (if (empty? url) action:LIST (first url)))
-        (rest-url (if (empty? url) url (rest url))))
+  (let ((action (if (null? url) action:LIST (car url)))
+        (rest-url (if (null? url) url (cdr url))))
     ((lookup-action-function action) session rest-url message post)))
 
 (: no-such-action

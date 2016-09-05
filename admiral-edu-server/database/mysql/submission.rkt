@@ -1,6 +1,7 @@
-#lang typed/racket
+#lang typed/racket/base
 
-(require "typed-db.rkt"
+(require racket/string
+         "typed-db.rkt"
          "../../ct-session.rkt"
          (prefix-in class: "class.rkt")
          (prefix-in assignment: "assignment.rkt")
@@ -272,8 +273,8 @@
                        "LIMIT 1"))
          (arg-list (append `(,assignment ,class ,step) not-users))
          (result (query-rows-list query arg-list)))
-    (cond [(empty? result) (Failure "No reviews available.")]
-          [else (let ((id (vector-ref (first result) 0)))
+    (cond [(null? result) (Failure "No reviews available.")]
+          [else (let ((id (vector-ref (car result) 0)))
                   (Success (cast id String)))])))
 
          

@@ -1,8 +1,6 @@
-#lang racket
+#lang racket/base
 
-(require "../base.rkt"
-         "../pages/typed-xml.rkt"
-         "../pages/errors.rkt")
+(require "../base.rkt")
 
 (require (prefix-in error: "../pages/errors.rkt"))
                ;[error:not-authorized (-> Any)])

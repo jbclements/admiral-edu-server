@@ -1,6 +1,7 @@
-#lang typed/racket
+#lang typed/racket/base
 
-(require "typed-db.rkt"
+(require racket/string
+         "typed-db.rkt"
          (prefix-in user: "user.rkt")
          (prefix-in class: "class.rkt")
          (prefix-in roles: "roles.rkt"))

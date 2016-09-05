@@ -1,4 +1,4 @@
-#lang typed/racket
+#lang typed/racket/base
 
 (require/typed net/smtp
                [smtp-send-message (->* (String String (Listof String) String String)
@@ -16,6 +16,8 @@
 
 (require/typed net/head
                [standard-message-header (String (Listof String) (Listof String) (Listof String) String -> String)])
+
+(require racket/string)
 
 (define-type EncodeFunc (->* (Input-Port Output-Port)
                              (#:mode Symbol
