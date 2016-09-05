@@ -19,7 +19,8 @@
 
   (define stop
     (serve #:dispatch (dispatch/servlet ct-rules)
-           #:port (ct-port)))
+           #:port (ct-port)
+           #:host #f))
 
   (print "Server Started. Type `stop` to kill the server.")
   (newline)
