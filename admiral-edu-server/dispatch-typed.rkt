@@ -32,8 +32,12 @@
                   "Assignments"
                   page-result)])]
     [(list "send-test-email")
-     (send-email (ct-session-uid session) "Test Email sent by Captain Teach"
-                 "This is a test email, sent in response to a request to the send-test-email endpoint.\n")
-     (plain-page "Assignments"
-                 '((p "okay, email sent.")))]
+     (cond [(send-email (ct-session-uid session)
+                        "Test Email sent by Captain Teach"
+                        "This is a test email, sent in response to a request to the send-test-email endpoint.\n")
+            (plain-page "Assignments"
+                        '((p "okay, email sent.")))]
+           [else (plain-page "Assignments"
+                             '((p "email not sent; disabled, or bad uid")))]
+           )]
     [else (raise-404-not-found)]))
