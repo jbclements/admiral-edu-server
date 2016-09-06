@@ -40,10 +40,17 @@
                     "expected value for key ~v convertible to ~a, got: ~v"
                     field-str (quote ty) field-val)))
          ...
+         ;; hacking in a path check here:
+         (for ([pfield (in-list '(zip-binary unzip-binary tar-binary))])
+           (define path (hash-ref table (symbol->string pfield)))
+           (unless (file-exists? path)
+             (error 'check-configuration
+                    "expected path to existing file for field ~a, got: ~a"
+                    pfield path))) 
          table))]))
 
 (define-syntax maybe-convert
-  (syntax-rules (String Natural)
+  (syntax-rules (String Natural Boolean)
     [(_ v String) v]
     [(_ v Natural) (cast (string->number v) Natural)]
     [(_ v Boolean) (cond [(member (string-downcase v)
@@ -55,7 +62,7 @@
                                       v)])]))
 
 (define-syntax check-ty
-  (syntax-rules (String Natural)
+  (syntax-rules (String Natural Boolean)
     [(_ v String) #t]
     [(_ v Natural) (exact-nonnegative-integer?
                     (string->number v))]
@@ -116,8 +123,8 @@
            ("mail-enable" . "fAlSe")
            ("local-storage-path" . "/tmp/ct-storage")
            ("zip-binary" . "/usr/bin/zip")
-           ("unzip-binary" . "usr/bin/unzip")
-           ("tar-binary" . "usr/bin/tar")))
+           ("unzip-binary" . "/usr/bin/unzip")
+           ("tar-binary" . "/usr/bin/tar")))
   
   (check-equal? (check-conf-hash test-conf) test-conf)
 
