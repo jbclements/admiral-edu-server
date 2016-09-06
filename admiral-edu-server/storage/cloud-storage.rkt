@@ -3,16 +3,18 @@
 (require racket/string
          racket/list
          racket/contract
-         aws
+         aws/s3
+         aws/keys
          "../configuration.rkt"
          (prefix-in local: "local-storage.rkt"))
 
-(provide run-with-aws-parameters
-         (contract-out
+(provide (contract-out
+          
           [retrieve-file
            (-> relative-path? string?)]
           [retrieve-file-bytes
            (-> relative-path? bytes?)])
+         ;; FIXME attach contracts to all of these...
          write-file
          delete-path
          (contract-out
@@ -24,11 +26,16 @@
          list-sub-files)
 
 ;; set the aws parameters before running:
-(define (run-with-aws-parameters thunk)
+(define ((run-with-aws-parameters proc) . args)
   (parameterize ([s3-host (cloud-host)]
                  [public-key (cloud-access-key-id)]
                  [private-key (cloud-secret-key)])
-    (thunk)))
+    (apply proc args)))
+
+(define ls/aws (run-with-aws-parameters ls))
+(define put/file/aws (run-with-aws-parameters put/file))
+(define get/file/aws (run-with-aws-parameters get/file))
+(define delete/aws (run-with-aws-parameters delete))
 
 ;; If the file exists locally, it returns it. Otherwise, it
 ;; fetches it from the cloud and then returns it as a string
@@ -51,20 +58,27 @@
   (define path-path (cond [(path? path) path]
                           [else (string->path path)]))
   (local:ensure-path-exists path-path)
-  (printf "Syncing: ~a\n" (string-append (bucket) path-str))
-  (get/file (string-append (bucket) path-str) path-path)
+  (printf "Syncing bucket ~a and path ~a \n"
+          (bucket) path-str)
+  (get/file/aws (string-append (bucket) path-str)
+                (build-path (local-storage-path) path-path))
   (printf "Done.\n"))
 
 
+;; FIXME the use of clean on the local file path as well freaks me out...
+;; rebooting into cloud mode will yield different file names (though
+;; presumably the old FS will have been trashed anyway)
 ; Writes the local file (over writing if necessary). Then, pushes the local file to the cloud.
 (define (write-file path contents)
   (let ((clean-path (clean path)))
     (local:write-file clean-path contents)
     (let ((bucket+path (string-append (bucket) clean-path))
           (pathname (string->path clean-path)))
-      (put/file bucket+path pathname))
+      (put/file/aws bucket+path (build-path (local-storage-path)
+                                            pathname)))
     (void)))
 
+;; FIXME this will cause collisions! use uri-encoding instead...
   ;; Conversts all spaces to underscores. This is a hack but the (put/file API
   ;; dies when you pass in a path with a space. This bug has been reported here:
   ;; https://github.com/greghendershott/aws/issues/35
@@ -77,8 +91,9 @@
   
   ; Deletes the local copy and the remote copy
   (define (delete-path path)
-    (let* ((files (ls (string-append (bucket) path)))
-           (delete-f (lambda (p) (delete (string-append (bucket) p)))))
+    (let* ((files (ls/aws (string-append (bucket) path)))
+           (delete-f (lambda (p)
+                       (delete/aws (string-append (bucket) p)))))
       (map delete-f files))
     (local:delete-path path))
   
@@ -98,7 +113,7 @@
 (define (file-exists-in-cloud? path)
   (define path-str (cond [(path? path) (path->string path)]
                          [else path]))
-  (let* ((files (ls (string-append (bucket) path-str)))
+  (let* ((files (ls/aws (string-append (bucket) path-str)))
          (member? (filter (lambda (x) (equal? path-str x)) files)))
     (= (length member?) 1)))
   
@@ -109,7 +124,7 @@
                            [else path]))
     (printf "Listing files at ~a\n" path-str)
     ;; FIXME terrible string manipulation
-    (let* ((files (ls (string-append (bucket) path-str)))
+    (let* ((files (ls/aws (string-append (bucket) path-str)))
            (split-path (string-split path-str "/"))
            (split (lambda (x) (string-split x "/")))
            (split-files (map split files))
@@ -128,7 +143,7 @@
       result))
   
   (define (list-path path)
-    (let* ((files (ls (string-append (bucket) path)))
+    (let* ((files (ls/aws (string-append (bucket) path)))
            (split-path (string-split path "/"))
            (split (lambda (x) (string-split x "/")))
            (split-files (map split files))
@@ -148,6 +163,4 @@
 ; (path -> (listof path))
 ; Returns all files that are at the specified path recursively adding all sub directories
 (define (list-sub-files path)
-  (ls (string-append (bucket) path)))
-  
-
+  (ls/aws (string-append (bucket) path)))

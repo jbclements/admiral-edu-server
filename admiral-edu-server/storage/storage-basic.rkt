@@ -29,7 +29,7 @@
 ; Given the path to a file, returns the contents of the retrieved file
 ; Otherwise retures Failure with a message.
 
-; write-file: (path -> string -> ())
+; write-file: (path string -> ())
 ; Given a path and the contents to a file, writes that file (over writing any existing file).
 
 ; delete-path: (path -> ())

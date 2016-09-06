@@ -42,7 +42,7 @@
   (make-parent-directory* local-path)
   (display-to-file contents local-path #:exists 'replace))
 
-; Deletes the local copy
+; Deletes the local copy. Ignores nonexistent paths.
 (provide delete-path)
 (: delete-path (Path-String -> Void))
 (define (delete-path path)
