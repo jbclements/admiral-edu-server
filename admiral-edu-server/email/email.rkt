@@ -8,12 +8,6 @@
                                         #:tls-encode EncodeFunc)
                                        Void)])
 
-;                                      [#:auth-user (U String #f)]
-;                                      [#:auth-passwd (U String #f)]
-;                                      [#:tls-encode Any]
-;                                      [Exact-Nonnegative-Integer]
-;                                       Void)])
-
 (require/typed net/head
                [standard-message-header (String (Listof String) (Listof String) (Listof String) String -> String)])
 
@@ -62,7 +56,7 @@
 
 ;; TODO: Provide file / database entries
 
-;; Extremely basic. Ensures that there are no spaces, a receipient, and a domain.
+;; Extremely basic. Ensures that there are no spaces, a recipient, and a domain.
 (define okay-email-regexp "[^ ]+@[^ ]+\\.[^ ]+")
 
 ;; Blacklist @student.edu email addresses and default-submission addresses
@@ -73,5 +67,3 @@
   (let ((black-listed (regexp-match black-list-email-regexp uid))
         (okay (regexp-match-exact? okay-email-regexp uid)))
     (and (not black-listed) okay)))
-
-

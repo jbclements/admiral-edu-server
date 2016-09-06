@@ -13,7 +13,8 @@
          "pages/typed-xml.rkt"
          "pages/responses.rkt"
          "base.rkt"
-         "ct-session.rkt")
+         "ct-session.rkt"
+         "email/email.rkt")
 
 (require (prefix-in assignments: "pages/assignments.rkt"))
 
@@ -30,4 +31,9 @@
            [else (plain-page
                   "Assignments"
                   page-result)])]
+    [(list "send-test-email")
+     (send-email (ct-session-uid session) "Test Email sent by Captain Teach"
+                 "This is a test email, sent in response to a request to the send-test-email endpoint.\n")
+     (plain-page "Assignments"
+                 '((p "okay, email sent.")))]
     [else (raise-404-not-found)]))
