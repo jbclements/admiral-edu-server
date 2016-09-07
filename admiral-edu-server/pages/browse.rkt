@@ -78,5 +78,5 @@
 (define (to-step-link step depth)
   (if (<= depth 0) step
       (let ((updepth (string-append (apply string-append (repeat "../" depth)) (xexpr->string step))))
-        `(a ((href ,updepth)) step))))
+        `(a ((href ,updepth)) ,step))))
 
