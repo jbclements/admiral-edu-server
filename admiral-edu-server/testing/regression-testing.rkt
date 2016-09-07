@@ -403,7 +403,8 @@ u must add a summative comment at the end.
       ((,stu1 ("browse" "test-with-html" "tests"))
        (200 ,(has-anchor-links
               '("/test-class/browse/test-with-html/tests/my-different-file"
-                "/test-class/browse/test-with-html/tests/download/my-different-file"))))
+                ;; update to new style:
+                "/test-class/browse-download/test-with-html/tests/my-different-file"))))
       ;; the file 
       ((,stu1 ("browse" "test-with-html" "tests" "my-different-file"))
        (200 ,(has-anchor-links
@@ -507,7 +508,8 @@ u must add a summative comment at the end.
                    (define (make-links filename)
                      (list
                       (string-append "/test-class/file-container/" (lastreview stu1) "/" filename)
-                      (string-append "/test-class/file-container/" (lastreview stu1) "/download/" filename)))
+                      ;; update to new style
+                      (string-append "/test-class/download/" (lastreview stu1) "/" filename)))
                    (define links-1 (make-links "file-1"))
                    (define links-2 (make-links "grogra-2"))
                    (check-pred
@@ -618,6 +620,7 @@ u must add a summative comment at the end.
            stu1-views-review-fc-file))
       ,(λ ()
          `((,stu1 ("download" ,(firstfeedback stu1) "my-different-file"))
+           ;; need a check that this is a file-download-y thing and not HTML:
            200
            stu1-views-review-fc-file-raw))
       ,(λ ()
