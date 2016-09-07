@@ -1,6 +1,7 @@
 #lang typed/racket/base
 
 (require "mysql/typed-db.rkt"
+         "../configuration.rkt"
          (prefix-in class: "mysql/class.rkt") 
          (prefix-in user: "mysql/user.rkt")
          (prefix-in role: "mysql/role.rkt")
@@ -62,9 +63,9 @@
 (define (db-has-a-table?)
   (let* ((query (merge "SELECT COUNT(*)"
                        "FROM information_schema.tables "
-                       "WHERE table_schema = 'captain_teach'"
-                       "AND table_name = ?;"))
-         (result (query-value query review:table)))
+                       "WHERE table_schema = "
+                       (string-append "'" (db-name) "'") ";"))
+         (result (query-value query)))
     (> (cast result Natural) 0)))
 
 ;; Permanently removes all references to an assignment from the database
