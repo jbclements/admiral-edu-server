@@ -49,7 +49,7 @@
 
 ;; Returns #t if the specified path is a directory and #f otherwise.
 (provide is-directory?)
-(: is-directory? (String -> Boolean))
+(: is-directory? (Path-String -> Boolean))
 (define (is-directory? path)
   (eq? 'directory (path-info path)))
 
@@ -195,17 +195,14 @@
    (ct-path->path (submission-path class-id assignment-id user-id step-id))))
 
 
-;; class-id -> assignment-id -> user-id -> step-id -> file-name -> string
+;; given class, assignment, etc., construct the path at which the files live
 (provide submission-file-path)
-(: submission-file-path (String String String String (U String Ct-Path) -> String))
+(: submission-file-path (String String String String (U String Ct-Path) -> Ct-Path))
 (define (submission-file-path class-id assignment-id user-id step-id file-name)
-  ;; FIXME eliminate both conversions and just return a ct-path
-  (path->string
-   (ct-path->path
-    (ct-path-join (submission-path class-id assignment-id user-id step-id)
-                  ;; FIXME eliminate first branch when unneeded
-                  (cond [(string? file-name) (rel-ct-path file-name)]
-                        [else file-name])))))
+  (ct-path-join (submission-path class-id assignment-id user-id step-id)
+                ;; FIXME eliminate first branch when unneeded
+                (cond [(string? file-name) (rel-ct-path file-name)]
+                      [else file-name])))
 
 
 ; Uploads a dependency solution. If necessary, deletes the previous dependency that was uploaded 
@@ -289,7 +286,9 @@
       
 (: do-single-file-solution (String String String String String (U String Bytes) -> (Result Void)))
 (define (do-single-file-solution class-id user-id assignment-id step-id file-name file-content)
-  (let ((s-path (submission-file-path class-id assignment-id user-id step-id file-name)))
+  (let ((s-path (path->string
+                 (ct-path->path
+                  (submission-file-path class-id assignment-id user-id step-id file-name)))))
     (write-file s-path file-content)
     (Success (void))))
 

@@ -1,9 +1,15 @@
 #lang typed/racket/base
 
+;; there's a lot of shared code between the various
+;; "file container" pages. This file is an attempt to
+;; collect some of it.
+
 (require "typed-xml.rkt"
          racket/path
          racket/list
-         "../storage/storage.rkt")
+         "../storage/storage.rkt"
+         "../ct-session.rkt"
+         "../paths.rkt")
 
 (provide render-directory
          download-url
@@ -11,43 +17,57 @@
          to-step-link
          render-file)
 
+;; a link-maker takes a relative Ct-Path
+;; and returns a url Ct-Path
+(define-type Link-Maker (Ct-Path -> Ct-Path))
+
 ;; generate the xexprs representing the directory
 ;; browser. In the case of feedback, we don't show the download
 ;; link. I don't know whether this is deliberate, but I'm preserving
 ;; this behavior.
-(: render-directory (String String [#:show-download Boolean]-> (Listof XExpr)))
-(define (render-directory dir-path start-url
+(: render-directory (Link-Maker Link-Maker
+                     Ct-Path [#:show-download Boolean]
+                     -> (Listof XExpr)))
+(define (render-directory link-maker
+                          download-link-maker
+                          dir-path
                           #:show-download [download? #t])
-  (let ((dirs (list-dirs dir-path))
-        (files (list-files dir-path)))
+  (define path-path (ct-path->path dir-path))
+  ;; FIXME remove path->string conversion when list-dirs accepts Path-String
+  (let ((dirs (map path->ct-path (list-dirs (path->string path-path))))
+        (files (map path->ct-path (list-files (path->string path-path)))))
     `((div ((id "directory") (class "browser"))
           (ul
-           ,@(append (map (html-directory start-url) dirs)
-                     (map (html-file start-url download?) files)))))))
+           ,@(append (map (html-directory link-maker) dirs)
+                     (map (html-file link-maker download-link-maker download?)
+                          files)))))))
 
 ;; returns an xexpr representing a subdirectory in the directory listing
-(: html-directory (String -> (String -> XExpr)))
-(define (html-directory start-url)
+(: html-directory (Link-Maker -> (Ct-Path -> XExpr)))
+(define (html-directory link-maker)
   (lambda (dir)
     `(li ((class "directory"))
          ;; FIXME path
-         (a ((href ,(string-append start-url dir)))
-            ,dir))))
+         (a ((href ,(url-path->url-string (link-maker dir))))
+            ,(path->string (ct-path->path dir))))))
 
 ;; returns an xexpr representing a file in the directory listing
-(: html-file (String Boolean -> (String -> XExpr)))
-(define (html-file start-url download?)
-  (lambda (file)
+(: html-file (Link-Maker Link-Maker Boolean -> (Ct-Path -> XExpr)))
+(define (html-file link-maker download-link-maker download?)
+  (lambda ([file : Ct-Path])
+    (: maybe-download-link (Listof XExpr))
     (define maybe-download-link
       (cond [download?
              `((span ((style "float: right"))
-                     (a ((href ,(download-url start-url file)))
+                     (a ((href ,(url-path->url-string
+                                 (download-link-maker file))))
                         "Download File")))]
             [else
              `()]))
     `(li ((class "file"))
          ;; FIXME path
-         (a ((href ,(string-append start-url file))) ,file)
+         (a ((href ,(url-path->url-string (link-maker file))))
+            ,(path->string (ct-path->path file)))
          ,@maybe-download-link)))
 
 
@@ -55,8 +75,8 @@
 ;; file paths. The real fix is
 ;; - improve path handling (start-url always ends with slash?), and
 ;; - don't put the download token in this weird position
-(: download-url (String String [#:dotdot-hack Boolean] -> String))
-(define (download-url start-url file #:dotdot-hack [add-dotdot? #f])
+(: download-url (ct-session String String [#:dotdot-hack Boolean] -> String))
+(define (download-url session start-url file #:dotdot-hack [add-dotdot? #f])
   (define dotdot-hack-path (cond [add-dotdot? '(up)]
                                  [else '()]))
   (define rel-path (apply build-path/convention-type
@@ -67,6 +87,23 @@
                                          file))
                            (Pairof (U 'up Path-String) (Listof Path-String)))))
   (string-append start-url (some-system-path->string rel-path)))
+
+
+;; FIXME: WIP: use this to replace prior function. must convert
+;; paths to Ct-Paths.
+(: new-download-url (ct-session String String Ct-Path
+                                -> Ct-Path))
+(define (new-download-url session assignment-id step-id path)
+  (ct-path-join
+   (ct-url-path session "browse-download" assignment-id step-id)
+   path))
+
+(: new-browse-url (ct-session String String Ct-Path
+                              -> Ct-Path))
+(define (new-browse-url session assignment-id step-id path)
+  (ct-path-join
+   (ct-url-path session "browse" assignment-id step-id)
+   path))
 
 ;; given a list of strings corresponding to a local-file
 ;; path, construct a list of xexprs displaying that path,
@@ -123,26 +160,41 @@
 (module+ test
   (require typed/rackunit)
 
-  ;; derived from a regression test:
-  (check-equal? ((html-directory "http://www.example.com/a/") "bc")
-                '(li ((class "directory"))
-                     (a ((href "http://www.example.com/a/bc")) "bc")))
+  (define session (ct-session "test-class"
+                              "user1@example.com"
+                              #f
+                              (hash)))
 
+  (define lm1 (λ ([p : Ct-Path])
+                (ct-path-join (ct-url-path session "blobby" "gobby")
+                              p)))
+  (define lm2 (λ ([p : Ct-Path])
+                (ct-path-join (ct-url-path session "blob-download" "gobby")
+                              p)))
+  
   ;; derived from a regression test:
-  (check-equal? ((html-file "http://www.example.com/a/b/" #t) "c")
+  (check-equal? ((html-directory lm1) (rel-ct-path "bc"))
+                '(li ((class "directory"))
+                     (a ((href "/test-class/blobby/gobby/bc")) "bc")))
+
+  (check-equal? ((html-directory lm1) (rel-ct-path "bc" "de"))
+                '(li ((class "directory"))
+                     (a ((href "/test-class/blobby/gobby/bc/de")) "bc/de")))
+
+  (check-equal? ((html-file lm1 lm2 #t) (rel-ct-path "c"))
                 '(li ((class "file"))
-                     (a ((href "http://www.example.com/a/b/c")) "c")
+                     (a ((href "/test-class/blobby/gobby/c")) "c")
                      (span ((style "float: right"))
-                           (a ((href "http://www.example.com/a/b/download/c"))
+                           (a ((href "/test-class/blob-download/gobby/c"))
                               "Download File"))))
 
-  (check-equal? ((html-file "http://www.example.com/a/b/" #f) "c")
+  (check-equal? ((html-file lm1 lm2 #f) (rel-ct-path "c"))
                 '(li ((class "file"))
-                     (a ((href "http://www.example.com/a/b/c")) "c")))
+                     (a ((href "/test-class/blobby/gobby/c")) "c")))
   
-  (check-equal? (download-url "http://example.com/foo/bar/baz/" "quux")
+  (check-equal? (download-url session "http://example.com/foo/bar/baz/" "quux")
                 "http://example.com/foo/bar/baz/download/quux")
-  (check-equal? (download-url "http://example.com/foo/bar/baz/quux/" "quux"
+  (check-equal? (download-url session "http://example.com/foo/bar/baz/quux/" "quux"
                               #:dotdot-hack #t)
                 "http://example.com/foo/bar/baz/quux/../download/quux")
 

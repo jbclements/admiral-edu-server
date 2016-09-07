@@ -239,18 +239,24 @@
          (test-prime (newline)))
     (define file-path
       (submission-file-path class assignment reviewee stepName ct-path))
+    (define (link-maker path)
+      (ct-path-join (ct-url-path session "file-container" r-hash)
+                    path))
+    (define (download-link-maker path)
+      (ct-path-join (ct-url-path session "download" r-hash)
+                    path))
     ;; FIXME eliminate conversion when unnecessary
-    (match (path-info file-path)
+    (match (path-info (ct-path->path file-path))
       ['directory
-       (define contents (render-directory file-path start-url))
+       (define contents (render-directory link-maker download-link-maker
+                                          file-path))
        (define maybe-file-url #f)
        (file-container-page default-mode save-url load-url assignment step path contents
                             maybe-file-url)]
       ['file
-       (define file (path->string (ct-path->path ct-path)))
        (define contents render-file)
        (define maybe-file-url
-         (download-url start-url file #:dotdot-hack #t))
+         (download-link-maker ct-path))
        (file-container-page default-mode save-url load-url assignment step path contents
                             maybe-file-url)]
       ['does-not-exist

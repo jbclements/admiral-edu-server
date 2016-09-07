@@ -41,29 +41,31 @@
 (define (do-file-container session assignment-id step-id path)
   (define user-id (ct-session-uid session))
   ;; FIXME eliminate this...
-  (define start-url (hash-ref (ct-session-table session) 'start-url))
   (define class (ct-session-class session))
   [define default-mode (determine-mode-from-filename path)]
   [define step-link (to-step-link step-id (length path))]
   [define path-html (to-path-html path)]
-  [define ct-path (apply rel-ct-path path)]
   (define file-path
     (submission-file-path class assignment-id user-id step-id
-                          ct-path))
-  (match (path-info file-path)
+                          (apply rel-ct-path path)))
+  (define (link-maker path)
+    (ct-path-join (ct-url-path session "browse" assignment-id step-id)
+                  path))
+  (define (download-link-maker path)
+    (ct-path-join (ct-url-path session "browse-download" assignment-id step-id)
+                  path))
+  (match (path-info (ct-path->path file-path))
     ['directory
-     (define contents (render-directory file-path start-url))
+     (define contents (render-directory link-maker download-link-maker file-path))
      (define maybe-file-url #f)
      (browse-file-container-page assignment-id step-link path-html default-mode
                                  contents maybe-file-url)]
     ['file
      (define contents render-file)
-     (define maybe-file-url
-       (ct-path->url-path
-        session
-        (apply rel-ct-path "browse-download" assignment-id step-id path)))
+     (define file-url
+       (download-link-maker (apply rel-ct-path path)))
      (browse-file-container-page assignment-id step-link path-html default-mode
-                                 contents maybe-file-url)]
+                                 contents file-url)]
     ['does-not-exist
      (raise-403-not-authorized)]))
 

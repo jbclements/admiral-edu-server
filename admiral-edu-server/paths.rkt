@@ -56,6 +56,7 @@
          url-path?
          url-path->url-string
          ct-path->path
+         path->ct-path
          strs->abs-ct-path/testing)
 
 ;; in order to make this code work on Windows we'd have to think
@@ -194,7 +195,46 @@
                 (path->directory-path p)]
                [else p])]))
 
-
+;; translate a relative path to a ct-path
+;; FIXME: PHOOEY: not enough time to finish this now.
+(: path->ct-path (Path-String -> Ct-Path))
+(define (path->ct-path p)
+  (define path-path
+    (cond [(path? p) p]
+          [else (string->path p)]))
+  (cond [(not (relative-path? path-path))
+         (raise-argument-error
+          'path->ct-path
+          "relative path" 0 p)]
+        [else
+         ;; first split-path is just to see if
+         ;; the whole thing ends with a slash
+         (define-values (_1 _2 ends-with-slash?) (split-path path-path))
+         (define elements
+           (reverse
+            (let loop : (Listof String) ([path path-path])
+              (define-values (base this _3) (split-path path))
+              (when (or (eq? this 'up)
+                        (eq? this 'same))
+                (raise-argument-error
+                 'path->ct-path
+                 "path not containing . or .. "
+                 0 p))
+              (cons (path->string this)
+                    (cond [(eq? base #f)
+                           (error
+                            'path->ct-path
+                            "internal error: relative path wound up being a base path? ~v"
+                            path-path)]
+                          [(eq? base 'relative)
+                           '()]
+                          [else
+                           (loop base)])))))
+         (define rel-path
+           (apply rel-ct-path elements))
+         (cond [ends-with-slash?
+                (ct-path-/ rel-path)]
+               [else rel-path])]))
 
 ;; construct an absolute url from a session
 (: session->base-url-path (ct-session -> Ct-Path))
@@ -261,6 +301,18 @@
   (check-exn #px"relative captain teach path"
              (λ () (ct-path->path (Ct-Path (list "b" "ohu:t") #t #f))))
 
+  (check-equal? (path->ct-path (build-path "b" "ohu:t"))
+                (Ct-Path (list "b" "ohu:t") #f #f ))
+
+  (check-equal? (path->ct-path "b/ohu:t")
+                (Ct-Path (list "b" "ohu:t") #f #f))
+
+  (check-equal? (path->ct-path "b/ohu:t/")
+                (Ct-Path (list "b" "ohu:t") #f #t))
+
+  (check-exn #px"relative path"
+             (λ () (path->ct-path "/b/ohu:t/")))
+  
   (check-equal? (url-path->url-string (Ct-Path (list "b" "ohu;t") #t #f))
                 "/b/ohu%3Bt")
 

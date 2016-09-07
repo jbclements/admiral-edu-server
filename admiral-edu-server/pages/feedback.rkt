@@ -210,21 +210,25 @@
          (test-prime (newline))
          (file-path (submission-file-path class assignment reviewee stepName
                                           (apply rel-ct-path rest))))
-    (define is-dir (is-directory? file-path))
-    (cond [(is-directory? file-path)
-           (define contents (render-directory file-path start-url #:show-download #f))
+    (define is-dir (is-directory? (ct-path->path file-path)))
+    (define (link-maker path)
+      (ct-path-join (ct-url-path session "feedback" "file-container" r-hash)
+                    path))
+    (define (download-link-maker path)
+      (ct-path-join (ct-url-path session "download" r-hash)
+                    path))
+    (cond [is-dir
+           (define contents (render-directory link-maker download-link-maker file-path #:show-download #f))
            (feedback-file-container-page
             assignment step path "bogus" contents load-url #f)]
           [else
            (define default-mode (determine-mode-from-filename (last rest)))
            ;; FIXME shouldn't there be a 403 check like in review.rkt?
            (define contents render-file)
-           (define maybe-file-url
-             (ct-path->url-path
-              session
-              (apply rel-ct-path "download" r-hash rest)))
+           (define file-url
+             (download-link-maker (apply rel-ct-path rest)))
            (feedback-file-container-page
-            assignment step path default-mode contents load-url maybe-file-url)])))
+            assignment step path default-mode contents load-url file-url)])))
 
 (define (determine-mode-from-filename filename)
   (let* ((split (string-split filename "."))
