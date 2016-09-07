@@ -75,9 +75,11 @@
 
 ;; render a result as an xexpr
 (define (render-result result)
-  (cond [(Success? result) `(p (Success-result result) " added.")]
+  (cond [(Success? result) `(p ,(Success-result result) " added.")]
         [(Failure? result) `(p ((style "font-weight:bold; color:red"))
-                               (Failure-message result))]))
+                               ,(Failure-message result))]))
+
+
 
 ;; react to a #"get", *or* to a #"post" after its business
 ;; is done. in the second case, the 'message' contains text
@@ -330,5 +332,11 @@
      (p (a ((href "/classabcd/roster/edit/bogo23@example.com/drop"))
            "Drop User from Course"))))
 
+  (check-equal? (render-result (Success "zigbo"))
+                `(p "zigbo" " added."))
+
+  (check-equal? (render-result (Failure "drngpa not added"))
+                `(p ((style "font-weight:bold; color:red"))
+                    "drngpa not added"))
   
   )

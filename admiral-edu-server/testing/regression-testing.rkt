@@ -640,7 +640,17 @@ u must add a summative comment at the end.
       ;; edit user missing username
       ((,m ("roster" "edit"))
        404
-       edit-user-missing-name)))
+       edit-user-missing-name)
+      ((,m ("roster" "upload-roster"))
+       200
+       upload-roster-page)
+      ((,m ("roster") (multipart
+                       ((nameandvalue
+                         #"action" #"process-roster")
+                        (namefilevalue
+                         #"file" #"my-roster" () #"razza\nrazza\nrazza"))) #t)
+       200
+       upload-bad-roster)))
 
 
   ;; check that no two tests have the same name
