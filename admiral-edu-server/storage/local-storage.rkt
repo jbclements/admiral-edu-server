@@ -162,3 +162,9 @@
   (parameterize ([current-directory (build-path (local-storage-path) temp-dir)])
     (system* (zip-binary) "-r" archive-name assignment-path))
   (void))
+
+;; no startup check required for local file system, just here to make the unit-y thing happy
+(provide startup-check)
+(: startup-check (-> Void))
+(define (startup-check)
+  (void))

@@ -5,6 +5,9 @@
          "ct-session.rkt"
          "util/basic-types.rkt")
 
+(require/typed "storage/storage-basic.rkt"
+               [startup-check (-> Void)])
+
 (provide (all-from-out "configuration.rkt"))
 (provide (all-from-out "database/mysql.rkt"))
 (provide (all-from-out "ct-session.rkt"))
@@ -23,7 +26,9 @@
 (provide initialize)
 (: initialize (-> (Result Void)))
 (define (initialize)
+  (startup-check)
   (unless (db-has-a-table?)
+    (printf "no tables found in database. Initializing database.\n")
     (db-init))
   (migrate:check-migrated))
 
@@ -34,6 +39,9 @@
   (db-init-tables)
   (class:create (class-name))
   (user:create (master-user))
+  ;; FIXME really there's no need to put this in the database at all.
+  ;; it's just asking for trouble. I think if you changed these, all
+  ;; kinds of things would break.
   (roles:create instructor-role "Instructor" 1)
   (roles:create ta-role "Teaching Assistant" 1)
   (roles:create student-role "Student" 0)

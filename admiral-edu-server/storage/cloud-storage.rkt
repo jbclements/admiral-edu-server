@@ -23,7 +23,9 @@
           [list-files
            (-> relative-path? (listof string?))])
          list-dirs
-         list-sub-files)
+         list-sub-files
+         (contract-out
+          [startup-check (-> void?)]))
 
 ;; set the aws parameters before running:
 (define ((run-with-aws-parameters proc) . args)
@@ -164,3 +166,8 @@
 ; Returns all files that are at the specified path recursively adding all sub directories
 (define (list-sub-files path)
   (ls/aws (string-append (bucket) path)))
+
+;; check that it's possible to ls at least before starting up
+(define (startup-check)
+  (list-dirs "/")
+  (void))

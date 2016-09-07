@@ -23,7 +23,8 @@
        [path-info           c:path-info           l:path-info]
        [list-files          c:list-files          l:list-files]
        [list-sub-files      c:list-sub-files      l:list-sub-files]
-       [list-dirs           c:list-dirs           l:list-dirs])
+       [list-dirs           c:list-dirs           l:list-dirs]
+       [startup-check       c:startup-check       l:startup-check])
 
 ; retrieve-file: (path -> string)
 ; Given the path to a file, returns the contents of the retrieved file
