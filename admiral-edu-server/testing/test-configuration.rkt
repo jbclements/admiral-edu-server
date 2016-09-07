@@ -1,16 +1,24 @@
 #lang typed/racket/base
 
-(provide test-conf)
+(require/typed racket/hash
+               [hash-union ((HashTable String String)
+                            (HashTable String String)
+                            [#:combine (String String -> String)]
+                            ->
+                            (HashTable String String))])
+
+(provide test-conf
+         modified-test-conf)
 
 (define test-conf
   '#hash(("ct-port" . "8080")
          ("mail-enable" . "fAlSe")
          ("mail-port" . "2525")
          ("mail-server" . "smtp.sendgrid.net")
+         ("mail-username" . "username")
          ("server-name" . "yoursite.com")
          ("cloud-access-key-id" . "YOUR-ACCESS-ID")
          ("cloud-host" . "storage.googleapis.com")
-         ("mail-username" . "username")
          ("bucket" . "some-bucket-name/")
          ("class-name" . "test-class")
          ("storage-mode" . "local")
@@ -27,9 +35,39 @@
          ("unzip-binary" . "/usr/bin/unzip")
          ("tar-binary" . "/usr/bin/tar")))
 
+;; GNARR can't use this function right now (version 6.6.0.4--2016-08-29)
+;; outside of this file because of chaperone errors.
+(: modified-test-conf ((HashTable String String) -> (HashTable String String)))
+(define (modified-test-conf table)
+  (define correct-key-names (hash-keys test-conf))
+  (for ([k : String (in-hash-keys table)])
+    (unless (member k correct-key-names)
+      (raise-argument-error
+       'modified-test-conf
+       (format "table containing valid key names (failed on '~a')"
+               k)
+       0 table)))
+  (hash-union test-conf
+              table
+              #:combine (λ ([a : String] [b : String]) b)))
+
+
+
 (module+ test
   (require typed/rackunit
            "../configuration.rkt")
+
+  (check-equal?
+   (hash-ref
+    (modified-test-conf (hash "db-name" "grobbath"
+                              "zip-binary" "/opt/local/bin/zip"))
+    "db-name")
+   "grobbath")
+
+  (check-exn
+   #px"table containing valid key names"
+   (λ () (modified-test-conf (hash "db-XXX-name" "grobbath"
+                                   "zip-binary" "/opt/local/bin/zip"))))
   
   ;; ensure that it's a legal configuration:
   (check-not-exn
