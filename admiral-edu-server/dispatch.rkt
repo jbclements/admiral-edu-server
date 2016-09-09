@@ -148,9 +148,12 @@
            ;; used by codemirror autosave and review elements
            ;; to save review.
            (review:post->review session post-data rest)]
-          [(list #"get" (cons "review" rest))
-           ;; presents review screen, also handles click on review submit button
-           (render-hack (review:load session user-role rest))]
+          [(list #"get" (list "review" "submit" (? string? hash) rest ...))
+           ;; click on review submit button
+           (render-hack (review:do-submit-review session hash rest))]
+          [(list #"get" (list "review" (? string? hash) rest ...))
+           ;; presents review screen
+           (review:do-load session hash rest)]
           
           [(list #"post" (cons "file-container" rest))
            ;; save or load contents of review. bit of an abuse of POST.

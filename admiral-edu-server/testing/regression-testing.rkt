@@ -576,29 +576,7 @@ u must add a summative comment at the end.
            200))
       ,(λ ()
          `((,stu2 ("review" "submit" ,(lastreview stu2)))
-           (200 ,(λ (r)
-                   ;; oog, this is awful:
-                   (check
-                    ormap-xexp
-                    (λ (e) (match e
-                             [(list
-                               'a (list
-                                   '@ _1 ...
-                                   (list 'href
-                                         (regexp #px"feedback/test-with-html/$"))
-                                   _2 ...)
-                               _3 ...)
-                              #t]
-                             [other #f]))
-                    (match r
-                      [(list _1 ... response-str)
-                       (html->xexp response-str)]))
-                   #;((has-anchor-links
-                       ;; FIXME yucky url, hash not even necessary
-                       (list (string-append
-                              "/test-class/review/submit/" (lastreview stu2)
-                              "/../../../feedback/test-with-html/")))
-                      r)))
+           (200 ,(has-anchor-links '("/test-class/feedback/test-with-html")))
               stu2-submits-review2))
       ;; stu1 now views it
       ,(λ ()

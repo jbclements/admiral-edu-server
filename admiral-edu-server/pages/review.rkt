@@ -22,16 +22,6 @@
     [(<= n 0) '()]
     [else (cons val (repeat val (- n 1)))]))
 
-;; displays page for performing review, but also handles
-;; click on submit review link.
-(provide load)
-(define (load session role rest [message '()])
-  (let ((submit? (equal? "submit" (car rest))))
-    (if submit? 
-        (do-submit-review session role rest message)
-        ;; now returns a response:
-        (do-load session role rest message))))
-
 ;; FIXME call download.rkt fn
 ;; perform a download
 (provide check-download)
@@ -48,21 +38,22 @@
     (push->download session file-path review))) 
 
 ;; display the review page
-(define (do-load session role rest message)
+(provide (contract-out
+          [do-load (-> ct-session? string? (listof string?) response?)]))
+(define (do-load session r-hash rest)
   (define start-url (hash-ref (ct-session-table session) 'start-url))
-  (define r-hash (car rest))
   (define review (try-select-by-hash r-hash))
   (define step (review:Record-step-id review))
   (define completed (review:Record-completed review))
-  (define updir (apply string-append (repeat "../" (+ (length rest) 1))))
+  (define updir (apply string-append (repeat "../" (+ (length rest) 2))))
   (define root-url updir)
   (define no-modifications
     (if completed
         `((p "This review has already been submitted. Modifications will not be saved."))
         `()))
   (define submit-url (if completed "#" (string-append start-url root-url "review/submit/" r-hash "/")))
-  (define updir-rubric (apply string-append (repeat "../" (- (length rest) 1))))
-  (define file-container (string-append start-url updir "file-container/" (to-path rest)))
+  (define updir-rubric (apply string-append (repeat "../" (length rest))))
+  (define file-container (string-append start-url updir "file-container/" (to-path (cons r-hash rest))))
   (define save-url (xexpr->string (string-append "\"" start-url updir-rubric step "/save\"")))
   (define load-url (xexpr->string (string-append "\"" start-url updir-rubric step "/load\"")))
   (when (not (validate review session))
@@ -79,28 +70,32 @@
 ;; note that the data is already saved by this point; this
 ;; call just marks the review as submitted and prevents
 ;; later changes to the review.
-(define (do-submit-review session role rest message)
+(provide (contract-out
+          [do-submit-review (-> ct-session? string? (listof string?) response?)]))
+(define (do-submit-review session r-hash rest)
   (define start-url (hash-ref (ct-session-table session) 'start-url))
-  (define r-hash (cadr rest))
   (define review (try-select-by-hash r-hash))
-  ;; FIXME needs attention: use xexprs, raise errors, etc. etc.
   (let* ((assignment (review:Record-assignment-id review))
-         (step (review:Record-step-id review))
-         (updir (apply string-append (repeat "../" (+ (length rest) 1))))
-         (root-url updir)
          (completed (review:Record-completed review)))
-    (cond [completed "<p>The review you were trying to submit has already been submitted. You may not submit it again.</p>"]
+    (cond [completed
+           (plain-page
+            "Review Already Submitted"
+            `((p "The review you were trying to submit has already been submitted. You may not submit it again.")))]
           [else
            (review:mark-complete r-hash)
            (send-review-ready-email review)
-           (string-append "<p>Review Submitted</p>"
-                          "<p><a href='" start-url root-url "feedback/" assignment "/'>Continue</a></p>")])))
+           (plain-page
+            "Review Submitted"
+            `((h1 "Review Submitted")
+              (p (a ((href ,(url-path->url-string
+                             (ct-url-path session "feedback" assignment))))
+                    "Continue"))))])))
 
 (define (send-review-ready-email review)
   (let* ((uid (review:Record-reviewee-id review))
          [assignment-id (review:Record-assignment-id review)]
          [step-id (review:Record-step-id review)]
-         [access-url (string-append "https://" (sub-domain) (server-name) "/" (class-name) "/feedback/" assignment-id "/")]
+         [access-url (ct-path->emailable-url (rel-ct-path "feedback" assignment-id))]
          (message (include-template "../email/templates/review-ready.txt")))
     (send-email uid "Someone has completed a review of your work." message)))
 

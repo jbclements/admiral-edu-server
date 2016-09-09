@@ -2,7 +2,8 @@
 
 (require racket/string
          racket/match
-         "ct-session.rkt")
+         "ct-session.rkt"
+         "configuration.rkt")
 
 (require/typed net/uri-codec
                [uri-path-segment-encode (String -> String)])
@@ -57,6 +58,7 @@
          url-path->url-string
          ct-path->path
          path->ct-path
+         ct-path->emailable-url
          strs->abs-ct-path/testing)
 
 ;; in order to make this code work on Windows we'd have to think
@@ -252,6 +254,18 @@
 (define (ct-url-path session . path-elts)
   (ct-path->url-path session (apply rel-ct-path path-elts)))
 
+;; given a relative ct-path, generate a url string for use in
+;; an email
+(: ct-path->emailable-url (Ct-Path -> String))
+(define (ct-path->emailable-url path)
+  (string-append
+   "https://"
+   (path->string
+    (ct-path->path
+     (ct-path-join
+      (rel-ct-path (string-append (sub-domain) (server-name)) (class-name))
+      path)))))
+
 
 (module+ test
   (require typed/rackunit)
@@ -345,4 +359,16 @@
   (check-equal? (only-good-chars? "") #t)
   (check-equal? (only-good-chars? "abcha###3;; 14!") #t)
   (check-equal? (only-good-chars? "abc/ha###3;; 14!") #f)
-  (check-equal? (only-good-chars? "abcha#\n##3;; 14!") #f))
+  (check-equal? (only-good-chars? "abcha#\n##3;; 14!") #f)
+
+  (require "testing/test-configuration.rkt")
+
+  (parameterize ([current-configuration
+                  (modified-test-conf
+                   (hash "sub-domain" "www."
+                         "server-name" "zigbar.org"
+                         "class-name" "zoop-dedoop"))])
+    (define assignment-id "ass9")
+    (check-equal? (ct-path->emailable-url (rel-ct-path "feedback" assignment-id))
+                  (string-append "https://" (sub-domain) (server-name) "/" (class-name) "/feedback/" assignment-id)))
+  )
