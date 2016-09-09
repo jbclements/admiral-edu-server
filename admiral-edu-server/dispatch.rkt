@@ -150,7 +150,7 @@
            (review:post->review session post-data rest)]
           [(list #"get" (list "review" "submit" (? string? hash) rest ...))
            ;; click on review submit button
-           (render-hack (review:do-submit-review session hash rest))]
+           (review:do-submit-review session hash rest)]
           [(list #"get" (list "review" (? string? hash) rest ...))
            ;; presents review screen
            (review:do-load session hash rest)]
@@ -187,7 +187,7 @@
           
           ;; "/next/..."
           [(list _ (cons "next" rest))
-           (render-hack (next session user-role rest))]
+           (next session user-role rest)]
           
           ;; "/dependencies/..."
           [(list #"post" (cons "dependencies" rest))

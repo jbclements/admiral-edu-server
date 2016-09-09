@@ -1,14 +1,17 @@
 #lang racket/base
 
-(require "../base.rkt"
+(require racket/contract
+         "../base.rkt"
          "../paths.rkt"
          "templates.rkt"
+         "responses.rkt"
          (prefix-in error: "errors.rkt")
          "../authoring/assignment.rkt"
          "../storage/storage.rkt")
 
-(provide next)
-(define (next session role rest [message '()])
+(provide (contract-out
+          [next (-> ct-session? any/c (listof string?) response?)]))
+(define (next session role rest)
   (let* ((assignment-id (car rest))
          (assignment-record (assignment:select (class-name) assignment-id))
          (is-open (assignment:Record-open assignment-record))
