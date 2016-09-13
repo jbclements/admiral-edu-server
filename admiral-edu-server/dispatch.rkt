@@ -14,8 +14,7 @@
   "paths.rkt"
   "logging.rkt"
   (only-in "pages/errors.rkt"
-           error-xexprs->response)
-  "temporary-hacks.rkt")
+           error-xexprs->response))
 
 (require "pages/index.rkt"
          (prefix-in review: "pages/review.rkt")
@@ -165,8 +164,7 @@
              [(and (> (length rest) 1)
                    ;; FIXME icky path hacking
                    (string=? "download" (list-ref rest (- (length rest) 2))))
-              (render-hack
-               (review:check-download session user-role rest))]
+              (review:check-download session user-role rest)]
              [else
               (review:file-container session user-role rest)])]
           
@@ -236,7 +234,7 @@
           
           [(list #"post" (cons "roster" rest))
            ;; must include "action" binding:
-           (render-hack ((roster:post post-data bindings) session user-role rest))]
+           (roster:post post-data bindings session user-role rest)]
           [(list #"get" (cons "roster" rest))
            (roster:load session user-role rest)]
           

@@ -34,10 +34,9 @@
 
 ;; add a user or users to the roster (?)
 (provide post)
-(define (post post-data bindings)
-  (lambda (session role rest [message '()])
-    (authorized:check-can-edit session)
-    (post->do-load post-data bindings session rest message)))
+(define (post post-data bindings session role rest [message '()])
+  (authorized:check-can-edit session)
+  (post->do-load post-data bindings session rest message))
 
 ;; update the roster, then show the /roster page again
 (define (post->do-load post-data bindings session rest message)
