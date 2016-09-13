@@ -29,7 +29,8 @@
 
 (provide (contract-out
           [do-file-container
-           (-> ct-session? legal-path-elt? legal-path-elt? (listof legal-path-elt?)
+           ;; FIXME replace string? with ct-id? in lots of contracts...
+           (-> ct-session? ct-id? ct-id? (listof ct-id?)
                any)]))
 
 ;; render a "file-container" page (used exclusively in an iframe for listing

@@ -48,7 +48,7 @@
 ;; boolean field to the structure.  
 
 (provide Ct-Path
-         legal-path-elt?
+         ct-id?
          rel-ct-path
          ct-url-path
          ct-path-/
@@ -111,7 +111,7 @@
 ;; elements first
 (: strs->ct-path ((Listof String) Boolean -> Ct-Path))
 (define (strs->ct-path strs absolute?)
-  (unless (andmap legal-path-elt? strs)
+  (unless (andmap ct-id? strs)
     (raise-argument-error 'strs->ct-path
                           "list of path element strings"
                           0 strs))
@@ -119,9 +119,10 @@
 
 ;; is this a legal element in a url path?
 ;; FIXME check rfc
-(: legal-path-elt? (String -> Boolean))
-(define (legal-path-elt? str)
-  (and (only-good-chars? str)
+(: ct-id? (Any -> Boolean))
+(define (ct-id? str)
+  (and (string? str)
+       (only-good-chars? str)
        (not (member str bad-path-elts))))
 
 ;; does this string consist of only good characters?

@@ -55,11 +55,8 @@
 (define (checkbox-checked c)
   (if c "CHECKED" ""))
 
-(define (safe-id? c)
-  (and (string? c) (legal-path-elt? c)))
-
 (define (safe-id s)
-  (unless (safe-id? s)
+  (unless (ct-id? s)
     (raise-argument-error 'safe-id "simple alphanumeric id" 0 s))
   (xexpr->string s))
 
@@ -153,7 +150,7 @@
 ;; given the values for the fields, construct the authoring page
 ;; using the template
 (provide (contract-out
-          [authoring-page (-> safe-id? ct-url? (listof xexpr?)
+          [authoring-page (-> ct-id? ct-url? (listof xexpr?)
                               (listof xexpr?)
                               response?)]))
 (define (authoring-page class-name save-url content message)
@@ -165,7 +162,7 @@
 (provide
  (contract-out
   [file-container-page
-   (-> js-str? ct-url? ct-url? safe-id? xexpr? (listof xexpr?) (listof xexpr?)
+   (-> js-str? ct-url? ct-url? ct-id? xexpr? (listof xexpr?) (listof xexpr?)
        (or/c ct-url? false?) response?)]))
 (define (file-container-page default-mode save-url load-url assignment step path content file-url)
   (response-200
@@ -175,7 +172,7 @@
 (provide
  (contract-out
   [browse-file-container-page
-   (-> safe-id? xexpr? (listof xexpr?) js-str? (listof xexpr?)
+   (-> ct-id? xexpr? (listof xexpr?) js-str? (listof xexpr?)
        (or/c ct-url? false?) response?)]))
 (define (browse-file-container-page assignment step path default-mode content file-url)
   ;; FIXME wrap with response-200
@@ -186,7 +183,7 @@
 (provide
  (contract-out
   [feedback-file-container-page
-   (-> safe-id? xexpr? (listof xexpr?) js-str? (listof xexpr?) ct-url?
+   (-> ct-id? xexpr? (listof xexpr?) js-str? (listof xexpr?) ct-url?
        (or/c ct-url? false?) response?)]))
 (define (feedback-file-container-page assignment step path default-mode content load-url file-url)
   (response-200

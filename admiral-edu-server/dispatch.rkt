@@ -11,6 +11,7 @@
 (require 
   "auth/google-openidc.rkt"
   "base.rkt"
+  "paths.rkt"
   "logging.rkt"
   (only-in "pages/errors.rkt"
            error-xexprs->response)
@@ -192,8 +193,12 @@
           ;; "/dependencies/..."
           [(list #"post" (cons "dependencies" rest))
            (dep:post session rest bindings raw-bindings)]
-          [(list #"get" (cons "dependencies" rest))
-           (render-hack (dep:dependencies session user-role rest))]
+          [(list #"get" (list "dependencies" (? ct-id? assignment-id)))
+           (dep:assignment-dependencies session assignment-id '())]
+          [(list #"get" (list "dependencies" (? ct-id? assignment-id) "three-study"))
+           (dep:three-study-form session assignment-id)]
+          [(list #"get" (list "dependencies" (? ct-id? assignment) (? ct-id? step) (? ct-id? review-id) rest ...))
+           (dep:dependencies-form session assignment step review-id rest)]
           
           [(list #"post" (cons "submit" rest))
            ;; used to submit files and to publish them (POST only)

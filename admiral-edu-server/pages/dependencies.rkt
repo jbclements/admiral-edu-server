@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require racket/string
+         racket/contract
          racket/list
          web-server/http/bindings
          web-server/http/request-structs
@@ -18,20 +19,13 @@
 
 (define THREE-STUDY-ACTION "three-study")
 (define LIST-DEPENDENCIES "list-dependencies")
+;; FIXME replace with ct-url-path:1
 (define (base-url) (string-append "/" (class-name) "/dependencies/"))
 
-(provide dependencies)
-(define (dependencies session role rest [message '()])
-  (let* ((len (length rest)))
-    (cond [(= len 1)
-           (assignment-dependencies session (car rest))]
-          [(and (= len 2) (string=? THREE-STUDY-ACTION (cadr rest)))
-           (three-study-form session (car rest))]
-          ;; returns response
-          [(> len 2)
-           (dependencies-form (car rest) (cadr rest) (caddr rest) rest)])))
-
-(define (assignment-dependencies session assignment-id [message '()])
+(provide (contract-out
+          [assignment-dependencies (-> ct-session? ct-id? (listof xexpr?)
+                                       response?)]))
+(define (assignment-dependencies session assignment-id message)
   (when (not (assignment:exists? assignment-id (class-name)))
     (raise-assignment-not-found assignment-id))
   (define deps (assign:assignment-id->assignment-dependencies assignment-id))
@@ -60,7 +54,9 @@
     (ul
      ,@dependency-list)))
 
-(define (three-study-form session assignment-id [message #f])
+(provide (contract-out
+          [three-study-form (-> ct-session? ct-id? response?)]))
+(define (three-study-form session assignment-id)
   (when (not (assignment:exists? assignment-id (class-name)))
     (raise-assignment-not-found assignment-id))
   (let* ([header assignment-id]
@@ -77,7 +73,7 @@
               (ct-url-path session
                            "dependencies"
                            assignment-id
-                           THREE-STUDY-ACTION)))
+                           "three-study")))
            (enctype "multipart/form-data"))
           (input ((type "file")
                   (name "three-condition-file")))
@@ -109,24 +105,24 @@
          `(li (a ((href
                    ,(url-path->url-string
                     (ct-url-path session "dependencies" assignment-id
-                                 THREE-STUDY-ACTION))))
+                                 "three-study"))))
                  "Three Study Configuration File" ,ready))]
         [else (raise "Unknown dependency")]))
 
 
 
 ;; return the upload-dependencies form page. returns response
-(define (dependencies-form assignment step review-id rest)
+(provide (contract-out
+          [dependencies-form (-> ct-session? ct-id? ct-id? ct-id? (listof ct-id?) response?)]))
+(define (dependencies-form session assignment step review-id rest)
   (define dep (car (assign:find-dependencies assignment step review-id)))
-  (define met (assign:dependency-met dep))
-  (define
-    load-url (xexpr->string (string-append "\"" (base-url) (string-join rest "/") "/load\"")))
+  (define load-url
+    (apply ct-url-path session "dependencies" (append rest '("load"))))
   (define dependency-form
-    (generate-dependency-form assignment step review-id))
-  ;; what is this commented-out code for?
-  ;;(if met (dependency-met assignment step review-id) (generate-dependency-form assignment step review-id))])
+    (generate-dependency-form session assignment step review-id))
   (dependencies-page load-url dependency-form))
 
+;; FIXME flatten into dispatch.rkt
 ;; handle a post to /dependencies
 (provide post)
 (define (post session rest bindings raw-bindings)
@@ -143,7 +139,7 @@
            (let ((stepName (cadr rest))
                  (review-id (caddr rest)))
              (upload-dependencies session class assignment stepName review-id bindings raw-bindings))]
-          [(string=? action THREE-STUDY-ACTION)
+          [(string=? action "three-study")
            (upload-three-condition assignment bindings raw-bindings)])))
 
 (define (load-rubric class assignment stepName review-id)
@@ -186,15 +182,19 @@
 
 
 ;(struct dependency (step-id review-id amount instructor-solution) #:transparent)
-(define (generate-dependency-form assignment-id step-id review-id)
+(define (generate-dependency-form session assignment-id step-id review-id)
   (let* ((dep (car (assign:find-dependencies assignment-id step-id review-id)))
          (amount (if (assign:student-submission-dependency? dep) (assign:student-submission-dependency-amount dep) 1))
          (instructor-solution (assign:instructor-solution-dependency? dep)))
+    (define action-url
+      (url-path->url-string
+       (ct-url-path session "dependencies" assignment-id step-id review-id "upload")))
     `((p "Assignment id:" ,assignment-id)
       (p "Submission Step id:" ,step-id)
       (p "Review id:" ,review-id)
       (p "This review step requires " ,(number->string amount) " default solution(s).")
-      (form ((action ,(string-append (base-url) assignment-id "/" step-id "/" review-id "/upload/"))
+      ;; strings?
+      (form ((action ,action-url)
              (method "post")
              (enctype "multipart/form-data"))
             ,@(generate-form-string amount)
