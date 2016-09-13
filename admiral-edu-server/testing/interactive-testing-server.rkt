@@ -41,15 +41,21 @@
                             STATIC-FILES-ROOT))
                           (dispatch/servlet ct-rules-2))
            #:port (ct-port)))
-
-
-  (printf "Adding student to roster\n")
+  
   (require "../util/roster.rkt")
+  (require "../authoring/assignment.rkt")
+  
+  (require "../storage/storage.rkt")
+  
+  (require (only-in "../database/mysql/assignment.rkt"
+                    open))
+  (define (run-some-setup)
+  (printf "Adding student to roster\n")
+
   (register-uid "user1@example.com")
   (register-uid "user2@example.com")
 
   (printf "Adding Assignment 1\n")
-  (require "../authoring/assignment.rkt")
   (define ASSIGNMENT-ID "a1-ct")
   (define STEP-ID "tests")
   (define REVIEW-ID "student-reviews")
@@ -78,7 +84,6 @@ must add a summative comment at the end.
 "))
   (yaml-bytes->create-or-save-assignment yaml-data #t)
   (printf "Adding dependencies\n")
-  (require "../storage/storage.rkt")
   (upload-dependency-solution
    (class-name)
    "default-submission-student-reviews-1"
@@ -90,8 +95,6 @@ must add a summative comment at the end.
    ASSIGNMENT-ID STEP-ID "zigzag"
    #"a\nb\nc\n\nd")
   (printf "Opening assignment.\n")
-  (require (only-in "../database/mysql/assignment.rkt"
-                    open))
   (open "a1-ct" (class-name))
 
   (printf "Submitting text for user 1\n")
@@ -104,7 +107,7 @@ must add a summative comment at the end.
   
   ;; stop here if you want to see the user 1 submission
   ;; in the codemirror window.
-  (printf "Finished setup.\n")
+  (printf "Finished setup.\n"))
   
   
   (print "Server Started. Type `stop` to kill the server.")
