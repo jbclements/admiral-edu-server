@@ -31,7 +31,7 @@
   
 <body>
   <div class="container">
-    <iframe src="@(urlgen file-container)" scrolling="no" class="file-frame"></iframe>
+    <iframe src=@(urlgen file-container) scrolling="no" class="file-frame"></iframe>
   </div>
   <div id="message" class="message">
     @(xexprs->string display-message)

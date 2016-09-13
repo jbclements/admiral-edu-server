@@ -42,9 +42,21 @@
 ;; over to custom Url-Path structure to prevent
 ;; XSS vulns
 (define (urlgen url)
-  (cond [(string? url) url]
-        [(url-path? url) (url-path->url-string url)]))
-(define ct-url? (or/c string? url-path?))
+  (cond
+    [(string? url)
+     (string-append "\"" url "\"")]
+    [(url-path? url)
+     (string-append "\"" (url-path->url-string url) "\"")]))
+
+;; FIXME this can go away when we no longer supply urls as
+;; strings to the template....
+;; is this a string that we could drop into html or js in
+;; a safe way in a template?
+(define (legal-url-string? s)
+  (and (string? s)
+       (regexp-match? #px"^[^\\\\\"]*$" s)))
+
+(define ct-url? (or/c legal-url-string? url-path?))
 
 (define (maybe-hidden-class hidden?)
   (if hidden? "hidden" ""))
@@ -90,7 +102,7 @@
 ;; FIXME the set of safe filenames should *definitely* be checked
 ;; further upstream.
 (define (filename? f)
-  (and (string? f) (regexp-match #px"^[-_a-zA-Z0-9\\.]+$" f)))
+  (and (string? f) (regexp-match? #px"^[-_a-zA-Z0-9\\.]+$" f)))
 
 (define (filename f)
   (unless (filename? f)
@@ -115,7 +127,7 @@
 ;; given a string, ensure that it doesn't contain
 ;; backslashes, single- or double-quotes
 (define (js-str? s)
-  (and (string? s) (regexp-match #px"^[^\\\\\"']+$" s)))
+  (and (string? s) (regexp-match? #px"^[^\\\\\"']*$" s)))
 
 (define (js-str s)
   (unless (js-str? s)
@@ -230,6 +242,11 @@
    (response->str
     (plain-page "Quadra!" '((p "goofy"))))
    (regexp #px"Quadra!.*<p>goofy</p>"))
+
+  (check-equal? (urlgen "abcd") "\"abcd\"")
+  (check-equal? (urlgen
+                 (strs->abs-ct-path/testing (list "waffle-house" "abc.txt")))
+                "\"/waffle-house/abc.txt\"")
   
   (check-equal? (ct-url-or-false #f) "false")
   (check-equal? (ct-url-or-false "abc") "'abc'")
@@ -237,4 +254,11 @@
                 "'abc\\'de\\'\\\\n\\\\'")
   (check-equal? (ct-url-or-false (strs->abs-ct-path/testing
                                   (list "big" "wig '\\dig")))
-                "'/big/wig%20\\'%5Cdig'"))
+                "'/big/wig%20\\'%5Cdig'")
+
+  (check-equal? (legal-url-string? "") #t)
+  (check-equal? (legal-url-string? "acd.th") #t)
+  (check-equal? (legal-url-string? "\"acd.th\"") #f)
+  (check-equal? (legal-url-string? "ac/d.t/h") #t)
+  (check-equal? (legal-url-string? "ac/d\\.t/h") #f)
+  (check-equal? (legal-url-string? "ac/d.\"t/h") #f))

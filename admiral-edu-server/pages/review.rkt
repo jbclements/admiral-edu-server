@@ -54,8 +54,9 @@
   (define submit-url (if completed "#" (string-append start-url root-url "review/submit/" r-hash "/")))
   (define updir-rubric (apply string-append (repeat "../" (length rest))))
   (define file-container (string-append start-url updir "file-container/" (to-path (cons r-hash rest))))
-  (define save-url (xexpr->string (string-append "\"" start-url updir-rubric step "/save\"")))
-  (define load-url (xexpr->string (string-append "\"" start-url updir-rubric step "/load\"")))
+  ;; FIXME strings
+  (define save-url (xexpr->string (string-append start-url updir-rubric step "/save")))
+  (define load-url (xexpr->string (string-append start-url updir-rubric step "/load")))
   (when (not (validate review session))
     (raise-403-not-authorized "You are not authorized to see this page."))
   (review-page save-url load-url file-container no-modifications completed submit-url))

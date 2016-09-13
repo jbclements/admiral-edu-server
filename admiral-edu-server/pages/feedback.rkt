@@ -171,7 +171,8 @@
          [submit-url (string-append start-url root-url "review/submit/" r-hash "/")]
          (updir-rubric (apply string-append (repeat "../" (- (length rest) 1))))
          [file-container (string-append start-url updir "file-container/" (to-path rest))]
-         [load-url (xexpr->string (string-append "\"" start-url updir-rubric step "/load\""))]
+         ;; FIXME STRINGS
+         [load-url (xexpr->string (string-append start-url updir-rubric step "/load"))]
          (reviewer (ct-session-uid session))
          (class (ct-session-class session)))
     (review:mark-feedback-viewed r-hash)

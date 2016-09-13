@@ -492,12 +492,12 @@ u must add a summative comment at the end.
                      ((has-anchor-links
                        (list (string-append
                               "/test-class/review/" (lastreview stu1)
-                              "/../../review/submit/" (lastreview stu1) "/ ")))
+                              "/../../review/submit/" (lastreview stu1) "/")))
                       x)
                      ((has-iframe-link
                        (string-append
                         "/test-class/review/" (lastreview stu1)
-                        "/../../file-container/" (lastreview stu1) " "))
+                        "/../../file-container/" (lastreview stu1)))
                       x))))))
       ;; the iframe...
       ,(λ ()

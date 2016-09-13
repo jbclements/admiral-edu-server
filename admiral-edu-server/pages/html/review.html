@@ -9,12 +9,12 @@
 
 <body>
   <div class="container">
-    <iframe src="@(urlgen file-container) " scrolling="no" class="file-frame"></iframe>
+    <iframe src=@(urlgen file-container) scrolling="no" class="file-frame"></iframe>
   </div>
   <div id="rubric" class="rubric">
   </div>
   @(xexprs->string no-modifications)
-  <div class="submit-button @(maybe-hidden-class submit-hidden?) "><a href="@(urlgen submit-url) ">Submit</a></div>
+  <div class="submit-button @(maybe-hidden-class submit-hidden?) "><a href=@(urlgen submit-url)>Submit</a></div>
   <!-- FIXME move this js code out, leave just the live-generated urls in here -->
     <script>
       function save(json, callback){
