@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require racket/string
+         "../paths.rkt"
          "../base.rkt")
 
 ; String -> (Listof (Either Success Failure))
@@ -18,15 +19,29 @@
 ; Takes a String uid and registers it as a student for the class.
 (provide register-uid)
 (define (register-uid uid)
-  (let ((okay (not (regexp-match " " uid))))
-    (cond [(not okay) (Failure (format "Received '~a' but User IDs may not contain spaces." uid))]
-          [else (begin
-                  (when (not (user:exists? uid)) (user:create uid))
-                  (let ((registered (role:exists? (class-name) uid)))
-                    (cond [registered (Failure (format "Received '~a' but User ID is already registered in the class." uid))]
-                          [else (begin
-                                  (role:associate (class-name) uid student-role)
-                                  (Success uid))])))])))
+  (let ((has-spaces (regexp-match? #px" " uid)))
+    (cond [has-spaces
+           (Failure
+            (format
+             "Received '~a' but User IDs may not contain spaces."
+             uid))]
+          [(not (ct-id? uid))
+           (Failure
+            (format
+             "Received '~a' which is not a legal Captain Teach ID"
+             uid))]
+          [else
+           (begin
+             (when (not (user:exists? uid)) (user:create uid))
+             (let ((registered (role:exists? (class-name) uid)))
+               (cond [registered
+                      (Failure
+                       (format
+                        "Received '~a' but User ID is already registered in the class."
+                        uid))]
+                     [else (begin
+                             (role:associate (class-name) uid student-role)
+                             (Success uid))])))])))
 
 ; String -> Either Success Failure
 ; Takes a String uid and removes the user from the class.
