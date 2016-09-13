@@ -618,6 +618,7 @@ u must add a summative comment at the end.
                                               (cons "test-with-html" stu2)))])
                      (string-append
                     "/test-class/feedback/test-with-html/../../review/" hash "/")))))))
+      ;; NEED CONTAINED-LINKS FOR THE REMAINING
       ;; edit user missing username
       ((,m ("roster" "edit"))
        404
@@ -631,7 +632,10 @@ u must add a summative comment at the end.
                         (namefilevalue
                          #"file" #"my-roster" () #"razza\nrazza\nrazza"))) #t)
        200
-       upload-bad-roster)))
+       upload-bad-roster)
+      ((,m ("download" "abcde"))
+       404
+       download-no-path)))
 
 
   ;; check that no two tests have the same name

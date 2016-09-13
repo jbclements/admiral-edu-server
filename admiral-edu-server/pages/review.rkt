@@ -213,25 +213,22 @@
   
 (provide (contract-out
           [file-container
-           (-> ct-session? any/c (listof string?) response?)]))
+           (-> ct-session? ct-id? (listof ct-id?) response?)]))
 ;; FIXME huge amount of shared code with 'do-file-container' in browse
-(define (file-container session role rest)
+(define (file-container session r-hash path)
   (define start-url (hash-ref (ct-session-table session) 'start-url))
-  (define r-hash (car rest))
   (define review (try-select-by-hash r-hash))
   (when (not (validate review session))
       (raise-403-not-authorized "You are not authorized to see this page."))
   (let* ((class (ct-session-class session))
          [assignment (review:Record-assignment-id review)]
-         [default-mode (determine-mode-from-filename (last rest))]
          (stepName (review:Record-step-id review))
          (reviewee (review:Record-reviewee-id review))
          [save-url (string-append "'" start-url "save'")]
          [load-url (string-append "'" start-url "load'")]
-         [step (to-step-link stepName (- (length rest) 2))]
-         (last-path (last rest))
-         [path (to-path-html (cdr rest))]
-         [ct-path (apply rel-ct-path (cdr rest))]
+         [step (to-step-link stepName (- (length path) 1))]
+         [path (to-path-html path)]
+         [ct-path (apply rel-ct-path path)]
          (test-prime (newline)))
     (define file-path
       (submission-file-path class assignment reviewee stepName ct-path))
@@ -247,9 +244,12 @@
        (define contents (render-directory link-maker download-link-maker
                                           file-path))
        (define maybe-file-url #f)
-       (file-container-page default-mode save-url load-url assignment step path contents
+       (file-container-page "" save-url load-url assignment step path contents
                             maybe-file-url)]
       ['file
+       (when (null? path)
+         (error "internal error, empty path treated as file"))
+       (define default-mode (determine-mode-from-filename (last path)))
        (define contents render-file)
        (define maybe-file-url
          (download-link-maker ct-path))
@@ -262,17 +262,6 @@
   (let* ((split (string-split filename "."))
          (ext (if (null? split) "" (last split))))
     (extension->file-type ext)))
-
-(define (prepare-url word rest)
-  (let* ((last-el (last rest))
-         (prefix (if (equal? last-el "") "" (string-append last-el "/"))))
-    (string-append "\"" prefix word "\"")))
-
-(define (prepare-load-url rest)
-  (prepare-url "load" rest))
-
-(define (prepare-save-url rest)
-  (prepare-url "save" rest))
 
 (define (to-path ls)
   (letrec ((helper (lambda (acc ls)

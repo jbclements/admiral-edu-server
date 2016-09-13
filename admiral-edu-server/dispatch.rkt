@@ -135,10 +135,10 @@
            ;; root page
            (response/xexpr (index session user-role))]
           
-          [(list #"get" (list "download" hash path-strs ...))
+          [(list #"get" (list "download" hash path-str path-strs ...))
           ;; download the raw bytes of a file, based on hash and path.
-          ;; used for reviewing and feedback.
-           (download:do-download session hash path-strs)]
+          ;; used for reviewing and feedback. (N.B. must be at least one path-str)
+           (download:do-download session hash (cons path-str path-strs))]
           [(list #"get" (list "browse-download" assignment step path-strs ...))
            ;; download raw bytes. used in browsing (i.e. not as part of a review,
            ;; with a hash)
@@ -148,25 +148,21 @@
            ;; used by codemirror autosave and review elements
            ;; to save review.
            (review:post->review session post-data rest)]
-          [(list #"get" (list "review" "submit" (? string? hash) rest ...))
+          [(list #"get" (list "review" "submit" (? ct-id? hash) rest ...))
            ;; click on review submit button
            (review:do-submit-review session hash rest)]
-          [(list #"get" (list "review" (? string? hash) rest ...))
+          [(list #"get" (list "review" (? ct-id? hash) rest ...))
            ;; presents review screen
            (review:do-load session hash rest)]
           
           [(list #"post" (cons "file-container" rest))
            ;; save or load contents of review. bit of an abuse of POST.
            (review:push->file-container session post-data rest)]
-          [(list #"get" (cons "file-container" rest))
-           (cond ;; FIXME move 'download' token to end of path or beginning...
-             ;; "/file-container/<hash>/...*/download/..."
-             [(and (> (length rest) 1)
-                   ;; FIXME icky path hacking
-                   (string=? "download" (list-ref rest (- (length rest) 2))))
-              (review:check-download session user-role rest)]
-             [else
-              (review:file-container session user-role rest)])]
+          ;; FIXME this clause is now completely dead, if the download hack is gone.
+          [(list #"get" (list "file-container" (? ct-id? rest) ... "download" (? ct-id? last-str)))
+           (review:check-download session user-role (append rest (list "download" last-str)))]
+          [(list #"get" (list "file-container" (? ct-id? r-hash) (? ct-id? path-strs) ...))
+           (review:file-container session r-hash path-strs)]
           
           [(list _ (list-rest "su" uid rest))
            ;; interface for executing a command as another user
@@ -185,8 +181,8 @@
            (author:load session user-role rest)]
           
           ;; "/next/..."
-          [(list _ (cons "next" rest))
-           (next session user-role rest)]
+          [(list _ (list "next" (? ct-id? assignment-id) ignored ...))
+           (next session assignment-id)]
           
           ;; "/dependencies/..."
           [(list #"post" (cons "dependencies" rest))

@@ -10,22 +10,20 @@
          "../storage/storage.rkt")
 
 (provide (contract-out
-          [next (-> ct-session? any/c (listof string?) response?)]))
-(define (next session role rest)
-  (let* ((assignment-id (car rest))
-         (assignment-record (assignment:select (class-name) assignment-id))
+          [next (-> ct-session? ct-id? response?)]))
+(define (next session assignment-id)
+  (let* ((assignment-record (assignment:select (class-name) assignment-id))
          (is-open (assignment:Record-open assignment-record))
          (start-url (hash-ref (ct-session-table session) 'start-url))
          (user-id (ct-session-uid session)))
     (if (not is-open)
         (error:assignment-closed-response)
-        (let* ((uid (ct-session-uid session))
-               (assignment (car rest))     
+        (let* ((uid (ct-session-uid session))     
                (do-next (next-step assignment-id uid)))
           (plain-page
            "Captain Teach"
            (cond 
-             [(MustSubmitNext? do-next) (handle-submit-next session assignment user-id do-next start-url)]
+             [(MustSubmitNext? do-next) (handle-submit-next session assignment-id user-id do-next start-url)]
              [(MustReviewNext? do-next) (handle-review-next do-next start-url)]
              [(eq? #t do-next) (assignment-completed)]
              ;; is this unreachable or a user error?
