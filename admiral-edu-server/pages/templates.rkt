@@ -74,22 +74,27 @@
 
 (define (ct-url-or-false s)
   (cond [(false? s) "false"]
-        ;; FIXME not sure about the definition of javascript
-        ;; string quoting
         [(url-path? s)
          (js-str-format (url-path->url-string s))]
-        [(string? s)
-         ;; FIXME ELIMINATE WHEN POSSIBLE:
-         (js-str-format s)]))
+        ;; FIXME eliminate this whole clause when possible.
+        [(js-str? s)
+         (js-str-format s)]
+        [else
+         (raise-argument-error
+          'ct-url-or-false
+          "legal path"
+          0 s)]))
 
-;; wrap in single quotes, map ' to \' and \ to \\
-;; NOTE: this will not work for strings with newlines, "reverse solidus"es
-;; and other nutty stuff. This is designed to work for things that
-;; come out of url-path->url-string
+;; wrap in single quotes. NOTE: only safe for strings
+;; that don't contain single quotes, backslashes, "reverse solidus"es,
+;; newlines, etc. This is guaranteed for us by ct-id?
 (define (js-str-format s)
   (string-append
    "'"
-   (regexp-replace* #px"'"
+   s
+   ;; this is not necessary any more, because we're just fencing
+   ;; out quotes and backslashes in ct-id.
+   #;(regexp-replace* #px"'"
                     (regexp-replace* #px"\\\\" s "\\\\\\\\")
                     "\\\\'")
    "'"))
@@ -215,7 +220,7 @@
 
   (define (response->str r)
     (call-with-output-string (response-output r)))
-
+  
   (check-not-exn
    (λ ()
      (browse-file-container-page
@@ -250,9 +255,10 @@
   
   (check-equal? (ct-url-or-false #f) "false")
   (check-equal? (ct-url-or-false "abc") "'abc'")
-  (check-equal? (ct-url-or-false "abc'de'\\n\\" )
+  ;; neither of these are legal any more
+  #;(check-equal? (ct-url-or-false "abc'de'\\n\\" )
                 "'abc\\'de\\'\\\\n\\\\'")
-  (check-equal? (ct-url-or-false (strs->abs-ct-path/testing
+  #;(check-equal? (ct-url-or-false (strs->abs-ct-path/testing
                                   (list "big" "wig '\\dig")))
                 "'/big/wig%20\\'%5Cdig'")
 
