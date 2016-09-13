@@ -22,15 +22,16 @@
 ;; out.
 
 ;; Fortunately, URIs have percent-encoding. This means that pretty
-;; much any string should be all right.
+;; much any string should be all right. ... except that we're not
+;; really currently performing uri encoding and decoding!
 
 ;; on the UNIX side, it seems wise to avoid forward slashes.
 ;; also, path names of "." and ".." are off-limits.
 
 ;; really, though, tabs and newlines are just going to make everyone's
 ;; life hell. So, currently, we're going to allow all the characters
-;; in [:graph:] *except* for forward slash, and we're going to
-;; alow spaces.
+;; in [:graph:] *except* for forward slash and quote and double-quote
+;; and backslash, and we're going to allow spaces.
 
 ;; also, Windows is going to invalidate many of the assumptions
 ;; made in this code.
@@ -126,11 +127,11 @@
        (not (member str bad-path-elts))))
 
 ;; does this string consist of only good characters?
-;; (only spaces and [:graph:] - #\/ )
+;; (only spaces and [:graph:] - #\/ , #\', #\" #\\)
 (: only-good-chars? (String -> Boolean))
 (define (only-good-chars? b)
   (and (regexp-match? #px"^[ [:graph:]]*$" b)
-       (not (regexp-match? #px"/" b))))
+       (not (regexp-match? #px"[/'\"\\\\]" b))))
 
 ;; these are not legal path elements.
 (: bad-path-elts (Listof String))
@@ -359,6 +360,9 @@
 
   (check-equal? (only-good-chars? "") #t)
   (check-equal? (only-good-chars? "abcha###3;; 14!") #t)
+  (check-equal? (only-good-chars? "ab\\cha###3;; 14!") #f)
+  (check-equal? (only-good-chars? "abcha#'##3;; 14!") #f)
+  (check-equal? (only-good-chars? "abcha#\"##3;; 14!") #f)
   (check-equal? (only-good-chars? "abc/ha###3;; 14!") #f)
   (check-equal? (only-good-chars? "abcha#\n##3;; 14!") #f)
 
