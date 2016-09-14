@@ -28,7 +28,8 @@
 ;; you've allowed spaces, you're sort of into the soup.
 
 ;; As a compromise, we're allowing spaces and all printing characters
-;; except for forward and back slashes, and that's it.
+;; except for forward and back slashes, and that's it. And no ending
+;; with a space. And "." and ".." (see below).
 
 ;; Well, it turns out that's just the first part of the puzzle.
 ;; After deciding what tokens users can use, you have to figure
@@ -213,6 +214,7 @@
 (define (ct-id? str)
   (and (string? str)
        (only-good-chars? str)
+       (not (regexp-match? #px" $" str))
        (not (member str bad-path-elts))))
 
 ;; does this string consist of only good characters?
@@ -289,7 +291,6 @@
                [else p])]))
 
 ;; translate a relative path to a ct-path
-;; FIXME: PHOOEY: not enough time to finish this now.
 (: path->ct-path (Path-String -> Ct-Path))
 (define (path->ct-path p)
   (define path-path
@@ -351,11 +352,12 @@
 (define (ct-path->emailable-url path)
   (string-append
    "https://"
-   (path->string
-    (ct-path->path
-     (ct-path-join
-      (rel-ct-path (string-append (sub-domain) (server-name)) (class-name))
-      path)))))
+   (sub-domain)
+   (server-name)
+   (url-path->url-string
+    (ct-path-join
+     (Ct-Path (list (class-name)) #t #t)
+     path))))
 
 
 (module+ test
@@ -372,26 +374,26 @@
                 (Ct-Path (list "b" "ohu:t") #t #f))
 
   (check-equal? (ct-path-join (Ct-Path (list "a" "b") #t #f)
-                               (Ct-Path (list "a1" "b2") #f #f))
+                              (Ct-Path (list "a1" "b2") #f #f))
                 (Ct-Path (list "a" "b" "a1" "b2") #t #f))
 
   (check-equal? (ct-path-join (Ct-Path (list "a" "b") #f #f)
-                               (Ct-Path (list "a1" "b2") #f #f))
+                              (Ct-Path (list "a1" "b2") #f #f))
                 (Ct-Path (list "a" "b" "a1" "b2") #f #f))
 
   (check-exn #px"relative URL path"
              (λ ()
                (ct-path-join (Ct-Path (list "a" "b") #f #f)
-                              (Ct-Path (list "a1" "b2") #t #f))))
+                             (Ct-Path (list "a1" "b2") #t #f))))
 
   ;; trailing slash should be lost:
   (check-equal? (ct-path-join (Ct-Path (list "a" "b") #f #t)
-                               (Ct-Path (list "a1" "b2") #f #f))
+                              (Ct-Path (list "a1" "b2") #f #f))
                 (Ct-Path (list "a" "b" "a1" "b2") #f #f))
 
   ;; trailing slash should be preserved:
   (check-equal? (ct-path-join (Ct-Path (list "a" "b") #f #f)
-                               (Ct-Path (list "a1" "b2") #f #t))
+                              (Ct-Path (list "a1" "b2") #f #t))
                 (Ct-Path (list "a" "b" "a1" "b2") #f #t))
 
   (check-equal? (ct-path->path (Ct-Path (list "b" "ohu:t") #f #f))
@@ -449,13 +451,18 @@
 
   (check-equal? (only-good-chars? "") #t)
   (check-equal? (only-good-chars? "abcha###3;; 14!") #t)
-  (check-equal? (only-good-chars? "abcha#%3f##3;; 14!") #f)
-  (check-equal? (only-good-chars? "abcha#&3f##3;; 14!") #f)
+  (check-equal? (only-good-chars? "abcha#%3f##3;; 14!") #t)
+  (check-equal? (only-good-chars? "abcha#&3f##3;; 14!") #t)
   (check-equal? (only-good-chars? "ab\\cha###3;; 14!") #f)
   (check-equal? (only-good-chars? "abcha#'##3;; 14!") #f)
   (check-equal? (only-good-chars? "abcha#\"##3;; 14!") #f)
   (check-equal? (only-good-chars? "abc/ha###3;; 14!") #f)
   (check-equal? (only-good-chars? "abcha#\n##3;; 14!") #f)
+  (check-equal? (ct-id? "abcha#\n##3;; 14!") #f)
+  (check-equal? (ct-id? "abcha###3;; 14!") #t)
+  (check-equal? (ct-id? "abcha###3;; 14! ") #f)
+  (check-equal? (ct-id? ".") #f)
+  (check-equal? (ct-id? "..") #f)
 
   (require "testing/test-configuration.rkt")
 
@@ -465,6 +472,7 @@
                          "server-name" "zigbar.org"
                          "class-name" "zoop-dedoop"))])
     (define assignment-id "ass9")
-    (check-equal? (ct-path->emailable-url (rel-ct-path "feedback" assignment-id))
-                  (string-append "https://" (sub-domain) (server-name) "/" (class-name) "/feedback/" assignment-id)))
+    (check-equal?
+     (ct-path->emailable-url (rel-ct-path "feed back" assignment-id))
+     (string-append "https://" (sub-domain) (server-name) "/" (class-name) "/feed%20back/" assignment-id)))
   )
