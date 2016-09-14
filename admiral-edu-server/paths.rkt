@@ -17,24 +17,112 @@
 ;; encoded in both URI paths and used as UNIX filenames and used
 ;; as AWS filenames.
 
-;; first off, empty strings are almost certainly a bad idea. Also,
-;; #\nul characters are just asking for trouble. Both of these are
-;; out.
+;; unfortunately, many of these are provided either by the instructor
+;; or by the student, in the form of assignment identifiers or
+;; in the form of file names.
 
-;; Fortunately, URIs have percent-encoding. This means that pretty
-;; much any string should be all right. ... except that we're not
-;; really currently performing uri encoding and decoding!
+;; for the assignment and step names, we can lean on the instructors
+;; to conform to a fairly narrow scheme: we allow numbers, digits,
+;; hyphens, and that's it. For file names, though, we can't be so
+;; restrictive. Specifically, we'd like to allow spaces, and once
+;; you've allowed spaces, you're sort of into the soup.
 
-;; on the UNIX side, it seems wise to avoid forward slashes.
-;; also, path names of "." and ".." are off-limits.
+;; As a compromise, we're allowing spaces and all printing characters
+;; except for forward and back slashes, and that's it.
 
-;; really, though, tabs and newlines are just going to make everyone's
-;; life hell. So, currently, we're going to allow all the characters
-;; in [:graph:] *except* for forward slash and quote and double-quote
-;; and backslash, and we're going to allow spaces.
+;; Well, it turns out that's just the first part of the puzzle.
+;; After deciding what tokens users can use, you have to figure
+;; out how to encode them in three ways.
 
-;; also, Windows is going to invalidate many of the assumptions
-;; made in this code.
+;; first, as paths. There we're doing all right, because as long
+;; as your path elements don't include slashes or whitespace,
+;; you're on pretty solid ground, EXCEPT that the ids "." and
+;; ".." have special meanings for paths, so we'll just rule
+;; them out.
+
+;; second, as S3 paths. Here again I think we're fine, because
+;; S3 paths are (AFAICT) just strings. So, staying away from
+;; slashes should allow us to concatenate them using slashes
+;; and Bob's your uncle.
+
+;; third, in HTML. This one is hellish.  Specifically, there
+;; are two totally separate structural mechanisms that you have
+;; to respect within HTML. First, your path elements must make
+;; up a legal URL. This means that putting a question mark in
+;; a path name is a big no-no, because it will cause a URL
+;; parser to believe that we've ended the "path" part of the
+;; URL and entered the "query" part of the URL. Second, the
+;; encoded url can't have things like double-quotes, because
+;; the resulting string is getting embedded into an HTML context
+;; where a double-quote is interpreted as the end of the
+;; string. Embedding them in Javascript raises the same issues.
+
+;; Fortunately, it will turn out that our solution to problem
+;; one will also solve problem two; specifically, we perform
+;; 'uri-path-segment-encode'ing to change e.g. space characters
+;; into %20. This same encoding also changes '<' into %3C and
+;; '"' into %22, so the second form of encoding should always
+;; be the identity.
+
+;; Note an interesting thing about this process: the decoding
+;; is *not* injective. Specifically, "abc%20def" and "abc def"
+;; both decode to the same string. This should raise danger
+;; flags all over the case. The saving grace, IIUC, is that
+;; decode composed with encode *is* the identity.
+
+;; The browser plays an interesting role here. Specifically,
+;; the browser *does* peform HTML decoding, to turn (e.g.)
+;; &quot; back into double-quote. However, whether the browser
+;; performs uri-path-segment decoding is more or less a moot
+;; point, because of course it has to send the URL back to
+;; the server using a TCP connection, which means that no matter
+;; how it represents it internally, it must perform uri-path-
+;; segment encoding in order to get the URL back out on the
+;; wire. In fact, sending a browser a URL with a &quot; in it
+;; will result in a request that contains %22 instead.
+
+;; In order to stay out of danger, then, we need to make sure
+;; that our URLs are properly encoded. As long as this is
+;; true, it appears that the browser will send back the
+;; URL in the same form.
+
+;; what about JavaScript? We need to make sure that AJAX
+;; calls, $.get() and $.post(), work correctly. My guess...
+;; well, let's check. <goes and checks>. Well, I was surprised.
+;; it appears that JS does the same thing that the browser
+;; does: it does a decode and then an encode. This means
+;; that as long as your strings are properly encoded to
+;; begin with, you're fine.
+
+;; OKAY
+
+;; so what do we need to do in the server?
+
+;; First, it turns out that the URL parsing mechanism built
+;; into the Racket libraries will *already* perform the
+;; uri-path-segment decoding. (This is probably already
+;; the source of existing XSS attacks, yikes.) This means
+;; that we don't need to do decoding. In fact, performing
+;; decoding again would open us up to a well-known source
+;; of XSS attacks known as "double-decode" attacks.
+
+;; Instead, all we need to do is to be careful to perform
+;; uri-path-segment encoding (exactly once) before embedding
+;; a url in the output.
+
+;; For those that are already Ct-Path's, this is pretty easy;
+;; we just need to perform the encoding in the url-path->url-string
+;; function.
+
+;; However, for those that are still strings... we have a problem.
+;; I'm torn as to whether to try to set up a temporary gross hack
+;; or to tackle the problem head-on and just get rid of paths
+;; as strings.
+
+
+
+
+
 
 ;; the general expected flow here is that you create relative
 ;; paths using rel-ct-path, optionally join them using
@@ -49,6 +137,7 @@
 ;; boolean field to the structure.  
 
 (provide Ct-Path
+         Ct-Path?
          ct-id?
          rel-ct-path
          ct-url-path
@@ -360,6 +449,8 @@
 
   (check-equal? (only-good-chars? "") #t)
   (check-equal? (only-good-chars? "abcha###3;; 14!") #t)
+  (check-equal? (only-good-chars? "abcha#%3f##3;; 14!") #f)
+  (check-equal? (only-good-chars? "abcha#&3f##3;; 14!") #f)
   (check-equal? (only-good-chars? "ab\\cha###3;; 14!") #f)
   (check-equal? (only-good-chars? "abcha#'##3;; 14!") #f)
   (check-equal? (only-good-chars? "abcha#\"##3;; 14!") #f)
