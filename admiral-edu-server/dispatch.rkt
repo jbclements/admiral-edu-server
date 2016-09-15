@@ -116,6 +116,7 @@
              (error-xexprs->response
               `((p ,(exn-message exn))
                 (p "Try returning to "
+                   ;; I'm giving this string-append a pass:
                    (a ((href ,(string-append "https://"
                                              (sub-domain) (server-name) "/" (class-name))))
                       "Class Home")
@@ -148,10 +149,10 @@
            ;; used by codemirror autosave and review elements
            ;; to save review.
            (review:post->review session post-data rest)]
-          [(list #"get" (list "review" "submit" (? ct-id? hash) rest ...))
+          [(list #"get" (list "review" "submit" (? basic-ct-id? hash) rest ...))
            ;; click on review submit button
            (review:do-submit-review session hash rest)]
-          [(list #"get" (list "review" (? ct-id? hash) rest ...))
+          [(list #"get" (list "review" (? basic-ct-id? hash) rest ...))
            ;; presents review screen
            (review:do-load session hash rest)]
           
@@ -161,7 +162,7 @@
           ;; FIXME this clause is now completely dead, if the download hack is gone.
           [(list #"get" (list "file-container" (? ct-id? rest) ... "download" (? ct-id? last-str)))
            (review:check-download session user-role (append rest (list "download" last-str)))]
-          [(list #"get" (list "file-container" (? ct-id? r-hash) (? ct-id? path-strs) ...))
+          [(list #"get" (list "file-container" (? basic-ct-id? r-hash) (? ct-id? path-strs) ...))
            (review:file-container session r-hash path-strs)]
           
           [(list _ (list-rest "su" uid rest))
@@ -181,17 +182,17 @@
            (author:load session user-role rest)]
           
           ;; "/next/..."
-          [(list _ (list "next" (? ct-id? assignment-id) ignored ...))
+          [(list _ (list "next" (? basic-ct-id? assignment-id) ignored ...))
            (next session assignment-id)]
           
           ;; "/dependencies/..."
           [(list #"post" (cons "dependencies" rest))
            (dep:post session rest bindings raw-bindings)]
-          [(list #"get" (list "dependencies" (? ct-id? assignment-id)))
+          [(list #"get" (list "dependencies" (? basic-ct-id? assignment-id)))
            (dep:assignment-dependencies session assignment-id '())]
-          [(list #"get" (list "dependencies" (? ct-id? assignment-id) "three-study"))
+          [(list #"get" (list "dependencies" (? basic-ct-id? assignment-id) "three-study"))
            (dep:three-study-form session assignment-id)]
-          [(list #"get" (list "dependencies" (? ct-id? assignment) (? ct-id? step) (? ct-id? review-id) rest ...))
+          [(list #"get" (list "dependencies" (? basic-ct-id? assignment) (? basic-ct-id? step) (? basic-ct-id? review-id) rest ...))
            (dep:dependencies-form session assignment step review-id rest)]
           
           [(list #"post" (cons "submit" rest))
@@ -216,9 +217,9 @@
           [(list #"get" (list "feedback" "file-container" hash path-elts ...))
            ;; a file-container page (goes in the iframe of a review)
            (feedback:do-file-container session user-role hash path-elts)]
-          [(list #"get" (list "feedback" assignment any ...))
+          [(list #"get" (list "feedback" (? basic-ct-id? assignment)))
            ;; kind of an assignment dashboard:
-           (feedback:do-default session user-role assignment)]
+           (feedback:do-default session assignment)]
           
           [(list #"get" (cons "export" rest))
            ;; return a file representing the status(?) of an assignment
