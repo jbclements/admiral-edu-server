@@ -5,6 +5,8 @@
          racket/string
          "../../database/mysql/typed-db.rkt"
          "../../base.rkt"
+         "../../paths.rkt"
+         "../path-xexprs.rkt"
          "../../authoring/assignment.rkt"
          "../typed-xml.rkt"
          "../responses.rkt"
@@ -17,31 +19,32 @@
 ;; FIXME flatten into top-level dispatch
 (define (load session url message [post #f])
   (match url
-    [(list assignment-id) (display-assignment assignment-id message)]
+    [(list assignment-id) (display-assignment session assignment-id message)]
     [(list assignment-id step-id) (display-step session assignment-id step-id message post)]
     [(list assignment-id step-id review-id) (display-review session assignment-id step-id review-id message post)]
     [_ (error:four-oh-four-response)]))
 
 
-(: display-assignment (String (U XExpr #f) -> Response))
-(define (display-assignment assignment-id message)
+(: display-assignment (ct-session String (U XExpr #f) -> Response))
+(define (display-assignment session assignment-id message)
   (let*: ((assignment (assignment-id->assignment assignment-id))
-          [steps : (Listof XExpr) (list (cons 'ol (apply append (map (step->statistic assignment-id) (Assignment-steps assignment)))))])
+          [steps : (Listof XExpr) (list (cons 'ol (apply append (map (step->statistic session assignment-id) (Assignment-steps assignment)))))])
+    ;; FIXME replace all xexprs->response with plain-page
     (xexprs->response
-     (append (header assignment-id message)
+     (append (header session assignment-id message)
              steps))))
 
 
-(: header (String (U XExpr #f) -> (Listof XExpr)))
-(define (header assignment-id message)
+(: header (ct-session String (U XExpr #f) -> (Listof XExpr)))
+(define (header session assignment-id message)
   (let* ((assignment (assignment-id->assignment assignment-id))
          (record (assignment:select (class-name) assignment-id))
          (open (assignment:Record-open record))
          (ready (assignment:Record-ready record))
          (status (if ready (if open "Open" "Closed") "Missing Dependencies")))
-  `((h1 () ,(action:assignments "Assignments"))
-    (h2 () ,(action:dashboard assignment-id assignment-id))
-    (h3 () ,(action:status assignment-id "Status") " : " ,status)
+  `((h1 () ,(action:assignments session "Assignments"))
+    (h2 () ,(action:dashboard session assignment-id assignment-id))
+    (h3 () ,(action:status session assignment-id "Status") " : " ,status)
     ,(if message message ""))))
 
 (: display-step (ct-session String String (U XExpr #f) Boolean ->
@@ -54,7 +57,7 @@
          (count (number->string (submission:count-step assignment-id (class-name) step-id)))
          (submission-records (submission:select-all assignment-id (class-name) step-id sort-by order)))
   (xexprs->response
-   (append (header assignment-id message)
+   (append (header session assignment-id message)
            `((h4 (),step-id)
              (p () "Submissions : " ,count)
              (p () "Select a User ID to view their submission.")
@@ -69,7 +72,7 @@
                            (th () ,(sort-by-action "last_modified" next-order "Last Modified"))
                            (th () ,(sort-by-action "published" next-order "Published"))
                            (th () "Actions")))
-               (map submission-record->xexpr submission-records)))
+               (map (submission-record->xexpr session) submission-records)))
            `((h3 () "Students Pending Submission"))
            (list-no-submissions assignment-id step-id)))))
 
@@ -84,17 +87,29 @@
 ; (String Order String -> Xexpr)
 (: sort-by-action (String Order String -> XExpr))
 (define (sort-by-action field order context)
-    `(a ((href ,(string-append "?sort-by=" field "&order=" (symbol->string order)))) ,context))
+  (unless (basic-ct-id? field)
+    (raise-argument-error
+     'sort-by-action
+     "basic-ct-id"
+     0 field))
+  (define order-str (symbol->string order))
+  (unless (basic-ct-id? order-str)
+    (raise-argument-error
+     'sort-by-action
+     "basic-ct-id"
+     0 order))
+  `(a ((href ,(string-append "?sort-by=" field "&order=" order-str)))
+      ,context))
 
-(: submission-record->xexpr (submission:Record -> XExpr))
-(define (submission-record->xexpr record)
+(: submission-record->xexpr (ct-session -> (submission:Record -> XExpr)))
+(define ((submission-record->xexpr session) record)
   (let ((user-id (submission:Record-user record))
         (last_modified (format-time-stamp (submission:Record-last-modified record)))
         (published (if (submission:Record-published record) "Yes" "No"))
         (actions (if (submission:Record-published record) (unpublish-action record) (publish-action record))))
                      
     `(tr () 
-         (td () ,(view-submission-action record user-id))
+         (td () ,(view-submission-action session record user-id))
          (td () ,last_modified)
          (td () ,published)
          (td () ,actions))))
@@ -127,12 +142,13 @@
            (input ((type "hidden") (name "user-id") (value ,user-id)))
            (input ((type "submit") (value "Publish"))))))
 
-(: view-submission-action (submission:Record String -> XExpr))
-(define (view-submission-action record user-id)
+(: view-submission-action (ct-session submission:Record String -> XExpr))
+(define (view-submission-action session record user-id)
   (let ((user (submission:Record-user record))
         (assignment (submission:Record-assignment record))
         (step (submission:Record-step record)))
-  `(a ((href ,(string-append "/" (class-name) "/su/" user "/browse/" assignment "/" step "/"))) ,user-id)))
+    (cta `((href ,(ct-url-path session "su" user "browse" assignment step)))
+         user-id)))
 
 
 
@@ -144,11 +160,12 @@
         (hour (number->string (TimeStamp-hour time-stamp)))
         (minute (ensure-leading-zero (number->string (TimeStamp-minute time-stamp))))
         (second (ensure-leading-zero (number->string (TimeStamp-second time-stamp)))))
-    `(script ()
-             ,(string-join
-               `(,(string-append "var d = new Date(Date.UTC("year "," month "," day "," hour "," minute "," second ", 0));")
-                 "document.write(d.toLocaleDateString() + \" \" + d.toLocaleTimeString());")
-               "\n"))))
+    ;; is this even legal? yikes.
+    `(script
+      ,(string-join
+        `(,(string-append "var d = new Date(Date.UTC("year "," month "," day "," hour "," minute "," second ", 0));")
+          "document.write(d.toLocaleDateString() + \" \" + d.toLocaleTimeString());")
+        "\n"))))
 ;    (string-append month " " day " " year " " hour ":" minute ":" second)))
 
 
@@ -190,9 +207,9 @@
          (order (get-order session))
          (next-order (opposite-order order))
          (review-records (review:select-all assignment-id (class-name) step-id review-id sort-by order))
-         (reviews (apply append (map review-record->xexpr review-records))))
+         (reviews (apply append (map (review-record->xexpr session) review-records))))
     (xexprs->response
-     (append (header assignment-id message)
+     (append (header session assignment-id message)
              `((h4 () ,step-id " > " ,review-id)
                (p () "Assigned : " ,assigned)
                (p () "Completed : " ,completed)
@@ -208,8 +225,8 @@
 
 
 
-(: review-record->xexpr (review:Record -> (Listof XExpr)))
-(define (review-record->xexpr record)
+(: review-record->xexpr (ct-session -> (review:Record -> (Listof XExpr))))
+(define ((review-record->xexpr session) record)
   (let* ((reviewee (review:Record-reviewee-id record))
          (reviewer (review:Record-reviewer-id record))
          (feedback (review:Record-feedback-viewed-time-stamp record))
@@ -220,8 +237,8 @@
                       (mark-complete-action record "Mark Complete")))
          (flagged (review:Record-flagged record)))
   `((tr ()
-     (td () ,(view-review-action record reviewer))
-     (td () ,(view-feedback-action record reviewee))
+     (td () ,(view-review-action session record reviewer))
+     (td () ,(view-feedback-action session record reviewee))
      (td () ,completed)
      (td () ,(if flagged '(b "FLAGGED") ""))
      (td () ,feedback-viewed)
@@ -322,40 +339,44 @@
                   (review:mark-complete (Success-result hash))
                   '(p (b "Review marked complete.")))])))
 
-(: view-review-action (review:Record XExpr -> XExpr))
-(define (view-review-action record context)
+(: view-review-action (ct-session review:Record XExpr -> XExpr))
+(define (view-review-action session record context)
   (let ((hash (review:Record-hash record))
         (reviewer (review:Record-reviewer-id record)))
-    (cond [(role:exists? (class-name) reviewer) `(a ((href ,(string-append "/" (class-name) "/su/" reviewer "/review/" hash "/"))) ,context)]
+    (cond [(role:exists? (class-name) reviewer)
+           (cta `((href ,(ct-url-path session "su" reviewer "review" hash)))
+                context)]
           [else `(p () ,context)])))
 
-(: view-feedback-action (review:Record XExpr -> XExpr))
-(define (view-feedback-action record context)
+(: view-feedback-action (ct-session review:Record XExpr -> XExpr))
+(define (view-feedback-action session record context)
   (let ((hash (review:Record-hash record))
         (reviewee (review:Record-reviewee-id record)))
-    (cond [(role:exists? (class-name) reviewee)  `(a ((href ,(string-append "/" (class-name) "/su/" reviewee "/feedback/view/" hash "/"))) ,context)]
+    (cond [(role:exists? (class-name) reviewee)
+           (cta `((href ,(ct-url-path session "su" reviewee "feedback" "view" hash)))
+                context)]
           [else `(p () ,context)])))
 
 
-(: step->statistic (String -> (Step -> (Listof XExpr))))
-(define (step->statistic assignment-id)
+(: step->statistic (ct-session String -> (Step -> (Listof XExpr))))
+(define (step->statistic session assignment-id)
   (lambda (step)
     (let*: ((step-id (Step-id step))
             (submissions (number->string (submission:count-step assignment-id (class-name) step-id)))
-            [reviews : (Listof XExpr) (apply append (map (review->statistic assignment-id step-id) (Step-reviews step)))])
-      `((li () "Step : " ,(action:step-status assignment-id step-id step-id))
+            [reviews : (Listof XExpr) (apply append (map (review->statistic session assignment-id step-id) (Step-reviews step)))])
+      `((li () "Step : " ,(action:step-status session assignment-id step-id step-id))
         ,(append-xexpr `(ul () 
                            (li () "Submissions: " ,submissions))
                       reviews)))))
 
 
-(: review->statistic (String String -> (Review -> (Listof XExpr))))
-(define (review->statistic assignment-id step-id)
+(: review->statistic (ct-session String String -> (Review -> (Listof XExpr))))
+(define (review->statistic session assignment-id step-id)
   (lambda (review)
     (let* ((review-id (Review-id review))
            (completed (number->string (review:count-completed-reviews assignment-id (class-name) step-id review-id)))
            (assigned (number->string (review:count-all-assigned-reviews assignment-id (class-name) step-id review-id))))
-      `((li () "Reviews : " ,(action:review-status assignment-id step-id review-id review-id))
+      `((li () "Reviews : " ,(action:review-status session assignment-id step-id review-id review-id))
         (ul () 
          (li () "Completed: " ,completed)
          (li () "Assigned: " ,assigned))))))

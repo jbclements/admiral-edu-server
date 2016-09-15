@@ -13,6 +13,7 @@
 (require "../storage/storage.rkt"
          "../base.rkt"
          "../paths.rkt"
+         "path-xexprs.rkt"
          (only-in "templates.rkt" error-page)
          (prefix-in assign: "../authoring/assignment.rkt")
          "templates.rkt")
@@ -41,13 +42,11 @@
 (define (assignment-dependencies-body session assignment-id message deps)
   (define dependency-list
     (map (dep->html session assignment-id) deps))
-  `((h2 (a ((href
-             ,(url-path->url-string
-               (ct-url-path session
-                            "assignments"
-                            "dashboard"
-                            assignment-id))))
-           ,assignment-id))
+  `((h2 ,(cta `((href ,(ct-url-path session
+                                    "assignments"
+                                    "dashboard"
+                                    assignment-id)))
+           assignment-id))
     ,@message
     (p "The links below allow you to preview each rubric "
        "and upload file dependencies.")
@@ -102,10 +101,9 @@
          (define ready (if (assign:dependency-met dep)
                            " - Ready"
                            " - Dependency Missing"))
-         `(li (a ((href
-                   ,(url-path->url-string
-                    (ct-url-path session "dependencies" assignment-id
-                                 "three-study"))))
+         `(li (a ((href ,(url-path->url-string
+                          (ct-url-path session "dependencies" assignment-id
+                                       "three-study"))))
                  "Three Study Configuration File" ,ready))]
         [else (raise "Unknown dependency")]))
 

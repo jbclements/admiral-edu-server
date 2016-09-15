@@ -5,7 +5,8 @@
          "../typed-xml.rkt"
          "../responses.rkt"
          "../../base.rkt"
-         "../../authoring/assignment.rkt")
+         "../../authoring/assignment.rkt"
+         "../../paths.rkt")
 
 (provide load)
 (: load (->* (ct-session (Listof String) (U XExpr #f)) (Boolean) Response))
@@ -17,18 +18,18 @@
            (ready (assignment:Record-ready assignment))
            (status (if ready (if open "Open" "Closed") "Missing Dependencies")))
            (xexprs->response
-            `((h1 () ,(action:assignments "Assignments"))
+            `((h1 () ,(action:assignments session "Assignments"))
               (h2 () ,assignment-id)
               ,(if message message "")
-              (h3 () ,(action:status assignment-id "Status") " : " ,status)
+              (h3 () ,(action:status session assignment-id "Status") " : " ,status)
               ,(if ready
-                   (cond [open `(p () ,(action:close assignment-id "Close Assignment"))]
-                         [else `(p () ,(action:open assignment-id "Open Assignment"))])
+                   (cond [open `(p () ,(action:close session assignment-id "Close Assignment"))]
+                         [else `(p () ,(action:open session assignment-id "Open Assignment"))])
                    "")
-              (p () ,(action:dependencies assignment-id "Upload Dependencies"))
-              (p () ,(action:edit assignment-id "Edit Assignment Description"))
-              (p () ,(action:export assignment-id "Export Assignment Data"))
-              (p () ,(action:delete assignment-id "Delete Assignment")))))))
+              (p () ,(action:dependencies session assignment-id "Upload Dependencies"))
+              (p () ,(action:edit session assignment-id "Edit Assignment Description"))
+              (p () ,(action:export session assignment-id "Export Assignment Data"))
+              (p () ,(action:delete session assignment-id "Delete Assignment")))))))
 
 ;; open an assignment
 (provide open)
@@ -56,10 +57,11 @@
     (cond [post (run-delete session url message assignment-id)]
           [else 
            (xexprs->response
-            `((h1 () ,(action:assignments "Assignments"))
-              (h2 () ,(action:dashboard assignment-id assignment-id))
+            `((h1 () ,(action:assignments session "Assignments"))
+              (h2 () ,(action:dashboard session assignment-id assignment-id))
               (p (b "You are about to delete this assignment. This action is irreversible. Click the submit button below to proceed."))
-              (form ((action ,(string-append "/" (class-name) "/assignments/delete/" assignment-id "/"))
+              (form ((action ,(url-path->url-string
+                               (ct-url-path session "assignments" "delete" assignment-id)))
                      (method "POST"))
                     (input ((type "submit"))))))])))
 

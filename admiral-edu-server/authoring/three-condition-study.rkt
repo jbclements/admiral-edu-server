@@ -136,6 +136,7 @@
       (let ((next (three-next-action assignment steps uid)))
         (cond
           [(MustReviewNext? next) (three-assign-reviews assignment-id (MustReviewNext-step next) uid)])
+        ;; FIXME this will be safe, but ugly. STRINGS
         (Success (string-append "Assignment submitted. <b>Note : " extra-message "</b>"))))))
 
 (: maybe-assign-reviewers (String Step String -> Void))

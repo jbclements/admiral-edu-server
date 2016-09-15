@@ -1,44 +1,54 @@
+
 #lang typed/racket/base
 
 (require "../../configuration.rkt"
-         "../typed-xml.rkt")
+         "../typed-xml.rkt"
+         "../../ct-session.rkt"
+         "../../paths.rkt"
+         "../path-xexprs.rkt")
 
-(define (base-url) (string-append "/" (class-name) "/assignments/"))
+;; looks like this file provides wrappers for quick construction
+;; of '<a>' elements.
 
-(: action-item (String XExpr -> XExpr))
-(define (action-item url context)
-  `(a ((href ,url)) ,context))
+;; to see an example of what the 'link-maker' macro does, take
+;; a look at the test case below.
+
+;; given a session, a list of path elements, and a body, return
+;; an <a> xexpr containing the given body with an href of
+;; the corresponding path elements
+(: build-xexpr-anchor (ct-session (Listof String) XExpr -> XExpr))
+(define (build-xexpr-anchor session path-elts body-xexpr)
+  (cta `((href ,(apply ct-url-path session path-elts)))
+       body-xexpr))
+
+;; a macro to shorten the three-step process of specifying a link-maker
+(define-syntax link-maker
+  (syntax-rules ()
+    [(_ name (argname ...) taglistmaker)
+     (begin
+       (provide name)
+       (define (name [session : ct-session] [argname : String] ... [body-xexpr : XExpr]) : XExpr
+         (build-xexpr-anchor session taglistmaker body-xexpr)))]))
 
 
 ;; Links to assignments page
-(provide assignments)
-(: assignments (String -> XExpr))
-(define (assignments context)
-  (action-item (base-url) context))
+(link-maker assignments [] (list "assignments"))
 
+;; FIXME do all of these really need to be exported?
 (provide OPEN)
 (define OPEN "open")
 
-(provide open)
-(: open (String XExpr -> XExpr))
-(define (open assignment-id context)
-  (action-item (string-append (base-url) OPEN "/" assignment-id "/") context))
+(link-maker open [assignment-id] (list "assignments" OPEN assignment-id))
 
 (provide CLOSE)
 (define CLOSE "close")
 
-(provide close)
-(: close (String XExpr -> XExpr))
-(define (close assignment-id context)
-  (action-item (string-append (base-url) CLOSE "/" assignment-id "/") context))
+(link-maker close [assignment-id] (list "assignments" CLOSE assignment-id))
 
 (provide DELETE)
 (define DELETE "delete")
 
-(provide delete)
-(: delete (String XExpr -> XExpr))
-(define (delete assignment-id context)
-  (action-item (string-append (base-url) DELETE "/" assignment-id "/") context))
+(link-maker delete [assignment-id] (list "assignments" DELETE assignment-id))
 
 (provide LIST)
 (define LIST "")
@@ -46,41 +56,26 @@
 (provide DASHBOARD)
 (define DASHBOARD "dashboard")
 
-(provide dashboard)
-(: dashboard (String XExpr -> XExpr))
-(define (dashboard assignment-id context)
-  (action-item (string-append (base-url) DASHBOARD "/" assignment-id "/") assignment-id))
+(link-maker dashboard [assignment-id] (list "assignments" DASHBOARD assignment-id))
 
-(provide dependencies)
-(: dependencies (String XExpr -> XExpr))
-(define (dependencies assignment-id context)
-  (action-item (string-append "/" (class-name) "/dependencies/" assignment-id "/") context))
-
-(provide edit)
-(: edit (String XExpr -> XExpr))
-(define (edit assignment-id context)
-  (action-item (string-append "/" (class-name) "/author/edit/" assignment-id "/") context))
-
-(provide export)
-(: export (String XExpr -> XExpr))
-(define (export assignment-id context)
-  (action-item (string-append "/" (class-name) "/export/" assignment-id "/" assignment-id ".zip") context))
-
+(link-maker dependencies [assignment-id] (list "dependencies" assignment-id))
+(link-maker edit [assignment-id] (list "author" "edit" assignment-id))
+(link-maker export [assignment-id] (list "export" assignment-id (string-append assignment-id ".zip")))
 
 (provide STATUS)
 (define STATUS "status")
 
-(provide status)
-(: status (String XExpr -> XExpr))
-(define (status assignment-id context)
-  (action-item (string-append (base-url) "status/" assignment-id "/") context))
+(link-maker status [assignment-id] (list "assignments" "status" assignment-id))
+(link-maker step-status [assignment-id step-id]
+            (list "assignments"  "status" assignment-id step-id))
+(link-maker review-status [assignment-id step-id review-id]
+            (list "assignments" "status" assignment-id step-id review-id))
 
-(provide step-status)
-(: step-status (String String XExpr -> XExpr))
-(define (step-status assignment-id step-id context)
-  (action-item (string-append (base-url) "status/" assignment-id "/" step-id "/") context))
+(module+ test
+  (require typed/rackunit
+           "../../ct-session.rkt")
 
-(provide review-status)
-(: review-status (String String String XExpr -> XExpr))
-(define (review-status assignment-id step-id review-id context)
-  (action-item (string-append (base-url) "status/" assignment-id "/" step-id "/" review-id "/") context))
+  (define test-session (ct-session "test-class" "bob@example.com" #f (hash)))
+  (check-equal? (dashboard test-session "test-assignment%" `(p "yay"))
+                `(a ((href "/test-class/assignments/dashboard/test-assignment%25"))
+                    (p "yay"))))

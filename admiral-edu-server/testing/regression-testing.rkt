@@ -351,14 +351,16 @@ u must add a summative comment at the end.
               '("/test-class/assignments/"))))
       ((,stu1 ("assignments"))
        (200 ,(has-anchor-links
-              ;; FIXME YUCKY URL:
-              '("/test-class/assignments/../feedback/test-with-html/"))))
+              '("/test-class/feedback/test-with-html/"))))
       ((,stu9 ("feedback" "test-with-html"))
        403
        stranger-feedback)
       ((,stu1 ("feedback" "test-with-html"))
        (200 ,(has-anchor-links
-              '("/test-class/feedback/test-with-html/../../next/test-with-html/"))))
+              '("/test-class/next/test-with-html/"))))
+      ;; original code just sends you to la-la-land path of your choice:
+      ((,stu1 ("feedback" "test-with-html" "BOGUS" "PATH" "ELEMENTS"))
+       404)
       ;; XSS attack: html in assignment description:
       ((,stu1 ("next" "test-with-html"))
        (200 ,no-italics)
@@ -469,7 +471,7 @@ u must add a summative comment at the end.
                (let ([hashes (pending-review-hashes (cons "test-with-html" stu1))])
                  ((has-anchor-links
                    (cons
-                    "/test-class/feedback/test-with-html/../../browse/test-with-html/tests/"
+                    "/test-class/browse/test-with-html/tests/"
                     (map (λ (hash)
                            (string-append
                             "/test-class/feedback/test-with-html/../../review/" hash "/"))
@@ -521,7 +523,7 @@ u must add a summative comment at the end.
        (200 ,(has-anchor-links '("/test-class/assignments/"))))
       ;; clicks on assignments
       ((,stu2 ("assignments"))
-       (200 ,(has-anchor-links '("/test-class/assignments/../feedback/test-with-html/"))))
+       (200 ,(has-anchor-links '("/test-class/feedback/test-with-html/"))))
       ;; stu2 publishes:
       ((,stu2 ,(path2list "submit/test-with-html/tests")
               (alist ((action . "submit")))
@@ -613,7 +615,7 @@ u must add a summative comment at the end.
          `((,stu2 ("feedback" "test-with-html"))
            (200 ,(has-anchor-links
                   (cons
-                   "/test-class/feedback/test-with-html/../../browse/test-with-html/tests/"
+                   "/test-class/browse/test-with-html/tests/"
                    (for/list ([hash (in-list (completed-review-hashes
                                               (cons "test-with-html" stu2)))])
                      (string-append

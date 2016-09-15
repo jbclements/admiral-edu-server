@@ -2,6 +2,7 @@
 
 (require racket/list
          racket/string
+         racket/contract
          racket/match
          web-server/http/bindings
          web-server/templates
@@ -11,6 +12,7 @@
 (require "../storage/storage.rkt"
          "../base.rkt"
          "../paths.rkt"
+         "path-xexprs.rkt"
          (prefix-in error: "errors.rkt")
          "responses.rkt"
          "templates.rkt"
@@ -52,34 +54,43 @@
 
 ;; this is kind of an assignment dashboard, actually....
 (provide do-default)
-(define (do-default session role assignment)
+(define (do-default session assignment)
   (let* ((uid (ct-session-uid session))
          (start-url (hash-ref (ct-session-table session) 'start-url))
          (reviews (review:select-feedback (class-name) assignment uid))
          (submissions (submission:select-from-assignment assignment (class-name) uid))
          ;; FIXME xexprs, please.
          (results 
-          (string-append (gen-status assignment uid start-url)
-                         (gen-submissions submissions start-url)
+          (string-append (string-join
+                          (map xexpr->string
+                               (gen-status session assignment uid)))
+                         (string-join
+                          (map xexpr->string
+                               (gen-submissions submissions session)))
                          (gen-pending-reviews assignment uid start-url)
                          (gen-completed-reviews assignment uid start-url)
                          (gen-review-feedback reviews start-url))))
     (string->response
-     (string-append "<h1>" assignment "</h1>"
+     (string-append (xexpr->string `(h1 ,assignment)) "\n"
                     results))))
 
-(define (gen-status assignment uid start-url)
-  ;; FIXME strings
-  (string-append "<h2>Next Required Action</h2>"
-                 (let ((do-next (next-step assignment uid)))
-                   (cond 
-                     [(MustSubmitNext? do-next) (gen-submit-next start-url assignment do-next)]
-                     [(MustReviewNext? do-next) "<p>You must complete pending reviews before you can proceed to the next step.</p>"]
-                     [(eq? #t do-next) "You have completed all of the steps for this assignment."]
-                     [else (error "Unknown next-action.")]))))
+(define/contract (gen-status session assignment uid)
+  (-> ct-session? basic-ct-id? ct-id? (listof xexpr?))
+  `((h2 "Next Required Action")
+    ,(let ((do-next (next-step assignment uid)))
+       (cond 
+         [(MustSubmitNext? do-next)
+          (gen-submit-next session assignment do-next)]
+         [(MustReviewNext? do-next)
+          `(p "You must complete pending reviews before you can proceed to the next step.")]
+         [(eq? #t do-next)
+          `(p "You have completed all of the steps for this assignment.")]
+         [else (error "Unknown next-action.")]))))
 
-(define (gen-submit-next start-url assignment msn)
-  (string-append "<p>You must <a href='" start-url "../../next/" assignment "/'>publish a submission</a> for the next step: '" (Step-id (MustSubmitNext-step msn)) "'.</p>"))
+(define (gen-submit-next session assignment msn)
+  `(p "You must "
+      ,(cta `((href ,(ct-url-path session "next" assignment))) "publish a submission")
+      " for the next step: '" ,(Step-id (MustSubmitNext-step msn)) "'."))
   
 
 (define (gen-review-feedback reviews start-url)
@@ -128,20 +139,21 @@
       ;; FIXME paths
       `(li (a ((href ,(string-append start-url "../../review/" hash "/"))) "Completed Review for '" ,step "'")))))
 
-(define (gen-submissions submissions start-url)
-  (let* ((submissions (map (gen-submission start-url) submissions))
-         (message (if (empty? submissions) "You have not made any submissions for this assignment yet."
+(define/contract (gen-submissions submissions session)
+  (-> any/c any/c (listof xexpr?))
+  (let* ((submissions (map (gen-submission session) submissions))
+         (message (if (empty? submissions)
+                      "You have not made any submissions for this assignment yet."
                       "The links below are to the submissions you've made for this assignment.")))
-  (string-join
-   (map xexpr->string
-        (append `((h2 "Browse Submissions") (p ,message)) submissions)))))
+    `((h2 "Browse Submissions") (p ,message) ,@submissions)))
 
-(define (gen-submission start-url)
+(define (gen-submission session)
   (lambda (record)
     (let ((assignment-id (submission:Record-assignment record))
           (step-id (submission:Record-step record)))
       ;; FIXME paths
-    `(li (a ((href ,(string-append start-url "../../browse/" assignment-id "/" step-id "/"))) ,step-id)))))
+    `(li ,(cta `((href ,(ct-url-path session "browse" assignment-id step-id)))
+               step-id)))))
 
 (define (gen-reviews reviews start-url) (gen-reviews-helper reviews 1 start-url))
 
