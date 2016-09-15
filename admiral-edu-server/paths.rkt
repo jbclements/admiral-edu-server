@@ -95,6 +95,10 @@
 ;; that as long as your strings are properly encoded to
 ;; begin with, you're fine.
 
+;; we also define a ct-basic-id?, which is basically just
+;; a-z,A-Z,0-9, and hyphens. These are pretty safe to put in
+;; URLs anywhere, without worrying about encoding
+
 ;; OKAY
 
 ;; so what do we need to do in the server?
@@ -140,6 +144,7 @@
 (provide Ct-Path
          Ct-Path?
          ct-id?
+         basic-ct-id?
          rel-ct-path
          ct-url-path
          ct-path-/
@@ -149,6 +154,7 @@
          url-path->url-string
          ct-path->path
          path->ct-path
+         abs-path->ct-path
          ct-path->emailable-url
          strs->abs-ct-path/testing)
 
@@ -228,6 +234,12 @@
 (: bad-path-elts (Listof String))
 (define bad-path-elts (list "" "." ".."))
 
+;; is this string safe to use without encoding?
+(: basic-ct-id? (Any -> Boolean))
+(define (basic-ct-id? str)
+  (and (string? str)
+       (regexp-match? #px"^[-_A-Za-z0-9]+$" str)))
+
 ;; add a trailing slash to a path
 (: ct-path-/ (Ct-Path -> Ct-Path))
 (define (ct-path-/ a)
@@ -290,9 +302,16 @@
                 (path->directory-path p)]
                [else p])]))
 
+;; FIXME should be unneeded after completing conversion
+;; to ct-paths
 ;; translate a relative path to a ct-path
 (: path->ct-path (Path-String -> Ct-Path))
 (define (path->ct-path p)
+  (when (equal? p "")
+    (raise-argument-error
+     'path->ct-path
+     "non-empty string or path"
+     0 p))
   (define path-path
     (cond [(path? p) p]
           [else (string->path p)]))
@@ -329,6 +348,54 @@
          (cond [ends-with-slash?
                 (ct-path-/ rel-path)]
                [else rel-path])]))
+
+;; FIXME should be unneccessary after completing
+;; transition to ct-paths
+;; converts an absolute path-string to an absolute
+;; Ct-path. (Note: it turns out to be surprisingly
+;; difficult to turn this into a call to the previous
+;; function.)
+(: abs-path->ct-path (Path-String -> Ct-Path))
+(define (abs-path->ct-path p)
+  (when (equal? p "")
+    (raise-argument-error
+     'abs-path->ct-path
+     "non-empty string or path"
+     0 p))
+  (define path-path
+    (cond [(path? p) p]
+          [else (string->path p)]))
+  (cond [(relative-path? path-path)
+         (raise-argument-error
+          'path->ct-path
+          "absolute path" 0 p)]
+        [else
+         ;; first split-path is just to see if
+         ;; the whole thing ends with a slash
+         (define-values (_1 _2 ends-with-slash?) (split-path path-path))
+         (define elements
+           (reverse
+            (let loop : (Listof String) ([path path-path])
+              (define-values (base this _3) (split-path path))
+              (when (or (eq? this 'up)
+                        (eq? this 'same))
+                (raise-argument-error
+                 'path->ct-path
+                 "path not containing . or .. "
+                 0 p))
+              (cond
+                [(and (eq? base #f) (equal? (path->string this) "/"))
+                 '()]
+                [(eq? base #f)
+                 (error 'abs-path->ct-path
+                        "unexpected return value from path-split")]
+                [(eq? base 'relative)
+                 (error 'abs-path->ct-path
+                        "absolute path wound up being relative: ~e"
+                        path-path)]
+                [else
+                 (cons (path->string this) (loop base))]))))
+         (Ct-Path elements #t ends-with-slash?)]))
 
 ;; construct an absolute url from a session
 (: session->base-url-path (ct-session -> Ct-Path))
@@ -419,6 +486,12 @@
 
   (check-exn #px"relative path"
              (λ () (path->ct-path "/b/ohu:t/")))
+
+  (check-equal? (abs-path->ct-path "/b/ohu:t/")
+                (Ct-Path (list "b" "ohu:t") #t #t))
+
+  (check-exn #px"absolute path"
+             (λ () (abs-path->ct-path "b/ohu:t/")))
   
   (check-equal? (url-path->url-string (Ct-Path (list "b" "ohu;t") #t #f))
                 "/b/ohu%3Bt")
@@ -464,6 +537,11 @@
   (check-equal? (ct-id? ".") #f)
   (check-equal? (ct-id? "..") #f)
 
+  (check-equal? (basic-ct-id? ".") #f)
+  (check-equal? (basic-ct-id? "abcd-3h_th") #t)
+  (check-equal? (basic-ct-id? "abc d-3hth") #f)
+  (check-equal? (basic-ct-id? "") #f)
+
   (require "testing/test-configuration.rkt")
 
   (parameterize ([current-configuration
@@ -475,4 +553,5 @@
     (check-equal?
      (ct-path->emailable-url (rel-ct-path "feed back" assignment-id))
      (string-append "https://" (sub-domain) (server-name) "/" (class-name) "/feed%20back/" assignment-id)))
+
   )
