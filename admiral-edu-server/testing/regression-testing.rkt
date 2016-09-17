@@ -389,7 +389,7 @@ u must add a summative comment at the end.
       ((,stu1 ("submit" "test-with-html" "tests")
               (multipart
                ((namefilevalue #"file"
-                               #"my-diff?erent-file"
+                               #"my-diff? erent-file"
                                ()
                                #"oops... \n two different lines\n")))
               #t)
@@ -404,28 +404,28 @@ u must add a summative comment at the end.
       ;; content of the iframe:
       ((,stu1 ("browse" "test-with-html" "tests"))
        (200 ,(has-anchor-links
-              '("/test-class/browse/test-with-html/tests/my-diff%3Ferent-file"
+              '("/test-class/browse/test-with-html/tests/my-diff%3F%20erent-file"
                 ;; update to new style:
-                "/test-class/browse-download/test-with-html/tests/my-diff%3Ferent-file")))
+                "/test-class/browse-download/test-with-html/tests/my-diff%3F%20erent-file")))
        iframe-content)
       ;; the file 
-      ((,stu1 ("browse" "test-with-html" "tests" "my-diff?erent-file"))
+      ((,stu1 ("browse" "test-with-html" "tests" "my-diff? erent-file"))
        (200 ,(has-anchor-links
               ;; FIXME how do we feel about this? first relative url path?
               '("../tests"))))
       ;; ouch, what about this:
       ((,stu1
-        ("browse" "test-with-html" "tests" "my-diff?erent-file" "download" "test-class"
-                  "test-with-html" ,stu1 "tests" "my-diff?erent-file"))
+        ("browse" "test-with-html" "tests" "my-diff? erent-file" "download" "test-class"
+                  "test-with-html" ,stu1 "tests" "my-diff? erent-file"))
        403
        accidental-trainwreck)
       ;; let's see what the download content looks like
       ;; removed old-style download
-      #;((,stu1 ("browse" "test-with-html" "tests" "download" "my-diff?erent-file"))
+      #;((,stu1 ("browse" "test-with-html" "tests" "download" "my-diff? erent-file"))
          200
          download)
       ;; trying the new-style browse download
-      ((,stu1 ("browse-download" "test-with-html" "tests" "my-diff?erent-file"))
+      ((,stu1 ("browse-download" "test-with-html" "tests" "my-diff? erent-file"))
        200
        new-download)
       
@@ -455,7 +455,7 @@ u must add a summative comment at the end.
               '("/test-class/submit/test-with-html/tests/../../../next/test-with-html/")))
        stu2-submits)
       ;; can stu2 read stu1's file? No. Good.
-      ((,stu2 ("browse" "test-with-html" "tests" "my-diff?erent-file"))
+      ((,stu2 ("browse" "test-with-html" "tests" "my-diff? erent-file"))
        403
        see-others-file)
       ;; stu1 publishes:
@@ -547,18 +547,18 @@ u must add a summative comment at the end.
       ;; file-container for file
       ,(λ ()
          `((,stu2 ("file-container" ,(lastreview-of stu2 stu1)
-                                   "my-diff?erent-file"))
+                                   "my-diff? erent-file"))
          (200 ,(has-anchor-links '("./")))
          review-iframe-file))
       ;; actual text of file
       ,(λ ()
          `((,stu2 ("file-container" ,(lastreview-of stu2 stu1) "download"
-                                    "my-diff?erent-file"))
+                                    "my-diff? erent-file"))
            200
            review-iframe-file-content))
       ;; actual text of file using new endpoint:
       ,(λ ()
-         `((,stu2 ("download" ,(lastreview-of stu2 stu1) "my-diff?erent-file"))
+         `((,stu2 ("download" ,(lastreview-of stu2 stu1) "my-diff? erent-file"))
           200
           review-iframe-file-content-new))
       ;; should it be an error to submit bogus rubric json?
@@ -592,15 +592,15 @@ u must add a summative comment at the end.
                   (list
                    (string-append "/test-class/feedback/file-container/"
                                   (firstfeedback stu1)
-                                  "/my-diff%3Ferent-file"))))
+                                  "/my-diff%3F%20erent-file"))))
            stu1-views-review-fc-dir))
       ,(λ ()
-         `((,stu1 ("feedback" "file-container" ,(firstfeedback stu1) "my-diff?erent-file"))
+         `((,stu1 ("feedback" "file-container" ,(firstfeedback stu1) "my-diff? erent-file"))
            (200 ,(has-anchor-links
                   `("./")))
            stu1-views-review-fc-file))
       ,(λ ()
-         `((,stu1 ("download" ,(firstfeedback stu1) "my-diff?erent-file"))
+         `((,stu1 ("download" ,(firstfeedback stu1) "my-diff? erent-file"))
            ;; need a check that this is a file-download-y thing and not HTML:
            200
            stu1-views-review-fc-file-raw))

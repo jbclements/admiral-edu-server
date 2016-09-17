@@ -4,7 +4,6 @@
          racket/string
          racket/list
          racket/match
-         "../configuration.rkt"
          "../util/basic-types.rkt"
          "../database/mysql.rkt"
          (prefix-in local: "local-storage.rkt")
@@ -209,7 +208,7 @@
 (provide upload-dependency-solution)
 (: upload-dependency-solution (String String String String String (U String Bytes) -> (Result Void)))
 (define (upload-dependency-solution class-id user-id assignment-id step-id file-name file-content)
-  (cond [(not (check-file-name file-name)) (Failure (format "Invalid filename ~a" file-name))]
+  (cond [(not (ct-id? file-name)) (Failure (format "Invalid filename ~a" file-name))]
         [else
          (let ((path (submission-path/string class-id assignment-id user-id step-id)))
            ;; Delete previously uploaded files
@@ -232,7 +231,7 @@
    (let* ((exists (submission:exists? assignment-id class-id step-id user-id))
           (record (if exists (submission:select assignment-id class-id step-id user-id) #f))
           (published (if record (submission:Record-published record) #f)))
-     (cond [(not (check-file-name file-name)) (Failure (format "Invalid filename ~a" file-name))]
+     (cond [(not (ct-id? file-name)) (Failure (format "Invalid filename ~a" file-name))]
            ;; Ensure the students has not finalized their submission
            [published (Failure "Submission already exists.")]
            [else (let ((path (submission-path/string class-id assignment-id user-id step-id)))
@@ -359,6 +358,7 @@
 
 
 ;; Creates a directory tmp/some-hash
+;; FIXME not the right way to get the temp dir...
 (: get-local-temp-directory (-> Path))
 (define (get-local-temp-directory)
   (build-path "tmp" (random-hash)))
@@ -367,20 +367,10 @@
 ;; Creates a random 32 hash
 (: random-hash (-> String))
 (define (random-hash)
-  (for/fold ([s ""])
-      ([x (in-range 32)])
-    (string-append s
-                   (number->string (truncate (random 15)) 16))))
+  (apply
+   string-append
+   (for/list : (Listof String) ([x (in-range 32)])
+     (number->string (random 16) 16))))
 
-
-;; Checks if a file-name is acceptable
-;; Acceptable filenames include alphanumeric characters, underscore, dash, and period
-;; that is, they must meet the regular expression #rx[a-zA-Z0-9_.-]*
-;; Returns #t if the file-name is acceptable and #f otherwise.
-(provide check-file-name)
-(: check-file-name (String -> Boolean))
-(define (check-file-name file-name)
-  (let* ((okay-chars #rx"[a-zA-Z0-9_.\\ ()-]*"))
-    (regexp-match-exact? okay-chars file-name)))
 
 
