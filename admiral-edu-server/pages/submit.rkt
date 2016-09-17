@@ -11,17 +11,17 @@
          "errors.rkt"
          "../storage/storage.rkt"
          "../authoring/assignment.rkt"
+         "../paths.rkt"
          "next.rkt")
 
 ;; handles an incoming submission.... or publication of a submission?
 (provide (contract-out
-          [submit (-> ct-session? (listof string?) (listof (cons/c symbol? (or/c string? bytes?)))
+          [submit (-> ct-session? basic-ct-id? basic-ct-id?
+                      (listof (cons/c symbol? (or/c string? bytes?)))
                       (listof binding?) xexpr?)]))
-(define (submit session rest bindings raw-bindings)
+(define (submit session assignment step bindings raw-bindings)
   (let ((table (ct-session-table session))
-        (uid (ct-session-uid session))
-        (assignment (car rest))
-        (step (cadr rest)))
+        (uid (ct-session-uid session)))
     (cond [(and (hash-has-key? table 'action)
                 ;; the string "submit" should probably actually be "publish", as it
                 ;; appears to indicate publication. 

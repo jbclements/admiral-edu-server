@@ -195,11 +195,12 @@
           [(list #"get" (list "dependencies" (? basic-ct-id? assignment) (? basic-ct-id? step) (? basic-ct-id? review-id) rest ...))
            (dep:dependencies-form session assignment step review-id rest)]
           
-          [(list #"post" (cons "submit" rest))
+          [(list #"post" (list "submit" (? basic-ct-id? assignment) (? basic-ct-id? step)))
            ;; used to submit files and to publish them (POST only)
            ;; FIXME I think the "action" binding should instead just be
            ;; implemented using a different URL.
-           (response/xexpr (submit:submit session rest bindings raw-bindings))]
+           (response/xexpr
+            (submit:submit session assignment step bindings raw-bindings))]
 
           ;; "/feedback/..."
           ;; viewing and submitting feedback? And other stuff? confused.
