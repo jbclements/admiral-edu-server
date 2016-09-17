@@ -199,6 +199,7 @@
            ;; used to submit files and to publish them (POST only)
            ;; FIXME I think the "action" binding should instead just be
            ;; implemented using a different URL.
+           ;; FIXME get rid of this use of response/xexpr
            (response/xexpr
             (submit:submit session assignment step bindings raw-bindings))]
 

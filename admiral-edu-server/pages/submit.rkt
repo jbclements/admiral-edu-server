@@ -12,6 +12,7 @@
          "../storage/storage.rkt"
          "../authoring/assignment.rkt"
          "../paths.rkt"
+         "path-xexprs.rkt"
          "next.rkt")
 
 ;; handles an incoming submission.... or publication of a submission?
@@ -30,6 +31,7 @@
           ;; submit a file:
           [else
            (let* ((data (extract-binding/single 'file bindings))
+                  ;; FIXME won't work correctly until DrRacket does RFC6266 parsing.
                   (filename (bytes->string/utf-8 (binding:file-filename (car raw-bindings)))))
              (if (check-okay-to-submit uid assignment step)
                  (preview-upload session uid assignment step filename data)
@@ -43,24 +45,23 @@
 
 
 (define (preview-upload session uid assignment step filename data)
-  (let ((result  (upload-submission (class-name) uid assignment step filename data))
-        (start-url (hash-ref (ct-session-table session) 'start-url)))
+  (let ((result  (upload-submission (class-name) uid assignment step filename data)))
     (cond [(Success? result) 
            ;; We have uploaded the file successfully, we now have a browser and a confirm submission button
            `(html
              (title "Captain Teach - Submission Uploaded")
              (body
               (p "Submission uploaded successfully. " (b "Note:") " Your submission has not yet been published.")
-              ;; FIXME this is very fragile, depends on knowing how many "ups" are in start-url. unneccessary. Vulnerability.
-              (p (a ((href ,(string-append  start-url "../../../next/" assignment "/"))) "View Submission"))))]
+              (p ,(cta `((href ,(ct-url-path session "next" assignment)))
+                       "View Submission"))))]
           [(Failure? result)
            (let ((message (Failure-message result)))
              `(html
                (title "Captain Teach - Submission Failed")
                (body
                 (p ,message)
-                (p (a ((href ,(string-append start-url "../../../next/" assignment "/")))
-                      "Back")))))])))
+                (p ,(cta `((href ,(ct-url-path session "next" assignment)))
+                       "Back")))))])))
 
 ;; publishes an existing submission
 (define (handle-publish session uid assignment step)

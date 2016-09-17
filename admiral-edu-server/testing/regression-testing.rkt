@@ -371,8 +371,7 @@ u must add a summative comment at the end.
                                       #"oh.... \n two lines!\n")))
                   #t)
        (200 ,(has-anchor-links
-              ;; FIXME YUCKY URL
-              '("/test-class/submit/test-with-html/tests/../../../next/test-with-html/"))))
+              '("/test-class/next/test-with-html/"))))
       ((,stu1 ("next" "test-with-html"))
        (200 ,no-italics)
        assignment-description-xss-2) ;; 31
@@ -384,7 +383,7 @@ u must add a summative comment at the end.
                   #t)
        (200 ,(has-anchor-links
               ;; FIXME YUCKY URL
-              '("/test-class/submit/test-with-html/tests/../../../next/test-with-html/"))))
+              '("/test-class/next/test-with-html/"))))
       ;; re-submit with different file name
       ((,stu1 ("submit" "test-with-html" "tests")
               (multipart
@@ -395,8 +394,7 @@ u must add a summative comment at the end.
               #t)
        (200
         ,(has-anchor-links
-          ;; FIXME YUCKY URL
-          '("/test-class/submit/test-with-html/tests/../../../next/test-with-html/")))
+          '("/test-class/next/test-with-html/")))
        stu1-resubmits)
       ((,stu1 ("next" "test-with-html"))
        200
@@ -451,8 +449,7 @@ u must add a summative comment at the end.
                  #"file" #"a-third-file" () #"zzz\n\nzzz\nzzz\n")))
               #t)
        (200 ,(has-anchor-links
-              ;; FIXME yucky url
-              '("/test-class/submit/test-with-html/tests/../../../next/test-with-html/")))
+              '("/test-class/next/test-with-html/")))
        stu2-submits)
       ;; can stu2 read stu1's file? No. Good.
       ((,stu2 ("browse" "test-with-html" "tests" "my-diff? erent-file"))
