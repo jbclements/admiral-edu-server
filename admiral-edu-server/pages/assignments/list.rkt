@@ -13,6 +13,9 @@
          "../../paths.rkt"
          (prefix-in action: "action.rkt"))
 
+(require/typed "../templates.rkt"
+               [plain-page (String (Listof XExpr) -> Response)])
+
 (provide load)
 (: load (->* (ct-session (Listof String) (U XExpr #f)) (Boolean) Response))
 (define (load session url message [post #f])
@@ -26,7 +29,8 @@
                  (closed-assignments (filter (lambda: ([x : assignment:Record]) (not (assignment:Record-open x))) assign-list))
                  [open-xexpr : XExpr (cons 'ul (map (record->html session) open-assignments))]
                  [closed-xexpr : XExpr (cons 'ul (map (record->html session) closed-assignments))])
-           (xexprs->response
+           (plain-page
+            "Assignments"
             `((h1 "Assignments")
               ,(if message message "")
               (p () ,(cta `((href ,(ct-url-path session "author"))) "New Assignment"))
