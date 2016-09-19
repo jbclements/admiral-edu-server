@@ -216,7 +216,6 @@
 
 (module+ test
   (require rackunit
-           html-parsing
            (prefix-in roles: "../database/mysql/roles.rkt"))
 
   (define session (ct-session "classabcd"

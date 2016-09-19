@@ -542,7 +542,7 @@
   (check-equal? (basic-ct-id? "abc d-3hth") #f)
   (check-equal? (basic-ct-id? "") #f)
 
-  (require "testing/test-configuration.rkt")
+  (require "tests/test-configuration.rkt")
 
   (parameterize ([current-configuration
                   (modified-test-conf

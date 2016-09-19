@@ -267,7 +267,7 @@
 (module+ test
   (require rackunit
            racket/promise
-           "testing/test-configuration.rkt")
+           "tests/test-configuration.rkt")
 
   (current-configuration test-conf)
 

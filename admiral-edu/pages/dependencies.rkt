@@ -219,7 +219,7 @@
 
 (module+ test
   (require rackunit
-           "../testing/test-configuration.rkt")
+           "../tests/test-configuration.rkt")
   (current-configuration test-conf)
 
   (define session
