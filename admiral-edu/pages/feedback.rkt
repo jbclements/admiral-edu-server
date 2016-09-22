@@ -216,7 +216,8 @@
          (stepName (review:Record-step-id review))
          (reviewee (review:Record-reviewee-id review))
          ;; FIXME is this going to work with subdirectories?
-         [load-url (string-append "'" start-url "load" "'")]
+         ;; FIXME go to ct-paths
+         [load-url (string-append start-url "load")]
          [step (to-step-link stepName (- (length rest) 1))]
          [path (to-path-html rest)]
          (file (to-path rest))

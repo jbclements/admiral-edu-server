@@ -44,6 +44,11 @@
 (define (urlgen url)
   (cond
     [(string? url)
+     (when (regexp-match? #px"^['\"]" url)
+       (raise-argument-error
+        'urlgen
+        "ct-path or string not starting with quote"
+        0 url))
      (string-append "\"" url "\"")]
     [(url-path? url)
      (string-append "\"" (url-path->url-string url) "\"")]))

@@ -35,7 +35,7 @@
   (match rest
     [(or (list)
          (list-rest "new" _))
-     (authoring-page (class-name) "'validate'" '() '())]
+     (authoring-page (class-name) "validate" '() '())]
     [(list-rest "edit" tail)
      (edit tail warning-message)]
     [other (raise-404-not-found)]))
@@ -50,7 +50,7 @@
   (define contents (list
                     (retrieve-assignment-description
                      (class-name) assignment-id)))
-  (authoring-page (class-name) "'validate-save'" contents message))
+  (authoring-page (class-name) "validate-save" contents message))
 
 
 ;; ensure the assignment is valid, add or overwrite, indicate

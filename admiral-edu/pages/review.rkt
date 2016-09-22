@@ -224,8 +224,9 @@
          [assignment (review:Record-assignment-id review)]
          (stepName (review:Record-step-id review))
          (reviewee (review:Record-reviewee-id review))
-         [save-url (string-append "'" start-url "save'")]
-         [load-url (string-append "'" start-url "load'")]
+         ;; FIXME use ct-paths instead
+         [save-url (string-append start-url "save")]
+         [load-url (string-append start-url "load")]
          [step (to-step-link stepName (- (length path) 1))]
          [path (to-path-html path)]
          [ct-path (apply rel-ct-path path)]
