@@ -118,7 +118,7 @@
                 (p "Try returning to "
                    ;; I'm giving this string-append a pass:
                    (a ((href ,(string-append "https://"
-                                             (sub-domain) (server-name) "/" (class-name))))
+                                             (sub-domain) (server-name) "/" (class-name) "/")))
                       "Class Home")
                    " and trying again."))
               (exn:user-error-code exn)
