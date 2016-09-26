@@ -147,6 +147,7 @@
          basic-ct-id?
          rel-ct-path
          ct-url-path
+         ct-url-path-/
          ct-path-/
          ct-path-join
          ct-path->url-path
@@ -413,6 +414,12 @@
 (define (ct-url-path session . path-elts)
   (ct-path->url-path session (apply rel-ct-path path-elts)))
 
+;; given a session and a list of strings, construct a url-path ending
+;; with a slash
+(: ct-url-path-/ (ct-session String * -> Ct-Path))
+(define (ct-url-path-/ session . path-elts)
+  (ct-path-/ (apply ct-url-path session path-elts)))
+
 ;; given a relative ct-path, generate a url string for use in
 ;; an email
 (: ct-path->emailable-url (Ct-Path -> String))
@@ -521,6 +528,20 @@
                                                     (hash))
                                    (Ct-Path (list "a" "b") #f #f))
                 (Ct-Path (list "bogusclass" "a" "b") #t #f))
+
+  (check-equal? (ct-url-path (ct-session "bogusclass"
+                                                    "user1@foo.com"
+                                                    #f
+                                                    (hash))
+                             "a" "b")
+                (Ct-Path (list "bogusclass" "a" "b") #t #f))
+
+  (check-equal? (ct-url-path-/ (ct-session "bogusclass"
+                                           "user1@foo.com"
+                                           #f
+                                           (hash))
+                               "a" "b")
+                (Ct-Path (list "bogusclass" "a" "b") #t #t))
 
   (check-equal? (only-good-chars? "") #t)
   (check-equal? (only-good-chars? "abcha###3;; 14!") #t)
