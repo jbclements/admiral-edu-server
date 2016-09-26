@@ -89,7 +89,7 @@
 
 (define (gen-submit-next session assignment msn)
   `(p "You must "
-      ,(cta `((href ,(ct-url-path session "next" assignment))) "publish a submission")
+      ,(cta `((href ,(ct-url-path-/ session "next" assignment))) "publish a submission")
       " for the next step: '" ,(Step-id (MustSubmitNext-step msn)) "'."))
   
 
@@ -152,7 +152,7 @@
     (let ((assignment-id (submission:Record-assignment record))
           (step-id (submission:Record-step record)))
       ;; FIXME paths
-    `(li ,(cta `((href ,(ct-url-path session "browse" assignment-id step-id)))
+    `(li ,(cta `((href ,(ct-url-path-/ session "browse" assignment-id step-id)))
                step-id)))))
 
 (define (gen-reviews reviews start-url) (gen-reviews-helper reviews 1 start-url))
@@ -226,10 +226,10 @@
                                           (apply rel-ct-path rest))))
     (define is-dir (is-directory? (ct-path->path file-path)))
     (define (link-maker path)
-      (ct-path-join (ct-url-path session "feedback" "file-container" r-hash)
+      (ct-path-join (ct-url-path-/ session "feedback" "file-container" r-hash)
                     path))
     (define (download-link-maker path)
-      (ct-path-join (ct-url-path session "download" r-hash)
+      (ct-path-join (ct-url-path-/ session "download" r-hash)
                     path))
     (cond [is-dir
            (define contents (render-directory link-maker download-link-maker file-path #:show-download #f))

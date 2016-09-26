@@ -31,7 +31,7 @@
     (raise-assignment-not-found assignment-id))
   (define deps (assign:assignment-id->assignment-dependencies assignment-id))
   (define assignment-link
-    (ct-url-path session "assignments"))
+    (ct-url-path-/ session "assignments"))
   (define header `(a ((href ,(url-path->url-string assignment-link)))
                      "Assignments"))
   (define body (assignment-dependencies-body session assignment-id
@@ -42,10 +42,10 @@
 (define (assignment-dependencies-body session assignment-id message deps)
   (define dependency-list
     (map (dep->html session assignment-id) deps))
-  `((h2 ,(cta `((href ,(ct-url-path session
-                                    "assignments"
-                                    "dashboard"
-                                    assignment-id)))
+  `((h2 ,(cta `((href ,(ct-url-path-/ session
+                                      "assignments"
+                                      "dashboard"
+                                      assignment-id)))
            assignment-id))
     ,@message
     (p "The links below allow you to preview each rubric "
@@ -69,10 +69,10 @@
     (form ((method "post")
            (action
             ,(url-path->url-string
-              (ct-url-path session
-                           "dependencies"
-                           assignment-id
-                           "three-study")))
+              (ct-url-path-/ session
+                             "dependencies"
+                             assignment-id
+                             "three-study")))
            (enctype "multipart/form-data"))
           (input ((type "file")
                   (name "three-condition-file")))
@@ -90,8 +90,8 @@
                           '()))
                 (dependency-link
                  `(a ((href ,(url-path->url-string
-                              (ct-url-path session "dependencies"
-                                           assignment-id sid rid))))
+                              (ct-url-path-/ session "dependencies"
+                                             assignment-id sid rid))))
                      ,sid ":" ,rid ,@inst))
                 (ready (if (assign:dependency-met dep)
                            " - Ready"
@@ -102,8 +102,8 @@
                            " - Ready"
                            " - Dependency Missing"))
          `(li (a ((href ,(url-path->url-string
-                          (ct-url-path session "dependencies" assignment-id
-                                       "three-study"))))
+                          (ct-url-path-/ session "dependencies" assignment-id
+                                         "three-study"))))
                  "Three Study Configuration File" ,ready))]
         [else (raise "Unknown dependency")]))
 
@@ -115,7 +115,7 @@
 (define (dependencies-form session assignment step review-id rest)
   (define dep (car (assign:find-dependencies assignment step review-id)))
   (define load-url
-    (apply ct-url-path session "dependencies" (append rest '("load"))))
+    (apply ct-url-path-/ session "dependencies" (append rest '("load"))))
   (define dependency-form
     (generate-dependency-form session assignment step review-id))
   (dependencies-page load-url dependency-form))
@@ -186,7 +186,7 @@
          (instructor-solution (assign:instructor-solution-dependency? dep)))
     (define action-url
       (url-path->url-string
-       (ct-url-path session "dependencies" assignment-id step-id review-id "upload")))
+       (ct-url-path-/ session "dependencies" assignment-id step-id review-id "upload")))
     `((p "Assignment id:" ,assignment-id)
       (p "Submission Step id:" ,step-id)
       (p "Review id:" ,review-id)
@@ -231,7 +231,7 @@
                             "ass-1234")
    '((p "You are uploading the 3 condition study yaml file.")
      (form ((method "post")
-            (action "/test-class/dependencies/ass-1234/three-study")
+            (action "/test-class/dependencies/ass-1234/three-study/")
             (enctype "multipart/form-data"))
            (input ((type "file")
                    (name "three-condition-file")))
@@ -240,21 +240,21 @@
   ;; REGRESSION TEST
   (check-equal?
    ((dep->html session "ass-id") (assign:review-dependency #f "abc" "def"))
-   '(li (a ((href "/test-class/dependencies/ass-id/abc/def"))
+   '(li (a ((href "/test-class/dependencies/ass-id/abc/def/"))
            "abc" ":" "def")
         " - Dependencies Missing"))
 
   ;; REGRESSION TEST
   (check-equal?
    ((dep->html session "ass-id") (assign:review-dependency #t "abc" "def"))
-   '(li (a ((href "/test-class/dependencies/ass-id/abc/def"))
+   '(li (a ((href "/test-class/dependencies/ass-id/abc/def/"))
            "abc" ":" "def")
         " - Ready"))
 
   ;; REGRESSION TEST
   (check-equal?
    ((dep->html session "ass-id") (assign:instructor-solution-dependency #f "abc" "def"))
-   '(li (a ((href "/test-class/dependencies/ass-id/abc/def"))
+   '(li (a ((href "/test-class/dependencies/ass-id/abc/def/"))
            "abc" ":" "def"
            " - "
            (b "Instructor Solution"))
@@ -265,7 +265,7 @@
   (check-equal?
    ((dep->html session "ass-id")
     (assign:three-study-config-dependency #f))
-   '(li (a ((href "/test-class/dependencies/ass-id/three-study"))
+   '(li (a ((href "/test-class/dependencies/ass-id/three-study/"))
            "Three Study Configuration File"
            " - Dependency Missing")))
 
@@ -275,17 +275,17 @@
     session "ass-id" '((p "the message"))
     (list (assign:instructor-solution-dependency #f "abc" "def")
           (assign:review-dependency #t "ghi" "jkl")))
-   '((h2 (a ((href "/test-class/assignments/dashboard/ass-id"))
+   '((h2 (a ((href "/test-class/assignments/dashboard/ass-id/"))
             "ass-id"))
      (p "the message")
      (p
       "The links below allow you to preview each rubric "
       "and upload file dependencies.")
-     (ul (li (a ((href "/test-class/dependencies/ass-id/abc/def"))
+     (ul (li (a ((href "/test-class/dependencies/ass-id/abc/def/"))
                 "abc" ":" "def"
                 " - "
                 (b "Instructor Solution"))
              " - Dependencies Missing")
-         (li (a ((href "/test-class/dependencies/ass-id/ghi/jkl"))
+         (li (a ((href "/test-class/dependencies/ass-id/ghi/jkl/"))
                 "ghi" ":" "jkl")
              " - Ready")))))

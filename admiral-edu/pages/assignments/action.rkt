@@ -1,7 +1,7 @@
-
 #lang typed/racket/base
 
-(require "../../configuration.rkt"
+(require racket/match
+         "../../configuration.rkt"
          "../typed-xml.rkt"
          "../../ct-session.rkt"
          "../../paths.rkt"
@@ -16,9 +16,15 @@
 ;; given a session, a list of path elements, and a body, return
 ;; an <a> xexpr containing the given body with an href of
 ;; the corresponding path elements
-(: build-xexpr-anchor (ct-session (Listof String) XExpr -> XExpr))
-(define (build-xexpr-anchor session path-elts body-xexpr)
-  (cta `((href ,(apply ct-url-path session path-elts)))
+(: build-xexpr-anchor (ct-session (U (Pair 'noslash (Listof String)) (Listof String)) XExpr -> XExpr))
+(define (build-xexpr-anchor session path-elts-spec body-xexpr)
+  (define url-path
+    (match path-elts-spec
+      [(list 'noslash path-elts ...)
+       (apply ct-url-path session path-elts)]
+      [(list path-elts ...)
+       (apply ct-url-path-/ session (cast path-elts (Listof String)))]))
+  (cta `((href ,url-path))
        body-xexpr))
 
 ;; a macro to shorten the three-step process of specifying a link-maker
@@ -60,7 +66,7 @@
 
 (link-maker dependencies [assignment-id] (list "dependencies" assignment-id))
 (link-maker edit [assignment-id] (list "author" "edit" assignment-id))
-(link-maker export [assignment-id] (list "export" assignment-id (string-append assignment-id ".zip")))
+(link-maker export [assignment-id] (list 'noslash "export" assignment-id (string-append assignment-id ".zip")))
 
 (provide STATUS)
 (define STATUS "status")
@@ -77,5 +83,5 @@
 
   (define test-session (ct-session "test-class" "bob@example.com" #f (hash)))
   (check-equal? (dashboard test-session "test-assignment%" `(p "yay"))
-                `(a ((href "/test-class/assignments/dashboard/test-assignment%25"))
+                `(a ((href "/test-class/assignments/dashboard/test-assignment%25/"))
                     (p "yay"))))

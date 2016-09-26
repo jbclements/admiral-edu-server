@@ -52,7 +52,7 @@
              (title "Captain Teach - Submission Uploaded")
              (body
               (p "Submission uploaded successfully. " (b "Note:") " Your submission has not yet been published.")
-              (p ,(cta `((href ,(ct-url-path session "next" assignment)))
+              (p ,(cta `((href ,(ct-url-path-/ session "next" assignment)))
                        "View Submission"))))]
           [(Failure? result)
            (let ((message (Failure-message result)))
@@ -60,7 +60,7 @@
                (title "Captain Teach - Submission Failed")
                (body
                 (p ,message)
-                (p ,(cta `((href ,(ct-url-path session "next" assignment)))
+                (p ,(cta `((href ,(ct-url-path-/ session "next" assignment)))
                        "Back")))))])))
 
 ;; publishes an existing submission

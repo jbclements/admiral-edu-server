@@ -24,16 +24,17 @@
          ;; is this an internal error?
          (error-xexprs->400-response '((h2 "No such class found.")))]
         [records
-         (let*: ((assign-list (cast records (Listof assignment:Record)))
-                 (open-assignments (filter assignment:Record-open assign-list))
-                 (closed-assignments (filter (lambda: ([x : assignment:Record]) (not (assignment:Record-open x))) assign-list))
-                 [open-xexpr : XExpr (cons 'ul (map (record->html session) open-assignments))]
-                 [closed-xexpr : XExpr (cons 'ul (map (record->html session) closed-assignments))])
+         (let*:
+             ((assign-list (cast records (Listof assignment:Record)))
+              (open-assignments (filter assignment:Record-open assign-list))
+              (closed-assignments (filter (lambda: ([x : assignment:Record]) (not (assignment:Record-open x))) assign-list))
+              [open-xexpr : XExpr (cons 'ul (map (record->html session) open-assignments))]
+              [closed-xexpr : XExpr (cons 'ul (map (record->html session) closed-assignments))])
            (plain-page
             "Assignments"
             `((h1 "Assignments")
               ,(if message message "")
-              (p () ,(cta `((href ,(ct-url-path session "author"))) "New Assignment"))
+              (p () ,(cta `((href ,(ct-url-path-/ session "author"))) "New Assignment"))
               (h2 "Open Assignments")
               ,open-xexpr
               (h2 "Closed Assignments")

@@ -39,7 +39,7 @@
 (define (open-assignment-element session)
   (lambda (record)
     (let ((assignment-id (assignment:Record-id record)))
-      `(li ,(cta `((href ,(ct-url-path session "feedback" assignment-id)))
+      `(li ,(cta `((href ,(ct-url-path-/ session "feedback" assignment-id)))
                     assignment-id)))))
 
 
