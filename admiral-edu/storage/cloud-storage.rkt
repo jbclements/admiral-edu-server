@@ -81,12 +81,12 @@
     (void)))
 
 ;; FIXME this will cause collisions! use uri-encoding instead...
-  ;; Conversts all spaces to underscores. This is a hack but the (put/file API
-  ;; dies when you pass in a path with a space. This bug has been reported here:
-  ;; https://github.com/greghendershott/aws/issues/35
+;; Conversts all spaces to underscores. This is a hack but the (put/file API
+;; dies when you pass in a path with a space. This bug has been reported here:
+;; https://github.com/greghendershott/aws/issues/35
   (define (clean to-clean)
     (let* ((string-list (string->list to-clean))
-           (to-safe (lambda (c) (cond [(eq? #\  c) #\_]
+           (to-safe (lambda (c) (cond [(eq? #\space c) #\_]
                                       [else c]))))
       (apply string (map to-safe string-list))))
   

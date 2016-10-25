@@ -57,6 +57,7 @@
 ;; The path to the default-rubric for the class, assignment, step-id, and review-id
 (: default-rubric-path (String String String String -> String))
 (define (default-rubric-path class assignment step-id review-id)
+  ;; FIXME STRINGS
   (string-append class "/" assignment "/reviews/" step-id "/" review-id "/rubric.json"))
 
 
@@ -226,29 +227,29 @@
 (provide upload-submission)
 (: upload-submission (String String String String String (U String Bytes) -> (Result Void)))
 (define (upload-submission class-id user-id assignment-id step-id file-name file-content)
-  (sdo
-   (if (string=? file-name "") (Failure "expected nonempty filename") success)
-   (let* ((exists (submission:exists? assignment-id class-id step-id user-id))
-          (record (if exists (submission:select assignment-id class-id step-id user-id) #f))
-          (published (if record (submission:Record-published record) #f)))
-     (cond [(not (ct-id? file-name)) (Failure (format "Invalid filename ~a" file-name))]
-           ;; Ensure the students has not finalized their submission
-           [published (Failure "Submission already exists.")]
-           [else (let ((path (submission-path/string class-id assignment-id user-id step-id)))
+  (cond
+    [(not (ct-id? file-name)) (Failure (format "Invalid filename ~a" file-name))]
+    [else
+     (let* ((exists (submission:exists? assignment-id class-id step-id user-id))
+            (record (if exists (submission:select assignment-id class-id step-id user-id) #f))
+            (published (if record (submission:Record-published record) #f)))
+       (cond ;; Ensure the students has not finalized their submission
+             [published (Failure "Submission already exists.")]
+             [else (let ((path (submission-path/string class-id assignment-id user-id step-id)))
                    
-                   ;; Delete previously uploaded files
-                   (delete-path path)
+                     ;; Delete previously uploaded files
+                     (delete-path path)
                    
-                   ;; Write to storage
-                   (cond [(or (local:is-zip? file-name)
-                              (local:is-tar? file-name)) (do-unarchive-solution class-id user-id assignment-id step-id file-name file-content)]
-                         [else (do-single-file-solution class-id user-id assignment-id step-id file-name file-content)])
+                     ;; Write to storage
+                     (cond [(or (local:is-zip? file-name)
+                                (local:is-tar? file-name)) (do-unarchive-solution class-id user-id assignment-id step-id file-name file-content)]
+                           [else (do-single-file-solution class-id user-id assignment-id step-id file-name file-content)])
                    
-                   ;; Create / update record
-                   (when (not exists) (submission:create assignment-id class-id step-id user-id))
-                   (submission:unpublish assignment-id class-id step-id user-id)
-                   (submission:update-timestamp assignment-id class-id step-id user-id)
-                   (Success (void)))]))))
+                     ;; Create / update record
+                     (when (not exists) (submission:create assignment-id class-id step-id user-id))
+                     (submission:unpublish assignment-id class-id step-id user-id)
+                     (submission:update-timestamp assignment-id class-id step-id user-id)
+                     (Success (void)))]))]))
 
 
 (: do-unarchive-solution (String String String String String (U String Bytes) -> (Result Void)))
@@ -320,6 +321,7 @@
          (review-id (review:Record-review-id review))
          (reviewer (review:Record-reviewer-id review))
          (reviewee (review:Record-reviewee-id review)))
+    ;; FIXME STRINGS
     (string-append class "/" assignment "/reviews/" step "/" review-id "/" reviewer "/" reviewee "/")))
 
 

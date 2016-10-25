@@ -39,7 +39,8 @@
 ;; as your path elements don't include slashes or whitespace,
 ;; you're on pretty solid ground, EXCEPT that the ids "." and
 ;; ".." have special meanings for paths, so we'll just rule
-;; them out.
+;; them out. Erm, except that paths that end with a space are
+;; probably a bad idea. those are out.
 
 ;; second, as S3 paths. Here again I think we're fine, because
 ;; S3 paths are (AFAICT) just strings. So, staying away from
@@ -96,8 +97,11 @@
 ;; begin with, you're fine.
 
 ;; we also define a ct-basic-id?, which is basically just
-;; a-z,A-Z,0-9, and hyphens. These are pretty safe to put in
-;; URLs anywhere, without worrying about encoding
+;; a-z,A-Z,0-9, hyphens, and underscores. These are pretty safe to put in
+;; URLs anywhere, without worrying about encoding.
+
+;; FIXME: are these (ct-id's) safely encoded in DB conversion?
+;; specifically: are hyphens and underscores both mapped to underscores?
 
 ;; OKAY
 

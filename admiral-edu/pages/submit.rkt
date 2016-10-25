@@ -31,7 +31,7 @@
           ;; submit a file:
           [else
            (let* ((data (extract-binding/single 'file bindings))
-                  ;; FIXME won't work correctly until DrRacket does RFC6266 parsing.
+                  ;; FIXME won't work correctly until DrRacket does RFC2388 Content-Disposition parsing.
                   (filename (bytes->string/utf-8 (binding:file-filename (car raw-bindings)))))
              (if (check-okay-to-submit uid assignment step)
                  (preview-upload session uid assignment step filename data)
