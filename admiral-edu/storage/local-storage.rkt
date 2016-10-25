@@ -4,7 +4,8 @@
          racket/string
          racket/list
          racket/system
-         "../configuration.rkt")
+         "../configuration.rkt"
+         "../paths.rkt")
 
 (require/typed racket/file
                [make-parent-directory* (Path-String -> Void)])
@@ -15,8 +16,6 @@
 
 ;; FIXME using Ct-Paths here to represent the relative paths could potentially
 ;; avoid some nasty bugs.
-
-;;TODO: Once everything is typed, we should replace almost all instances of Path-String with Path
 
 ; (path -> string?)
 (provide retrieve-file)
@@ -99,12 +98,12 @@
 (provide unarchive)
 (: unarchive (Path-String Path-String -> Boolean))
 (define (unarchive tgt-path archive-path)
-  (define tgt-path-str (path-string->string (build-path
-                                             (local-storage-path)
-                                             tgt-path)))
-  (define archive-path-str (path-string->string (build-path
-                                                 (local-storage-path)
-                                                 archive-path)))
+  (define tgt-path-str (path->string (build-path
+                                      (local-storage-path)
+                                      tgt-path)))
+  (define archive-path-str (path->string (build-path
+                                          (local-storage-path)
+                                          archive-path)))
   (cond [(is-zip? archive-path)
          (system* (unzip-binary)
                   archive-path-str

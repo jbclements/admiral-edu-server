@@ -271,10 +271,11 @@
     (let* ((file-names (local:list-sub-files temp-dir))
            ;; FIXME terrible way to do a "split-path"
            (len (string-length (path->string temp-dir)))
-           (submission-file-name (lambda: ([file-name : String]) (string-append path (substring file-name len))))
-           (handle-file (lambda: ([file-name : String]) 
+           (submission-file-name (lambda ([file-name : String])
+                                   (string-append path (substring file-name len))))
+           (handle-file (lambda ([file-name : String])
                           (let* ((s-name (submission-file-name file-name))
-                                 (data (file->bytes file-name)))
+                                 (data (retrieve-file-bytes file-name)))
                             (write-file s-name data)))))
       ;; TODO: Potentially change write-file to return success / failure
       (map handle-file file-names))
@@ -359,8 +360,7 @@
 
 
 
-;; Creates a directory tmp/some-hash
-;; FIXME not the right way to get the temp dir...
+;; Creates a directory tmp/some-hash within the local storage.
 (: get-local-temp-directory (-> Path))
 (define (get-local-temp-directory)
   (build-path "tmp" (random-hash)))

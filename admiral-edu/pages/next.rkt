@@ -48,7 +48,7 @@
          (user-id (ct-session-uid session))
          ;; FIXME remove conversion when list-files takes a ct-path
          (the-path (ct-path->path (submission-path class assignment-id user-id step-id)))
-         (publish-okay (> (length (list-files the-path)) 0)))
+         (publish-okay (> (length (list-sub-files the-path)) 0)))
     `((p "Below is your current submission to '" ,step-id "'. It has not yet "
          "been published. You may make changes until you are ready to publish.")
       (iframe ((width "800px") (height "600px") (style "border: none")
