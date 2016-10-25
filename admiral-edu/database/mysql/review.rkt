@@ -212,7 +212,7 @@
                                step-id "=? AND"
                                reviewer-id "=?"))
          (results (query-rows query class assignment step uid)) ; (Listof (Vectorof QueryResult))
-         (lists (map (cast vector->list (-> (Vectorof QueryResult) (Listof QueryResult))) results))
+         (lists (map vector->list results))
          (hashes (apply append lists)))
     (cast hashes (Listof String))))
 
@@ -292,7 +292,7 @@
 (define (select-reviews reviewee)
   (let* ((query (merge "SELECT" hash "FROM" table "WHERE" reviewee-id "=?"))
          (result (query-rows query reviewee))
-         (flat (apply append (map (cast vector->list (-> (Vectorof QueryResult) (Listof QueryResult))) result))))
+         (flat (apply append (map vector->list result))))
     (cast flat (Listof String))))
 
 (provide completed?)
