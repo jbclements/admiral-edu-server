@@ -117,7 +117,9 @@
                   tgt-path-str)]
         [else (error (format "Could not unarcharve ~a." archive-path))]))
 
-
+;; coerce a path-string to a string, converting if
+;; necessary.
+(provide path-string->string)
 (: path-string->string (Path-String -> String))
 (define (path-string->string path)
   (cond [(path? path) (path->string path)]

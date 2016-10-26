@@ -165,7 +165,7 @@
 ; (path -> (listof path))
 ; Returns all files that are at the specified path recursively adding all sub directories
 (define (list-sub-files path)
-  (ls/aws (string-append (bucket) path)))
+  (ls/aws (string-append (bucket) (local:path-string->string path))))
 
 ;; check that it's possible to ls at least before starting up
 (define (startup-check)
