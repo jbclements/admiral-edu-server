@@ -114,7 +114,8 @@
 
 ;; given post bytes representing YAML for a new assignment
 ;; and whether this is a create or save (overwrite),
-;; parse and save the assignment.
+;; parse and save the assignment, adding it first
+;; to the database and then saving its description file.
 (: yaml-bytes->create-or-save-assignment (Bytes Boolean -> (Result Void)))
 (define (yaml-bytes->create-or-save-assignment bytes create?)
   (let ((yaml-string (bytes->string/utf-8 bytes)))
@@ -177,10 +178,13 @@
 
 (: next-step (String String -> (U MustReviewNext MustSubmitNext #t)))
 (define (next-step assignment-id uid)
-  (let* ((assignment (yaml->assignment (string->assignment-yaml (retrieve-assignment-description (class-name) assignment-id))))
-         (handler (Assignment-assignment-handler assignment))
-         (next-action (AssignmentHandler-next-action handler)))
-    (next-action assignment (Assignment-steps assignment) uid)))
+  (define assignment
+    (yaml->assignment
+     (string->assignment-yaml
+      (retrieve-assignment-description (class-name) assignment-id))))
+  (define handler (Assignment-assignment-handler assignment))
+  (define next-action (AssignmentHandler-next-action handler))
+  (next-action assignment (Assignment-steps assignment) uid))
 
 
 ;; FIXME does two different things? Confusing.

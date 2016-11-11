@@ -93,6 +93,7 @@
 
 ;; class-id -> assignment-id -> string
 ;; Given the class and assignment, retrieves the stored assignment description
+;; signals an exception if the file doesn't exist
 (provide retrieve-assignment-description)
 (: retrieve-assignment-description (String String -> String))
 (define (retrieve-assignment-description class assignment)

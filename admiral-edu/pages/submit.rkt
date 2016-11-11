@@ -33,6 +33,8 @@
            (let* ((data (extract-binding/single 'file bindings))
                   ;; FIXME won't work correctly until DrRacket does RFC2388 Content-Disposition parsing.
                   (filename (bytes->string/utf-8 (binding:file-filename (car raw-bindings)))))
+             (unless (assignment:exists? assignment (class-name))
+               (raise-404-not-found (format "assignment ~e not found for class" assignment)))
              (if (check-okay-to-submit uid assignment step)
                  (preview-upload session uid assignment step filename data)
                  (raise-400-bad-request "Could not submit to the specified step.")))])))
