@@ -27,8 +27,6 @@
 
 
 
-;; yikes... opens new connection for every query?
-
 (define (connect)
   (mysql-connect #:user (db-user-name)
                  #:database (db-name)

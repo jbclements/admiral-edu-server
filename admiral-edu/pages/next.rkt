@@ -12,6 +12,8 @@
 (provide (contract-out
           [next (-> ct-session? ct-id? response?)]))
 (define (next session assignment-id)
+  (when (not (assignment:exists? assignment-id (class-name)))
+    (raise-404-not-found (format "unknown assignment: ~e" assignment-id)))
   (let* ((assignment-record (assignment:select (class-name) assignment-id))
          (is-open (assignment:Record-open assignment-record))
          (start-url (hash-ref (ct-session-table session) 'start-url))

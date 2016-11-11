@@ -1,6 +1,7 @@
 #lang typed/racket/base
 
-(require "typed-db.rkt"
+(require racket/match
+         "typed-db.rkt"
          (prefix-in class: "class.rkt"))
 
 ;; Assignment Table
@@ -109,13 +110,17 @@
 (provide select)
 (: select (String String -> Record))
 (define (select class assignment)
-  (let* ((q (merge "SELECT" record-details
+  (define q (merge "SELECT" record-details
                    "FROM" table
                    "WHERE" class-id "=? AND"
-                           assignment-id "=?"
-                   "LIMIT 1"))
-         (result (cast (query-row q class assignment) Vector-Record)))
-    (row->Record result)))
+                   assignment-id "=?"))
+  (match (query-rows q class assignment)
+    ['() (error 'select "expected existing class and assignment, got: ~e, ~e"
+                class assignment)]
+    [(list m) (row->Record (cast m Vector-Record))]
+    ;; internal error: primary key should prevent this
+    [other (error 'select "internal error: duplicate assignment record for pair: ~e, ~e"
+                  class assignment)]))
 
 
 (provide list)
