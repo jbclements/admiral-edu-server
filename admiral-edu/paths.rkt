@@ -154,6 +154,7 @@
          ct-url-path-/
          ct-path-/
          ct-path-join
+         ct-path-join*
          ct-path->url-path
          url-path?
          url-path->url-string
@@ -262,6 +263,13 @@
   (Ct-Path (append (Ct-Path-elts a) (Ct-Path-elts b))
            (Ct-Path-abs? a)
            (Ct-Path-trailing-slash? b)))
+
+(: ct-path-join* (Ct-Path Ct-Path * -> Ct-Path))
+(define (ct-path-join* path . paths)
+  (cond [(null? paths) path]
+        [else (apply ct-path-join*
+                     (ct-path-join path (car paths))
+                     (cdr paths))]))
 
 ;; given a ct-session and a relative path, prepend
 ;; an absolute path based on the session to the relative
@@ -473,6 +481,11 @@
   (check-equal? (ct-path-join (Ct-Path (list "a" "b") #f #f)
                               (Ct-Path (list "a1" "b2") #f #t))
                 (Ct-Path (list "a" "b" "a1" "b2") #f #t))
+
+  (check-equal? (ct-path-join* (Ct-Path (list "a" "b") #f #f)
+                               (Ct-Path (list "zz") #f #f)
+                               (Ct-Path (list "a1" "b2") #f #t))
+                (Ct-Path (list "a" "b" "zz" "a1" "b2") #f #t))
 
   (check-equal? (ct-path->path (Ct-Path (list "b" "ohu:t") #f #f))
                 (build-path "b" "ohu:t"))
