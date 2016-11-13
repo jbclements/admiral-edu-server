@@ -228,24 +228,26 @@
          [save-url (string-append start-url "save")]
          [load-url (string-append start-url "load")]
          [step (to-step-link stepName (- (length path) 1))]
-         [path (to-path-html path)]
+         [path-xexprs (to-path-html path)]
          [ct-path (apply rel-ct-path path)]
          (test-prime (newline)))
     (define file-path
       (submission-file-path class assignment reviewee stepName ct-path))
     (define (link-maker path)
-      (ct-path-join (ct-url-path session "file-container" r-hash)
-                    path))
+      (ct-path-join* (ct-url-path session "file-container" r-hash)
+                     ct-path
+                     path))
     (define (download-link-maker path)
-      (ct-path-join (ct-url-path session "download" r-hash)
-                    path))
+      (ct-path-join* (ct-url-path session "download" r-hash)
+                     ct-path
+                     path))
     ;; FIXME eliminate conversion when unnecessary
     (match (path-info (ct-path->path file-path))
       ['directory
        (define contents (render-directory link-maker download-link-maker
                                           file-path))
        (define maybe-file-url #f)
-       (file-container-page "" save-url load-url assignment step path contents
+       (file-container-page "" save-url load-url assignment step path-xexprs contents
                             maybe-file-url)]
       ['file
        (when (null? path)
@@ -254,7 +256,7 @@
        (define contents render-file)
        (define maybe-file-url
          (download-link-maker ct-path))
-       (file-container-page default-mode save-url load-url assignment step path contents
+       (file-container-page default-mode save-url load-url assignment step path-xexprs contents
                             maybe-file-url)]
       ['does-not-exist
        (raise-403-not-authorized)])))
