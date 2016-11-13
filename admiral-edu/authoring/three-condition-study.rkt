@@ -1,5 +1,6 @@
 #lang typed/racket/base
 
+;; FIXME subtle bugs possible from using extract-binding/single (cf manual)
 (require/typed web-server/http/bindings
                [extract-binding/single (Symbol (Listof (Pairof Symbol (U String Bytes))) -> (U String Bytes))])
 
@@ -20,7 +21,8 @@
 ;; assignment-id -> uid -> group
 (: lookup-group (String String -> (U 'does-reviews 'gets-reviewed 'no-reviews)))
 (define (lookup-group assignment-id uid)
-  (let* ((yaml-string (retrieve-file (dependency-file-name assignment-id)))
+  (let* ((yaml-string (bytes->string/utf-8
+                       (retrieve-file-bytes (dependency-file-name assignment-id))))
          (yaml (string->yaml yaml-string))
          (does-reviews (cast (hash-ref yaml "does-reviews") (Listof String)))
          (gets-reviewed (cast (hash-ref yaml "gets-reviewed") (Listof String)))
@@ -32,7 +34,9 @@
 
 (: in-group (String String String -> Boolean))
 (define (in-group assignment-id uid group)
-  (let* ((yaml-string (retrieve-file (dependency-file-name assignment-id)))
+  (let* ((yaml-string (bytes->string/utf-8
+                       (retrieve-file-bytes
+                        (dependency-file-name assignment-id))))
          (yaml (string->yaml yaml-string))
          (group-members (cast (hash-ref yaml group) (Listof String))))
     (not (false? (member uid group-members)))))
@@ -254,7 +258,8 @@
 
 (: gets-reviewed-list (String String -> (Listof String)))
 (define (gets-reviewed-list assignment-id step-id)
-  (let* ((yaml-string (retrieve-file (dependency-file-name assignment-id)))
+  (let* ((yaml-string (bytes->string/utf-8
+                       (retrieve-file-bytes (dependency-file-name assignment-id))))
          (yaml (string->yaml yaml-string))
          (gets-reviewed (cast (hash-ref yaml "gets-reviewed") (Listof String))))
     gets-reviewed))
@@ -323,9 +328,11 @@
 
 (: take-config (String (Listof (Pairof Symbol (U Bytes String))) (Listof Any) -> (Result String)))
 (define (take-config assignment-id bindings raw-bindings)
-  (let* ((data (extract-binding/single 'three-condition-file bindings)))
-    (write-file (dependency-file-name assignment-id) data)
-    (Success "Configuration uploaded.")))
+  (define data (extract-binding/single 'three-condition-file bindings))
+  (define data-bytes (cond [(bytes? data) data]
+                           [else (string->bytes/utf-8 data)]))
+  (write-file (dependency-file-name assignment-id) data-bytes)
+  (Success "Configuration uploaded."))
 
 
 (provide three-condition-study-handler)
