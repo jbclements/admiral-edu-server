@@ -10,7 +10,7 @@
 (require/typed aws/s3
                [s3-host (Parameterof String)]
                [ls (String -> (Listof String))]
-               [put/file (String Path-String -> Void)]
+               [put/file (String Path-String -> Any)]
                [get/file (String Path-String -> Void)]
                [delete (String -> String)])
 
@@ -42,7 +42,7 @@
 
 (: ls/aws (String -> (Listof String)))
 (define (ls/aws path) (run-with-aws-parameters (ls path)))
-(: put/file/aws (String Path-String -> Void))
+(: put/file/aws (String Path-String -> Any))
 (define (put/file/aws a b) (run-with-aws-parameters (put/file a b)))
 (: get/file/aws (String Path-String -> Void))
 (define (get/file/aws a b) (run-with-aws-parameters (get/file a b)))
