@@ -3,10 +3,8 @@
 (require "database/mysql.rkt"
          "configuration.rkt"
          "ct-session.rkt"
-         "util/basic-types.rkt")
-
-(require/typed "storage/storage-basic.rkt"
-               [startup-check (-> Void)])
+         "util/basic-types.rkt"
+         (only-in "storage/storage-basic-tr.rkt" startup-check))
 
 (provide (all-from-out "configuration.rkt"))
 (provide (all-from-out "database/mysql.rkt"))

@@ -35,7 +35,7 @@
 ; Given a path and the contents to a file, writes that file (overwriting any existing file).
 ; Writes the local file (overwriting if necessary). Then, pushes the local file to the cloud.
 (provide write-file)
-(: write-file (Path-String Any -> Void))
+(: write-file (Path-String Bytes -> Void))
 (define (write-file path contents)
   (define local-path (build-path (local-storage-path) path))
   (make-parent-directory* local-path)

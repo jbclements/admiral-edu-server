@@ -7,27 +7,12 @@
          "../util/basic-types.rkt"
          "../database/mysql.rkt"
          (prefix-in local: "local-storage.rkt")
-         "../paths.rkt")
-
-;; These are our file-system-sig types
-;; FIXME converting path inputs from String to Path-String
-;; as needed. The work is generally in cloud-storage,
-;; where they're assumed to be strings.
-(require/typed "storage-basic.rkt"
-               [retrieve-file (Path-String -> String)]
-               [retrieve-file-bytes (Path-String -> Bytes)]
-               ; TODO: Revise from Any to some safe data type
-               [write-file (String Any -> Void)]
-               [delete-path (String -> Void)]
-               [path-info (Path-String -> (U 'file 'directory 'does-not-exist))]
-               [list-files (Path-String -> (Listof String))]
-               [list-dirs (String -> (Listof String))]
-               [list-sub-files (String -> (Listof String))])
+         "../paths.rkt"
+         "storage-basic-tr.rkt")
 
 ;; FIXME: pass Ct-Paths to these
 
-(provide retrieve-file 
-         retrieve-file-bytes
+(provide retrieve-file-bytes
          write-file 
          delete-path
          path-info
@@ -66,7 +51,8 @@
 (provide retrieve-default-rubric)
 (: retrieve-default-rubric (String String String String -> String))
 (define (retrieve-default-rubric class assignment step-id review-id)
-  (retrieve-file (default-rubric-path class assignment step-id review-id)))
+  (bytes->string/utf-8
+   (retrieve-file-bytes (default-rubric-path class assignment step-id review-id))))
 
 ;; class-id -> assignment-id -> step-id -> string -> review-id -> void
 ;; Given the class, assignment, step, rubric, and review-id, saves the default rubric.
@@ -74,7 +60,7 @@
 (: create-default-rubric (String String String String String -> Void))
 (define (create-default-rubric class assignment step-id rubric review-id)
   (let ((path (default-rubric-path class assignment step-id review-id)))
-    (write-file path rubric)))
+    (write-file path (string->bytes/utf-8 rubric))))
 
 
 (: assignment-description-path (String String -> String))
@@ -88,7 +74,7 @@
 (: save-assignment-description (String String String -> Void))
 (define (save-assignment-description class assignment description)
   (let ((path (assignment-description-path class assignment)))
-    (write-file path description)))
+    (write-file path (string->bytes/utf-8 description))))
 
 
 ;; class-id -> assignment-id -> string
@@ -97,7 +83,8 @@
 (provide retrieve-assignment-description)
 (: retrieve-assignment-description (String String -> String))
 (define (retrieve-assignment-description class assignment)
-    (retrieve-file (assignment-description-path class assignment)))
+    (bytes->string/utf-8
+     (retrieve-file-bytes (assignment-description-path class assignment))))
 
 
 ;; class-id -> assignment-id -> step-id -> review-id -> reviewer-id -> reviewee-id -> string
@@ -112,7 +99,7 @@
 (: save-rubric (String String String String String String String -> Void))
 (define (save-rubric class assignment step-id review-id reviewer reviewee data)
   (let ((path (rubric-path class assignment step-id review-id reviewer reviewee)))
-    (write-file path data)))
+    (write-file path (string->bytes/utf-8 data))))
 
 
 (provide retrieve-rubric)
@@ -123,9 +110,10 @@
     (when (not (eq? 'file (path-info path))) 
       (begin
         (let ((default-rubric (retrieve-default-rubric class-id assignment-id step-id review-id)))
-          (write-file path default-rubric))))
-    
-    (retrieve-file (rubric-path class-id assignment-id step-id review-id reviewer-id reviewee-id))))
+          (write-file path (string->bytes/utf-8 default-rubric)))))
+    (bytes->string/utf-8
+     (retrieve-file-bytes
+      (rubric-path class-id assignment-id step-id review-id reviewer-id reviewee-id)))))
 
 
 ;; class-id -> assignment-id -> step-id -> review-id -> reviewer-id -> reviewee-id -> file-path -> string
@@ -141,14 +129,14 @@
 (define (save-review-comments class assignment step-id review-id reviewer reviewee file-path data)
   ;; FIXME no validation of json shape
   (let ((path (review-comments-path class assignment step-id review-id reviewer reviewee file-path)))
-    (write-file path data)))
+    (write-file path (string->bytes/utf-8 data))))
 
 
 (provide load-review-comments)
 (: load-review-comments (String String String String String String String -> String))
 (define (load-review-comments class-id assignment-id step-id review-id reviewer-id reviewee-id file-path)
   (let ((path (review-comments-path class-id assignment-id step-id review-id reviewer-id reviewee-id file-path)))
-    (cond [(is-file? path) (retrieve-file path)]
+    (cond [(is-file? path) (bytes->string/utf-8 (retrieve-file-bytes path))]
           [else "{\"comments\" : {}}"])))
 
 ;; Returns the bytes of the file associated with the class, assignment, 
@@ -260,7 +248,9 @@
          (path (submission-path/string class-id assignment-id user-id step-id)))
     
     ;; Write the file out
-    (local:write-file file-path file-content)
+    (define file-bytes (cond [(bytes? file-content) file-content]
+                             [else (string->bytes/utf-8 file-content)]))
+    (local:write-file file-path file-bytes)
     
     ;; Unzip it
     (local:unarchive temp-dir file-path)
@@ -291,7 +281,9 @@
   (let ((s-path (path->string
                  (ct-path->path
                   (submission-file-path class-id assignment-id user-id step-id file-name)))))
-    (write-file s-path file-content)
+    (define content-bytes (cond [(bytes? file-content) file-content]
+                                [else (string->bytes/utf-8 file-content)]))
+    (write-file s-path content-bytes)
     (Success (void))))
 
 ;; class-id -> assignment-id -> bytes?
@@ -338,7 +330,7 @@
 (: save-review-feedback (review:Record String -> Void))
 (define (save-review-feedback review feedback)
   (let* ((path (review-feedback-path review)))
-    (write-file path feedback)))
+    (write-file path (string->bytes/utf-8 feedback))))
 
 
 ;; review -> string
@@ -347,7 +339,8 @@
 (: load-review-feedback (review:Record -> String))
 (define (load-review-feedback review)
   (let* ((path (review-feedback-path review)))
-    (cond [(is-file? path) (retrieve-file path)]
+    (cond [(is-file? path) (bytes->string/utf-8
+                            (retrieve-file-bytes path))]
           [else ""])))
 
 ;; Utility functions

@@ -93,7 +93,7 @@
 ;; rebooting into cloud mode will yield different file names (though
 ;; presumably the old FS will have been trashed anyway)
 ; Writes the local file (over writing if necessary). Then, pushes the local file to the cloud.
-(: write-file (Path-String String -> Void))
+(: write-file (Path-String Bytes -> Void))
 (define (write-file path contents)
   (let ((clean-path (clean (local:path-string->string path))))
     (local:write-file clean-path contents)

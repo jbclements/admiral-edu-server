@@ -5,8 +5,6 @@
            web-server/web-server
            "dispatch.rkt"
            "base.rkt"
-           "paths.rkt"
-           "storage/storage-basic.rkt"
            "util/config-file-reader.rkt")
 
   (define DEFAULT-CONFIG-PATH "/conf/captain-teach.config")
@@ -21,8 +19,7 @@
     (serve #:dispatch (dispatch/servlet ct-rules)
            #:port (ct-port)
            #:listen-ip #f))
-
-  (printf "57:cc:bd\n")
+  
   (printf "Server Started. Type `stop` to kill the server.\n")
   (flush-output)
 
