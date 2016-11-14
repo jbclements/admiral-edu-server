@@ -65,7 +65,7 @@
     ['file
      (define contents render-file)
      (define file-url
-       (download-link-maker ct-path))
+       (download-link-maker (rel-ct-path)))
      (browse-file-container-page assignment-id step-link path-html default-mode
                                  contents file-url)]
     ['does-not-exist

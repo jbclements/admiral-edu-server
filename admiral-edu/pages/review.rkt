@@ -255,7 +255,7 @@
        (define default-mode (determine-mode-from-filename (last path)))
        (define contents render-file)
        (define maybe-file-url
-         (download-link-maker ct-path))
+         (download-link-maker (rel-ct-path)))
        (file-container-page default-mode save-url load-url assignment step path-xexprs contents
                             maybe-file-url)]
       ['does-not-exist
