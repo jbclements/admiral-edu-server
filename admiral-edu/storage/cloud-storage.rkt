@@ -187,10 +187,9 @@
 ;; FIXME completely copied from list-files...
 (: list-path (Path-String -> (Listof String)))
 (define (list-path path)
-  (define path-str (string-append (bucket)
-                                  (local:path-string->string
-                                   path)))
-  (let* ((files (ls/aws path-str))
+  (define path-str (local:path-string->string
+                    path))
+  (let* ((files (ls/aws (string-append (bucket) path-str)))
          (split-path (string-split path-str "/"))
          (split (lambda ([x : String]) (string-split x "/")))
          (split-files (map split files))
