@@ -222,15 +222,18 @@
          [path (to-path-html rest)]
          (file (to-path rest))
          (test-prime (newline))
+         (the-ct-path (apply rel-ct-path rest))
          (file-path (submission-file-path class assignment reviewee stepName
-                                          (apply rel-ct-path rest))))
+                                          the-ct-path)))
     (define is-dir (is-directory? (ct-path->path file-path)))
     (define (link-maker path)
-      (ct-path-join (ct-url-path-/ session "feedback" "file-container" r-hash)
-                    path))
+      (ct-path-join* (ct-url-path-/ session "feedback" "file-container" r-hash)
+                     the-ct-path
+                     path))
     (define (download-link-maker path)
-      (ct-path-join (ct-url-path-/ session "download" r-hash)
-                    path))
+      (ct-path-join* (ct-url-path-/ session "download" r-hash)
+                     the-ct-path
+                     path))
     (cond [is-dir
            (define contents (render-directory link-maker download-link-maker file-path #:show-download #f))
            (feedback-file-container-page
@@ -240,7 +243,7 @@
            ;; FIXME shouldn't there be a 403 check like in review.rkt?
            (define contents render-file)
            (define file-url
-             (download-link-maker (apply rel-ct-path rest)))
+             (download-link-maker (rel-ct-path)))
            (feedback-file-container-page
             assignment step path default-mode contents load-url file-url)])))
 
